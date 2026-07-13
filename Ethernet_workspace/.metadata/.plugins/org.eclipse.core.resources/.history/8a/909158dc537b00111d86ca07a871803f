@@ -1,0 +1,74 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "ethernet.h"
+#include "ethernet_rx.h"
+#define MAX_GLCD_CHARS 20
+int status =1;
+void Delay1Sec(void) {
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) { __asm("NOP"); }
+}
+
+int main(void) {
+    bool link_status;
+    uint8_t rx_buffer[64];
+    uint32_t rx_length = 0;
+    volatile uint32_t i;
+    uint32_t j;
+
+    /* UART/Debugger safety delay */
+    for(i = 0; i < 50000; i++) { __asm("NOP"); }
+
+    PLL_Init();
+    system_Init();
+    Delay1Sec();
+
+    GLCD_Init();
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "RX BOARD: BOOTING...");
+
+    link_status = Eth_Init();
+
+    if (link_status) {
+        GLCD_RowWriteMargin(2, "Link Status: UP   ");
+    } else {
+        GLCD_RowWriteMargin(2, "Link Status: FAIL ");
+
+    }
+
+    while(1) {
+        if (link_status) {
+            /* Poll DMA memory for new packets */
+            if (EMAC_ReceivePacket(rx_buffer, &rx_length)) {
+                if (status == 1) { // Process only if status is 1
+                    char display_str[MAX_GLCD_CHARS + 1];
+
+                    // 1. Process packet and populate display_str
+                    for(j = 0; j < MAX_GLCD_CHARS; j++) {
+                        if ((14 + j) < rx_length && (rx_buffer[14 + j] >= 32 && rx_buffer[14 + j] <= 126)) {
+                            display_str[j] = (char)rx_buffer[14 + j];
+                        } else {
+                            display_str[j] = ' ';
+                        }
+                    }
+                    display_str[MAX_GLCD_CHARS] = '\0';
+                    GLCD_RowWriteMargin(4, display_str);
+
+                    // 2. Visual hold
+                    for(i = 0; i < 2000000; i++) { __asm("NOP"); }
+
+                    // 3. Clear display
+                    GLCD_RowWriteMargin(4, "                    ");
+                    GLCD_RowWriteMargin(6, "                    ");
+
+                    // 4. Reset status to allow processing the next packet
+                    status = 1;
+                }
+            }
+        }
+    }
+    }
+

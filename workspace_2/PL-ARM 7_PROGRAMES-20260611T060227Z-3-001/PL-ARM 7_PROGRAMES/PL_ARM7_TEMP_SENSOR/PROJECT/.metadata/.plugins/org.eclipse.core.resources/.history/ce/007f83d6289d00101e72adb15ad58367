@@ -1,0 +1,47 @@
+/*
+ * temp35.h
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+#ifndef TEMP35_H
+#define TEMP35_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* LM35: 10 mV/°C (0 V @ 0°C) — integer-only math (no printf) */
+
+#ifndef TEMP35_DEFAULT_VREF_MV
+#define TEMP35_DEFAULT_VREF_MV  3300u   /* 3.300 V reference */
+#endif
+#ifndef TEMP35_DEFAULT_SAMPLES
+#define TEMP35_DEFAULT_SAMPLES  8u      /* averaging for stability */
+#endif
+
+/* Init TEMP35 input (uses ADC0 CH0 on P0.23). */
+void TEMP35_Init(void);
+
+/* Raw ADC reads (0..1023). */
+uint16_t TEMP35_ReadRaw(void);
+uint16_t TEMP35_ReadRawAvg(uint8_t samples);
+
+/* Convert raw → microvolts using ADC Vref (mV). */
+uint32_t TEMP35_RawToMicroVolts(uint16_t raw, uint16_t vref_mv);
+
+/* Convert microvolts → deci-°C (°C × 10), rounded. */
+uint16_t TEMP35_uV_to_c10(uint32_t uV);
+
+/* Build exactly 21 chars for GLCD row: "TEMP = xx.x*C________" (spaces pad). */
+void TEMP35_FormatLine(char *dst21, uint16_t vref_mv, uint8_t samples);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* TEMP35_H */
+

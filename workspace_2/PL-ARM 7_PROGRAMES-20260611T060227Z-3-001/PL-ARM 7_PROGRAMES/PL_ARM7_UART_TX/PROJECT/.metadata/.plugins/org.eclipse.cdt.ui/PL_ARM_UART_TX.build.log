@@ -1,0 +1,23 @@
+16:52:00 **** Incremental Build of configuration Debug for project PL_ARM_UART_TX ****
+make -r all 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+Finished building: ../src/main.c
+ 
+Building target: PL_ARM_UART_TX.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="PL_ARM_UART_TX.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "PL_ARM_UART_TX_Debug.ld" -o "PL_ARM_UART_TX.axf"  ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/system_init.o ./src/uart.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:         528 B       512 KB      0.10%
+           Ram64:          0 GB        64 KB      0.00%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+c:/nxp/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib\libcr_c.a(__weak__main.o): In function `__main':
+__weak__main.c:(.text.__weak_main+0x4): undefined reference to `main'
+collect2.exe: error: ld returned 1 exit status
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+make: *** [PL_ARM_UART_TX.axf] Error 1
+
+16:52:01 Build Finished (took 576ms)
+

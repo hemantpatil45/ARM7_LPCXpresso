@@ -1,0 +1,13 @@
+05:24:29 **** Build of configuration Debug for project Basic_ARM7 ****
+make -r all 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+In file included from ../src/main.c:1:0:
+../src/LPC24XX.h:102:13: error: expected declaration specifiers or '...' before '*' token
+ ectCntl28  (*(volatile unsigned long *)(VIC_BASE_ADDR + 0x270))
+             ^
+make: *** [src/subdir.mk:34: src/main.o] Error 1
+
+05:24:29 Build Finished (took 66ms)
+

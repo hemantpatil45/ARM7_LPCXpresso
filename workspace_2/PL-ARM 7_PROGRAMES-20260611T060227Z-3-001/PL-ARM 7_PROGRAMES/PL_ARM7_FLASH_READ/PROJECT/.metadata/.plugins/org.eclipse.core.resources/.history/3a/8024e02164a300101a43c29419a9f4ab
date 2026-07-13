@@ -1,0 +1,108 @@
+
+#include "LPC24xx.h"
+#include "flashread.h"
+
+/* ---- We will print using your UART helpers (provided by your UART0 module) ---- */
+extern void UART0_SendChar(char c);
+extern void UART0_SendString(const char *s);
+
+/* ================= EMC register window (not in all vendor headers) ================ */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR          (0xFFE08000UL)
+#endif
+#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+/* Static Memory Bank 0 (CS0) */
+#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+/* ================= NOR helpers ================= */
+#define F16(off)               (*((volatile uint16_t *)(NOR_BASE_ADDR) + (off)))
+
+/* Basic JEDEC reset (puts device in Read mode) */
+static inline void nor_reset(void){
+    /* 0xF0 write to any address returns to Read/Reset state */
+    F16(0) = 0x00F0u;
+}
+
+/* ========= Hex print helpers (use your UART0_SendChar) ========= */
+static void uart_put_hex16(uint16_t v)
+{
+    static const char h[] = "0123456789abcdef";
+    for (int i = 3; i >= 0; --i) UART0_SendChar(h[(v >> (i * 4)) & 0xF]);
+}
+static void uart_put_hex32(uint32_t v)
+{
+    static const char h[] = "0123456789abcdef";
+    for (int i = 7; i >= 0; --i) UART0_SendChar(h[(v >> (i * 4)) & 0xF]);
+}
+
+/* ================= Public API ================= */
+
+/* Configure EMC CS0 for x16 NOR (SST39VF3202C) and do pinmux */
+void FlashRead_EmcInit(void)
+{
+    /* Power EMC block */
+    PCONP |= (1u << 11); /* PCEMC */
+
+    /* Data bus D0..D15 on P3.0..P3.15 -> PINSEL6 function 01 */
+    for (int b = 0; b < 32; b += 2)
+        PINSEL6 = (PINSEL6 & ~(3u << b)) | (1u << b);
+
+    /* Address A0..A14 on P4.1..P4.15 -> PINSEL8 function 01 */
+    for (int p = 1; p <= 15; ++p)
+        PINSEL8 = (PINSEL8 & ~(3u << (p * 2))) | (1u << (p * 2));
+
+    /* Address A15..A22 + OE(P4.24) / WE(P4.25) / CS0(P4.30) -> PINSEL9 function 01 */
+    for (int p = 16; p <= 22; ++p)
+        PINSEL9 = (PINSEL9 & ~(3u << ((p - 16) * 2))) | (1u << ((p - 16) * 2));
+    PINSEL9 = (PINSEL9 & ~(3u << ((24 - 16) * 2))) | (1u << ((24 - 16) * 2)); /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u << ((25 - 16) * 2))) | (1u << ((25 - 16) * 2)); /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u << ((30 - 16) * 2))) | (1u << ((30 - 16) * 2)); /* CS0 */
+
+    /* Enable EMC, little-endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static CS0: x16, conservative wait states (OK ~60–72 MHz) */
+    EMCStaticConfig0   = 0x00000001u        /* MW=01 (x16 bus) */
+                       | (1u << 7);         /* buffer/page enable */
+    EMCStaticWaitWen0  = 2;                 /* WE# -> CS# delay    */
+    EMCStaticWaitOen0  = 3;                 /* OE# access delay    */
+    EMCStaticWaitRd0   = 7;                 /* read wait states    */
+    EMCStaticWaitPage0 = 0;                 /* no page mode        */
+    EMCStaticWaitWr0   = 7;                 /* write wait states   */
+    EMCStaticWaitTurn0 = 3;                 /* turnaround cycles   */
+}
+
+/* Put device back to read mode (safe no-op before reading) */
+void FlashRead_Reset(void)
+{
+    nor_reset();
+}
+
+/* Dump `word_count` 16-bit words starting at byte address `start_byte_addr`.
+   Prints one line per word:  0xAAAAAAAA = 0xDDDD  */
+void FlashRead_DumpWords(uint32_t start_byte_addr, uint32_t word_count)
+{
+    volatile const uint16_t *p16 = (const volatile uint16_t *)(NOR_BASE_ADDR + (start_byte_addr & ~1u));
+
+    UART0_SendString("\r\n--- NOR dump ---\r\n");
+
+    for (uint32_t i = 0; i < word_count; ++i) {
+        uint32_t byte_addr = (uint32_t)(NOR_BASE_ADDR) + (start_byte_addr & ~1u) + (i * 2u);
+
+        UART0_SendString("0x");
+        uart_put_hex32(byte_addr);
+        UART0_SendString(" = 0x");
+        uart_put_hex16(p16[i]);
+        UART0_SendString("\r\n");
+    }
+
+    UART0_SendString("--- end ---\r\n");
+}

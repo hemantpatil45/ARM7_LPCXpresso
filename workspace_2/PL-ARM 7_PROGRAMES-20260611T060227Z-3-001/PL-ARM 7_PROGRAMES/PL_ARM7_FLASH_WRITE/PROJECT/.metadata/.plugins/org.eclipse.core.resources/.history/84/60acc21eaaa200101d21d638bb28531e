@@ -1,0 +1,130 @@
+/*
+ * flashwrite.c
+ *
+ *  Created on: 03-Oct-2025
+ *      Author: ADMIN
+ */
+#include "LPC24xx.h"
+#include "flashwrite.h"
+
+/* Use the tiny delay loop provided by your main.c */
+extern void delay_loops(volatile uint32_t n);
+
+/* ===== EMC register window (not in vendor header) ===== */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR          (0xFFE08000UL)
+#endif
+#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+
+/* Static Memory Bank 0 (CS0) */
+#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+/* ===== Helpers ===== */
+#define F16(off) (*((volatile uint16_t *)(NOR_BASE_ADDR) + (off)))
+
+/* DQ6 toggle polling (returns 0 when ready, <0 on timeout) */
+static int flash_wait_toggle(uint32_t word_off, uint32_t loops)
+{
+    uint16_t a, b;
+    do {
+        a = F16(word_off);
+        b = F16(word_off);
+        if (((a ^ b) & (1u << 6)) == 0) return 0; /* ready */
+    } while (loops--);
+    return -1; /* timeout */
+}
+
+/* ===== Public API ===== */
+
+void emc_init_cs0_x16(void)
+{
+    /* Power EMC block */
+    PCONP |= (1u << 11); /* PCEMC */
+
+    /* Data bus D0..D15 on P3.0..P3.15 -> PINSEL6 function 01 */
+    for (int b = 0; b < 32; b += 2)
+        PINSEL6 = (PINSEL6 & ~(3u << b)) | (1u << b);
+
+    /* Address A0..A14 on P4.1..P4.15 -> PINSEL8 function 01 */
+    for (int p = 1; p <= 15; ++p)
+        PINSEL8 = (PINSEL8 & ~(3u << (p * 2))) | (1u << (p * 2));
+
+    /* Address A15..A22 + OE(P4.24) / WE(P4.25) / CS0(P4.30) -> PINSEL9 function 01 */
+    for (int p = 16; p <= 22; ++p)
+        PINSEL9 = (PINSEL9 & ~(3u << ((p - 16) * 2))) | (1u << ((p - 16) * 2));
+    PINSEL9 = (PINSEL9 & ~(3u << ((24 - 16) * 2))) | (1u << ((24 - 16) * 2)); /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u << ((25 - 16) * 2))) | (1u << ((25 - 16) * 2)); /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u << ((30 - 16) * 2))) | (1u << ((30 - 16) * 2)); /* CS0 */
+
+    /* Enable EMC, little-endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static CS0: x16, conservative access times good for ~60–72 MHz */
+    EMCStaticConfig0   = 0x00000001u        /* MW=01 (x16) */
+                       | (1u << 7);         /* buffer/page enable */
+    EMCStaticWaitWen0  = 2;                 /* WE# -> CS# delay    */
+    EMCStaticWaitOen0  = 3;                 /* OE# access delay    */
+    EMCStaticWaitRd0   = 7;                 /* read wait states    */
+    EMCStaticWaitPage0 = 0;                 /* no page mode        */
+    EMCStaticWaitWr0   = 7;                 /* write wait states   */
+    EMCStaticWaitTurn0 = 3;                 /* turnaround cycles   */
+
+    delay_loops(5000);
+}
+
+void flash_reset(void)
+{
+    F16(0) = NOR_CMD_RESET;
+    delay_loops(100);
+}
+
+int flash_sector_erase(uint32_t byte_addr)
+{
+    uint32_t w = (byte_addr & ~1u) >> 1;  /* target word offset */
+
+    F16(NOR_UNLOCK1_OFF) = NOR_CMD_AA;
+    F16(NOR_UNLOCK2_OFF) = NOR_CMD_55;
+    F16(NOR_UNLOCK1_OFF) = NOR_CMD_ERASE_SETUP;
+
+    F16(NOR_UNLOCK1_OFF) = NOR_CMD_AA;
+    F16(NOR_UNLOCK2_OFF) = NOR_CMD_55;
+    F16(w)               = NOR_CMD_SECTOR_ERASE;
+
+    return flash_wait_toggle(w, 5000000);
+}
+
+static int flash_program_word(uint32_t byte_addr, uint16_t data)
+{
+    uint32_t w = (byte_addr & ~1u) >> 1;
+
+    F16(NOR_UNLOCK1_OFF) = NOR_CMD_AA;
+    F16(NOR_UNLOCK2_OFF) = NOR_CMD_55;
+    F16(NOR_UNLOCK1_OFF) = NOR_CMD_PROGRAM;
+
+    F16(w) = data;
+
+    if (flash_wait_toggle(w, 1000000)) return -1;
+    return (F16(w) == data) ? 0 : -2;
+}
+
+int flash_write_buf(uint32_t dst_byte_addr, const void *src, uint32_t nbytes)
+{
+    const uint16_t *wsrc = (const uint16_t *)src;
+    uint32_t words = (nbytes + 1u) >> 1;
+
+    for (uint32_t i = 0; i < words; ++i) {
+        if (flash_program_word(dst_byte_addr + (i << 1), wsrc[i])) return -1;
+    }
+    return 0;
+}
+
+
+

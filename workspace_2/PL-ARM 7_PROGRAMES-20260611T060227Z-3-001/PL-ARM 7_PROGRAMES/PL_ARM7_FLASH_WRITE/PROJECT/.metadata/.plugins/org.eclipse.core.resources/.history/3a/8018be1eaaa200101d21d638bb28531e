@@ -1,0 +1,125 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+
+/*
+===============================================================================
+ Name        : main.c
+ Target      : LPC2478 + SST39VF3202C (x16) on EMC CS0
+ Toolchain   : LPCXpresso / Redlib
+ Description : SW2 -> ERASE sector at 0x8000_0000
+               SW6 -> WRITE "akademika" to 0x8000_0000
+               UART0 9600 8N1 prints first 64 words as 0xADDR = 0xDATA
+               GLCD shows progress and a preview line.
+===============================================================================
+*/
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashwrite.h"
+
+/* ===================== tiny delays ===================== */
+/* NOTE: non-static so flashwrite.c can 'extern' this symbol */
+void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static void delay_ms(uint32_t ms){ while(ms--) delay_loops(72000); } /* ~1ms @72MHz */
+
+/* ===================== GLCD row helper (your API) ===================== */
+static inline void row_wr(uint8_t page, const char* s){
+    extern void GLCD_RowWriteMargin(uint8_t page, const char* s);
+    GLCD_RowWriteMargin(page, s);
+}
+
+/* ===================== UART0 @ 9600 8N1 (blocking) ===================== */
+static void uart0_init_9600(uint32_t cclk_hz)
+{
+    PCONP |= (1u<<3);                             /* power UART0 */
+    PCLKSEL0 = (PCLKSEL0 & ~(3u<<6)) | (1u<<6);   /* PCLK = CCLK/1 */
+    PINSEL0  = (PINSEL0 & ~((3u<<4)|(3u<<6))) | ((1u<<4)|(1u<<6)); /* P0.2 TXD0, P0.3 RXD0 */
+    U0FCR = (1u<<0)|(1u<<1)|(1u<<2);              /* FIFO enable + reset */
+    U0LCR = 0x83;                                  /* 8N1, DLAB=1 */
+    uint32_t div = cclk_hz/(16u*9600u); if(!div) div=1;
+    U0DLL = (uint8_t)(div & 0xFF); U0DLM = (uint8_t)((div>>8)&0xFF);
+    U0FDR = (1u<<4);                                /* MUL=1, DIVADD=0 */
+    U0LCR = 0x03;                                   /* DLAB=0 */
+}
+static void uart0_putc(char c){ while(!(U0LSR&(1u<<5))); U0THR=(uint8_t)c; }
+static void uart0_puts(const char* s){ while(*s){ if(*s=='\n') uart0_putc('\r'); uart0_putc(*s++);} }
+static void uart0_put_hex32(uint32_t v){ static const char h[]="0123456789abcdef"; for(int i=7;i>=0;--i) uart0_putc(h[(v>>(i*4))&0xF]); }
+static void uart0_put_hex16(uint16_t v){ static const char h[]="0123456789abcdef"; for(int i=3;i>=0;--i) uart0_putc(h[(v>>(i*4))&0xF]); }
+static void print_addr_word(uint32_t byte_addr, uint16_t data){
+    uart0_puts("0x"); uart0_put_hex32(byte_addr);
+    uart0_puts(" = 0x"); uart0_put_hex16(data);
+    uart0_puts("\r\n");
+}
+
+int main(void)
+{
+    /* Clock + board */
+    PLL_Init();
+    system_Init();
+
+    /* GLCD banner */
+    GLCD_Init(); GLCD_Clear();
+    row_wr(0x00,"WELCOME TO AKADEMIKA");
+    row_wr(0x02,"      PL-ARM7       ");
+    row_wr(0x04,"FLASH EXPT          ");
+    row_wr(0x06,"                    ");
+
+    /* UART */
+    uart0_init_9600(72000000u);   /* set to your real CCLK if not 72 MHz */
+
+    /* Keypad + EMC + Flash */
+    Keypad_Col1Row12_Init();      /* from flashwrite.c */
+    emc_init_cs0_x16();           /* configure CS0 x16 */
+    flash_reset();                /* put device in read array mode */
+
+    /* ---- Wait SW2 to ERASE ---- */
+    row_wr(0x06,"PRESS SW2 TO ERASE  ");
+    while(!SW2_Pressed()) { /* wait */ }
+    row_wr(0x06,"ERASING...          ");
+    (void)flash_sector_erase(0x00000000);
+    row_wr(0x06,"FLASH ERASE COMPLETED");
+    delay_ms(8);
+
+    /* ---- Wait SW6 to WRITE ---- */
+    row_wr(0x06,"PRESS SW6 TO WRITE  ");
+    while(!SW6_Pressed()) { /* wait */ }
+    row_wr(0x06,"WAIT WRITING FLASH  ");
+
+    /* Write the requested string "akademika" (includes trailing '\0') */
+    static const char msg[] = "akademika";
+    (void)flash_write_buf(0x00000000, msg, sizeof(msg));
+    row_wr(0x06,"FLASH WRITE COMPLETED");
+
+    /* ------ Serial dump in the requested format ------ */
+    uart0_puts("\r\nDump (first 64 words):\r\n");
+    volatile const uint16_t* p16 = (const volatile uint16_t*)(NOR_BASE_ADDR + 0x00000000);
+    for (unsigned i=0;i<64;i++) {
+        uint32_t byte_addr = NOR_BASE_ADDR + (i*2u);
+        uint16_t data = p16[i];
+        print_addr_word(byte_addr, data);
+    }
+    uart0_puts("Done.\r\n");
+
+    /* Preview on GLCD: first 20 bytes from flash */
+    char rb[21];
+    for(int i=0;i<20;i++) rb[i] = ((const volatile uint8_t*)NOR_BASE_ADDR)[i];
+    rb[20] = 0;
+    row_wr(0x05, rb);
+
+    while (1) { /* idle */ }
+}
+

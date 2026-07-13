@@ -1,0 +1,46 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+
+#define DELAY 100000
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+int main(void) {
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "     PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "DC MOTOR PWM SPEED  ");
+    GLCD_RowWriteMargin(5, "CONNECT J58-J46, J59");
+    GLCD_RowWriteMargin(6, "-J45 & DC MOTOR @J19");
+
+    M_MOTOR_EN_A_STATE;
+
+    // Define speed: 0 to 5000 (where 5000 is 100% duty cycle)
+    uint32_t speed = 2500;
+
+    while(1) {
+        // --- MOTOR ROTATE CLOCKWISE ---
+        M_MOTOR_EN_A_ON;
+
+        // Use PWM Match Registers instead of ON/OFF macros
+        PWM0MR1 = speed;   // Set Duty Cycle for Phase A (IN1)
+        PWM0MR2 = 0;       // Ensure Phase B (IN2) is OFF
+
+        // Latch the values to update the pins
+        PWM0LER = (1 << 1) | (1 << 2);
+
+        delay_cycles(DELAY);
+
+        // --- MOTOR STOP ---
+        M_MOTOR_EN_A_OFF;
+        PWM0MR1 = 0;       // Reset speed
+        PWM0LER = (1 << 1);
+
+        delay_cycles(DELAY);
+    }
+}

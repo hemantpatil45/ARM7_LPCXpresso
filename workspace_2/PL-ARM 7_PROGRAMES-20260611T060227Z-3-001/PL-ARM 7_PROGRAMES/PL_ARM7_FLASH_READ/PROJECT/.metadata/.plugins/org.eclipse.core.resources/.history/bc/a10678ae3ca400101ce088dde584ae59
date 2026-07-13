@@ -1,0 +1,25 @@
+#ifndef FLASHREAD_H
+#define FLASHREAD_H
+
+#include <stdint.h>
+
+/* External NOR on EMC CS0 (x16 bus) */
+#define NOR_BASE_ADDR   (0x80000000UL)
+
+/* Init EMC + pinmux for CS0 x16 (SST39VF3202C-compatible) */
+void FlashRead_EmcInit(void);
+
+/* Put NOR back in read/reset mode */
+void FlashRead_Reset(void);
+
+/* Read bytes from NOR and show ASCII on GLCD, 20 chars per row.
+   - byte_addr: offset from NOR_BASE_ADDR
+   - nbytes   : how many bytes to render (will be rounded/clipped to rows)
+   - row0     : first GLCD row/page (e.g. 0,2,4,6). Each subsequent line uses +2.
+*/
+void FlashRead_ShowASCII(uint32_t byte_addr, uint32_t nbytes, uint8_t row0);
+
+/* Convenience: show first 80 bytes at rows 0,2,4,6 (ASCII) */
+void FlashRead_ShowFirst80_ASCII(uint32_t byte_addr);
+
+#endif /* FLASHREAD_H */

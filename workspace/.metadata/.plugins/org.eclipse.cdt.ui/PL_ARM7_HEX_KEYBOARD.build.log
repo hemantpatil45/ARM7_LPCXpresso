@@ -1,0 +1,44 @@
+06:59:10 **** Incremental Build of configuration Debug for project PL_ARM7_HEX_KEYBOARD ****
+make -r all 
+Building file: ../src/KEYPAD.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/KEYPAD.d" -MT"src/KEYPAD.o" -MT"src/KEYPAD.d" -o "src/KEYPAD.o" "../src/KEYPAD.c"
+../src/KEYPAD.c:18:13: warning: 'keymap' initialized and declared 'extern'
+ extern char keymap[4][4] = {
+             ^
+Finished building: ../src/KEYPAD.c
+ 
+Building file: ../src/cr_startup_lpc24.s
+Invoking: MCU Assembler
+arm-none-eabi-gcc -c -x assembler-with-cpp -DDEBUG -D__CODE_RED -D__REDLIB__ -g3 -mcpu=arm7tdmi -specs=redlib.specs -o "src/cr_startup_lpc24.o" "../src/cr_startup_lpc24.s"
+Finished building: ../src/cr_startup_lpc24.s
+ 
+Building file: ../src/crp.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/crp.d" -MT"src/crp.o" -MT"src/crp.d" -o "src/crp.o" "../src/crp.c"
+Finished building: ../src/crp.c
+ 
+Building file: ../src/glcd.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/glcd.d" -MT"src/glcd.o" -MT"src/glcd.d" -o "src/glcd.o" "../src/glcd.c"
+../src/glcd.c: In function 'glcd_enable_pulse':
+../src/glcd.c:65:5: warning: implicit declaration of function 'delay_cycles' [-Wimplicit-function-declaration]
+     delay_cycles(80);
+     ^
+Finished building: ../src/glcd.c
+ 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+../src/main.c: In function 'main':
+../src/main.c:22:20: error: 'keypa' undeclared (first use in this function)
+         char key = keypa                    d_scan_once();
+                    ^
+../src/main.c:22:20: note: each undeclared identifier is reported only once for each function it appears in
+../src/main.c:22:45: error: expected ',' or ';' before 'd_scan_once'
+         char key = keypa                    d_scan_once();
+                                             ^
+make: *** [src/subdir.mk:36: src/main.o] Error 1
+
+06:59:10 Build Finished (took 159ms)
+

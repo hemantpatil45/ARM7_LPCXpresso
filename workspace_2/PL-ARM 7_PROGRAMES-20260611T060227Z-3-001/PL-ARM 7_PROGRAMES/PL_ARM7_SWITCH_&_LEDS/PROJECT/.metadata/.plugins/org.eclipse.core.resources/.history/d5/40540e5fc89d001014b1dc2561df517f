@@ -1,0 +1,25 @@
+/*
+ * switch_led.c
+ *
+ *  Created on: 30-Sep-2025
+ *      Author: ADMIN
+ */
+
+#include "switch_led.h"
+
+/* Reads all four switches and returns a bitfield:
+ * bit0 = SW0, bit1 = SW1, bit2 = SW2, bit3 = SW3
+ */
+unsigned int Read_Switches(void) {
+    unsigned int sw = 0;
+
+    if (Switch0_STATE) sw |= (1u << 0);
+    if (Switch1_STATE) sw |= (1u << 1);
+    if (Switch2_STATE) sw |= (1u << 2);
+    if (Switch3_STATE) sw |= (1u << 3);
+
+    return sw;
+}
+
+
+

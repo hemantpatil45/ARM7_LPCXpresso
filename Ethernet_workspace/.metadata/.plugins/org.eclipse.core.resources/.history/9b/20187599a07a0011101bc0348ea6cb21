@@ -1,0 +1,24 @@
+#ifndef ETHERNET_RX_H
+#define ETHERNET_RX_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* ========================================================================== */
+/* FUNCTION DECLARATIONS                                                      */
+/* ========================================================================== */
+
+/*
+ * Polls the LPC2478 DMA ring buffer for newly arrived Ethernet frames.
+ *
+ * Parameters:
+ *   rx_buffer: Pointer to a local array (at least 1536 bytes) to store the payload.
+ *   rx_length: Pointer to a variable where the function will store the actual packet size.
+ *
+ * Returns:
+ *   true  - A packet was successfully received and copied.
+ *   false - The DMA ring buffer is currently empty (no new packets).
+ */
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t *rx_length);
+
+#endif /* ETHERNET_RX_H */

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;PL_ARM7_V14.1_GLCD&apos; to &apos;PL_ARM7_GLCD&apos;" description="Rename resource &apos;PL_ARM7_V14.1_GLCD&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/PL_ARM7_V14.1_GLCD" name="PL_ARM7_GLCD" stamp="1759124499244" updateReferences="true"/>
+</session>

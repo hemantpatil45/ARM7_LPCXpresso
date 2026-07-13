@@ -1,0 +1,56 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+#define CCLK_HZ 72000000u
+#define CCLK_MHZ 72u
+#define STEP_US 10u         // Update period for DAC, microseconds (10us)
+
+void dac8512_ssp0_init(void){
+    PINSEL0 |= (2UL << 30);  // Set Function to 10 (SSP0 SCK)
+    PINSEL1 |= (2UL << 0);   // Set Function to 10 (SSP0 SSEL)
+    PINSEL1 |= (2UL << 2);   // Set Function to 10 (SSP0 MISO)
+    PINSEL1 |= (2UL << 4);   // Set Function to 10 (SSP0 MOSI)
+
+    // ***********************SSP0 CONFIGURATION***********************
+    PCONP |= (1u << 21); // Power Control for SSP0
+
+    SSP0CR0 = (15u << 0) | (0u << 4) | (0u << 6) | (0u << 7);
+    SSP0CR1 = (1u << 1);
+    SSP0CPSR = 2; // PCLK/2
+    SSP0CR0 |= (35u << 8); // SCK freq = 72MHz / (2 * 36) = 1MHz
+}
+
+void dac8512_write(uint16_t code12){
+    uint16_t data_to_send;
+    M_DAC_CS_ON;
+    if(code12 > 4095u) code12 = 4095u;
+    data_to_send = ((code12 & 0x0FFF) << 4);
+    SSP0DR = data_to_send;
+    while (SSP0SR & (1u << 4));
+    M_DAC_CS_OFF;
+    delay_cycles(100);
+    M_DAC_LD_ON;
+    delay_cycles(100);
+    M_DAC_LD_OFF;
+}
+
+void timer0_init_us(void){
+    PCONP |= (1u << 1);             /* power TIMER0 */
+    PCLKSEL0 &= ~(3u << 2);
+    PCLKSEL0 |=  (1u << 2);         /* PCLK = CCLK (72MHz) */
+
+    T0PR = (CCLK_HZ / 1000000u) - 1u; // Prescale to 1us tick: 71
+
+    T0MR0 = STEP_US;                 // Match after 10us (10 * 1us ticks)
+    T0MCR = (1u << 0) | (1u << 1);  /* Interrupt + Reset on Match (MR0I, MR0R) */
+    T0TCR = (1u << 1);               /* Reset Counter */
+    T0TCR = (1u << 0);               /* Enable Counter */
+}
+
+void timer0_wait_match0(void){
+    while ((T0IR & 1u) == 0u) { /* wait for MR0 interrupt flag */ }
+    T0IR = 1u; // Clear MR0 interrupt flag
+}

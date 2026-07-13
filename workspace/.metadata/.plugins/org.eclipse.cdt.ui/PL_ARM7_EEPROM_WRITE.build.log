@@ -1,0 +1,13 @@
+06:59:09 **** Build of configuration Debug for project PL_ARM7_EEPROM_WRITE ****
+make -r all 
+Building file: ../src/system_init.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/system_init.d" -MT"src/system_init.o" -MT"src/system_init.d" -o "src/system_init.o" "../src/system_init.c"
+../src/system_init.c:1:25: fatal error: SYSTEM_INIT.h: No such file or directory
+ #include "SYSTEM_INIT.h"
+                         ^
+compilation terminated.
+make: *** [src/subdir.mk:43: src/system_init.o] Error 1
+
+06:59:09 Build Finished (took 61ms)
+

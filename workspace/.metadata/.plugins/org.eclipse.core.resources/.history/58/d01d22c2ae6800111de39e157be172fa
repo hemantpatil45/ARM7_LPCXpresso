@@ -1,0 +1,50 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+
+// Define a function for simple non-blocking delays
+static inline void delay_ms(uint32_t ms) {
+    // Basic loop delay; adjust for your actual clock speed if needed
+    for(uint32_t i = 0; i < (ms * 10000); i++) __asm__("nop");
+}
+
+int main(void) {
+    // 1. Initialize System Clock and Peripherals
+    PLL_Init();
+    system_Init();
+
+    // 2. Power up PWM0 peripheral (PCONP bit 5)
+    PCONP |= (1 << 5);
+
+    // 3. Set Peripheral Clock (PCLKSEL0 bits 13:12)
+    // Clear bits to 00 for CCLK/4
+    PCLKSEL0 &= ~(3UL << 12);
+
+    // 4. Reset and Setup PWM Timer
+    PWM0TCR = 0x02;           // Reset timer
+    PWM0PR  = 0x00;           // Prescale register = 0 (no division)
+    PWM0MR0 = 5000;           // Set PWM Period (Frequency determined by this)
+
+    // 5. Set Initial Duty Cycles (0 to 5000 range)
+    PWM0MR1 = 2500;           // 50% Speed
+    PWM0MR2 = 0;              // Set to 0 if not using, or use for second phase
+
+    // 6. Latch updates for MR0, MR1, and MR2
+    PWM0LER = (1 << 0) | (1 << 1) | (1 << 2);
+
+    // 7. Enable PWM output for Channel 1 & 2 (bits 9 & 10)
+    // This allows the PWM hardware to drive the pins
+    PWM0PCR = (1 << 9) | (1 << 10);
+
+    // 8. Enable PWM Timer and PWM Mode (bits 0 and 3)
+    PWM0TCR = 0x01 | 0x08;
+
+    // 9. Turn on Motor Enable Pin
+    // This uses the GPIO macro defined in system_init.h
+    M_MOTOR_EN_A_ON;
+
+    while(1) {
+        // The PWM peripheral is now running in the background.
+        // The pins P1.2 and P1.3 will output the PWM signal automatically.
+        // You can update PWM0MR1 here if you need to change speed.
+    }
+}

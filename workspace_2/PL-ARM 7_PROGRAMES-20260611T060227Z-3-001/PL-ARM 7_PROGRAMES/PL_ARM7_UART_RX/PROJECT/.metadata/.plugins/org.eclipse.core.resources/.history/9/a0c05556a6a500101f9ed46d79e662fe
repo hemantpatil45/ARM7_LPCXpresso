@@ -1,0 +1,34 @@
+/*
+ * uart.h
+ *
+ *  Created on: 10-Oct-2025
+ *      Author: ADMIN
+ */
+
+#ifndef UART_H_
+#define UART_H_
+
+#include <stdint.h>
+
+/* Initialize UART0 at 115200 bps (P0.2=TXD0, P0.3=RXD0) */
+void UART0_Init(void);
+
+/* Blocking send utilities */
+void UART0_SendChar(char c);
+void UART0_SendString(const char *s);
+
+/* Polling: returns 1 if a char is ready; read it with UART0_ReadChar() */
+uint8_t UART0_ReadAvailable(void);
+char    UART0_ReadChar(void);
+
+/* Call this often from the main loop:
+ * - echoes received byte
+ * - interprets commands '0'..'5' for LED demo
+ * - updates GLCD with the performed action
+ */
+void UART0_Task(void);
+
+/* Optional: expose a helper so main can show a one-shot banner on GLCD */
+void UART0_ShowHelpOnGLCD(void);
+
+#endif /* UART_H_ */

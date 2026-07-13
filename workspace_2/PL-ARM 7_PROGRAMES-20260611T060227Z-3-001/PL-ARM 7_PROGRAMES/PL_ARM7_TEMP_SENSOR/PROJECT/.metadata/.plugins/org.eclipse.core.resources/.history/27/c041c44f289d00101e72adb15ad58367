@@ -1,0 +1,74 @@
+/*
+ * temp35.c
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+
+#include <stdint.h>
+#include "internaladc.h"   /* ADC0_InitCh0/Read/Convert */  /* uses your ADC API */
+#include "temp35.h"
+
+/* Public API */
+void TEMP35_Init(void) { ADC0_InitCh0(); }
+
+uint16_t TEMP35_ReadRaw(void) { return ADC0_ReadCh0(); }
+
+uint16_t TEMP35_ReadRawAvg(uint8_t samples) {
+    if (!samples) samples = TEMP35_DEFAULT_SAMPLES;
+    return ADC0_ReadCh0_Avg(samples);
+}
+
+uint32_t TEMP35_RawToMicroVolts(uint16_t raw, uint16_t vref_mv) {
+    return ADC0_CodeToMicroVolts(raw, vref_mv);
+}
+
+/* LM35: 10 mV/°C -> 10,000 uV per °C.
+   Return °C×10 (deci-°C), rounded: c10 = round(uV / 10,000). */
+uint16_t TEMP35_uV_to_c10(uint32_t uV) {
+    return (uint16_t)((uV + 50000u) / 10000u);
+}
+
+/* tiny int->dec (no printf) */
+static char* _u32_to_dec(char *out, uint32_t v){
+    char tmp[11]; int i=0;
+    if (v==0){ *out++='0'; *out='\0'; return out; }
+    while (v){ tmp[i++] = (char)('0' + (v%10)); v/=10; }
+    while (i--) *out++ = tmp[i];
+    *out = '\0';
+    return out;
+}
+
+void TEMP35_FormatLine(char *dst21, uint16_t vref_mv, uint8_t samples)
+{
+    if (!vref_mv) vref_mv = TEMP35_DEFAULT_VREF_MV;
+    if (!samples) samples = TEMP35_DEFAULT_SAMPLES;
+
+    uint16_t raw = TEMP35_ReadRawAvg(samples);
+    uint32_t uV  = TEMP35_RawToMicroVolts(raw, vref_mv);
+    uint16_t c10 = TEMP35_uV_to_c10(uV);      /* °C×10 */
+
+    uint16_t c_int = c10 / 10;                /* integer °C */
+    uint16_t c_dec = c10 % 10;                /* one decimal */
+
+    char *p = dst21;
+    const char *pre = "TEMP = ";
+    while (*pre) *p++ = *pre++;
+
+    /* integer part */
+    char tmp[6]; int i=0;
+    if (c_int == 0) { *p++='0'; }
+    else { uint16_t t = c_int; while (t){ tmp[i++] = (char)('0' + (t%10)); t/=10; }
+           while (i--) *p++ = tmp[i]; }
+
+    /* ".x*C" */
+    *p++ = '.';
+    *p++ = (char)('0' + (uint8_t)c_dec);
+    *p++ = '*';
+    *p++ = 'C';
+
+    /* pad to 21 chars for a full KS0108 row */
+    while ((p - dst21) < 21) *p++ = ' ';
+    *p = '\0';
+}

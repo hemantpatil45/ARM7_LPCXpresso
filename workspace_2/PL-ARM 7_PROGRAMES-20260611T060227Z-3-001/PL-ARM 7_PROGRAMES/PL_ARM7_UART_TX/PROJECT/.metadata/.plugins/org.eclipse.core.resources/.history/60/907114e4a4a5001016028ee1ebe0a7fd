@@ -1,0 +1,16 @@
+#include "uart.h"
+
+int main(void)
+{
+    // If your UART0 PCLK is 12MHz, and you want 9600:
+    UART0_Init(12000000u, 9600u);
+
+    UART0_SendString("\r\nUART0 @9600 ready.\r\n");
+
+    for (;;){
+        if (UART0_CharAvailable()){
+            char c = UART0_ReadChar();
+            UART0_SendChar(c);  // echo
+        }
+    }
+}

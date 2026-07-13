@@ -1,0 +1,46 @@
+#include "glcd.h"
+#include "system_init.h"
+#include "ADC7492.h"
+
+#define VREF_mV      3300U
+
+int main(void)
+{
+	PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"     WELCOME TO     ");
+    GLCD_RowWriteMargin(2,"     AKADEMIKA      ");
+    GLCD_RowWriteMargin(4,"PL-ARM7 DEVELOPMENT ");
+    GLCD_RowWriteMargin(6,"       BOARD        ");
+
+    delay_us(1000);  // About 100 ms at 72 MHz
+
+    GLCD_RowWriteMargin(4," CONNECT J43-J68, J44 ");
+    GLCD_RowWriteMargin(5,"  -J54 & U23 TO 1-2   ");
+    GLCD_RowWriteMargin(6,"   VARY POT R50       ");
+    GLCD_RowWriteMargin(7,"mV:       ADC:     ");
+
+    char num[8];
+
+    while (1)
+    {
+        uint32_t acc=0;
+        for (int i=0;i<8;i++) acc += ad7492_read();
+        uint16_t raw = (uint16_t)(acc/8u);
+        uint16_t mv  = (uint16_t)((uint32_t)raw * VREF_mV / 4095u);
+
+        GLCD_PutString(4*6, 7, "    ");
+        u16_to_str(mv, num);
+        GLCD_PutString(4*6, 7, num);
+
+        GLCD_PutString(15*6, 7, "     ");
+        u16_to_str(raw, num);
+        GLCD_PutString(15*6, 7, num);
+
+        delay_us(10000);
+    }
+}
+

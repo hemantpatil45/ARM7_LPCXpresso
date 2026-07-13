@@ -1,0 +1,13 @@
+#ifndef ETHERNET_RX_H
+#define ETHERNET_RX_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/* Initializes the DMA memory descriptors for receiving data */
+void EMAC_RxInit(void);
+
+/* Polls the DMA ring buffer. Returns true if a packet was copied. */
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t *rx_length);
+
+#endif /* ETHERNET_RX_H */

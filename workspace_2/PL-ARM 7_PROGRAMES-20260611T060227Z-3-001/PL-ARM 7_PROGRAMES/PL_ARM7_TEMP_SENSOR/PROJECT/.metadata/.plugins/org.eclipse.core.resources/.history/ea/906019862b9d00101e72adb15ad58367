@@ -1,0 +1,60 @@
+/*
+ * temp35.h
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+#ifndef TEMP_H
+#define TEMP_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* ===== TEMP35 / LM35 (10 mV/°C, 0 V at 0°C) =====
+ * - Uses your existing internal ADC driver (internaladc.h/.c)
+ * - Works on ADC0 CH0 (P0.23) as in your project
+ * - Integer-only math (Redlib friendly)
+ * - GLCD-friendly 21-char formatter
+ */
+
+/* Defaults (override at compile time if needed) */
+#ifndef TEMP_DEFAULT_VREF_MV
+#define TEMP_DEFAULT_VREF_MV   3300u   /* e.g., 3.300 V reference */
+#endif
+#ifndef TEMP_DEFAULT_SAMPLES
+#define TEMP_DEFAULT_SAMPLES   8u      /* simple averaging for stability */
+#endif
+
+/* Initialize the temperature input (calls ADC0_InitCh0). */
+void TEMP_Init(void);
+
+/* Read raw 10-bit code (0..1023). */
+uint16_t TEMP_ReadRaw(void);
+
+/* Read averaged raw code (N >= 1). */
+uint16_t TEMP_ReadRawAvg(uint8_t samples);
+
+/* Convert raw → millivolts using Vref (mV), with rounding. */
+uint32_t TEMP_RawToMilliVolts(uint16_t raw, uint16_t vref_mv);
+
+/* Convert millivolts → deci-degrees Celsius (°C × 10), LM35: 10 mV/°C ⇒ c10 = mV. */
+static inline uint16_t TEMP_mV_to_c10(uint32_t mV) { return (uint16_t)(mV > 65535u ? 65535u : mV); }
+
+/* Convenience: read (avg) and return °C × 10 directly. */
+uint16_t TEMP_Read_C10(uint16_t vref_mv, uint8_t samples);
+
+/* Build exactly 21 chars for a GLCD row:
+ *   "TEMP = xx.x*C_________"  (spaces pad to 21)
+ */
+void TEMP_FormatLine(char *dst21, uint16_t vref_mv, uint8_t samples);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* TEMP_H */
+

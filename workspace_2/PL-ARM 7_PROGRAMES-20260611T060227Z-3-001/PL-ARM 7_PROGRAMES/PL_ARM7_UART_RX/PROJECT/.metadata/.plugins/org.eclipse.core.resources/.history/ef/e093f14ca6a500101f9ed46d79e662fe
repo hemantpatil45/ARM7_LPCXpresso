@@ -1,0 +1,143 @@
+/*
+ * uart.c
+ *
+ *  Created on: 10-Oct-2025
+ *      Author: ADMIN
+ */
+
+
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "glcd.h"
+#include "uart.h"
+
+/* ===== Project timing assumptions =====
+ * PCLK for UART0 ≈ 12 MHz  (matches your code & PLL/system init)
+ * 115200 bps using DLL=4, DLM=0, FDR (DIVADD=5, MUL=8)
+ */
+
+#define UART0_PCLK_HZ   (12000000UL)
+
+/* Local tiny delay (only used a couple times) */
+static inline void _tiny_delay(volatile uint32_t n){ while(n--) __asm__("nop"); }
+
+/* Row helper uses your GLCD API */
+static inline void row_wr(uint8_t page, const char *s){
+    extern void GLCD_RowWriteMargin(uint8_t page, const char *s);
+    GLCD_RowWriteMargin(page, s);
+}
+
+/* ===== LED pins as per your board =====
+ * P2.15, P2.19, P2.21, P1.13
+ * We keep this inside UART file since user asked to show actions on GLCD.
+ */
+static void LED_GPIO_Init(void){
+    SCS |= (1u<<0);                    /* Fast GPIO for ports 0/1 */
+
+    FIO2DIR |= (1u<<15)|(1u<<19)|(1u<<21);
+    FIO1DIR |= (1u<<13);
+
+    FIO2SET = (1u<<15)|(1u<<19)|(1u<<21);
+    FIO1SET = (1u<<13);
+}
+
+static void LED_AllOff(void){
+    FIO2SET = (1u<<15)|(1u<<19)|(1u<<21);
+    FIO1SET = (1u<<13);
+}
+
+static void LED_AllOn(void){
+    FIO2CLR = (1u<<15)|(1u<<19)|(1u<<21);
+    FIO1CLR = (1u<<13);
+}
+
+static void LED_Select(char idx){
+    LED_AllOff();
+    switch(idx){
+        case '1': FIO2CLR = (1u<<15); break; /* LED1 */
+        case '2': FIO2CLR = (1u<<19); break; /* LED2 */
+        case '3': FIO2CLR = (1u<<21); break; /* LED3 */
+        case '4': FIO1CLR = (1u<<13); break; /* LED4 */
+        default: break;
+    }
+}
+
+void UART0_Init(void)
+{
+    PCONP |= (1u<<3);
+
+
+    PINSEL0 &= ~((3 << 4) | (3 << 6));
+    PINSEL0 |=  (1 << 4) | (1 << 6);
+
+    U0LCR = 0x83; // 8 bits, no parity, 1 stop bit, DLAB = 1
+
+    U0DLM = 0;
+    U0DLL = 4;
+    U0FDR = (8 << 4) | 5; // MULVAL = 8, DIVADDVAL = 5
+
+    U0LCR = 0x03; // DLAB = 0
+    U0FCR = 0x07; // Enable FIFO, reset RX/TX FIFO
+    U0IER = 0x00;
+
+    LED_GPIO_Init();
+
+    UART0_SendString("\r\n=== UART0 Ready @9600 ===\r\n");
+    UART0_SendString("Send 1..4 = a specific LED ON, 5=ALL ON, 0=ALL OFF\r\n");
+
+    UART0_ShowHelpOnGLCD();
+}
+
+void UART0_SendChar(char c)
+{
+    while ((U0LSR & (1u<<5)) == 0) { /* wait */ }
+    U0THR = c;
+}
+
+void UART0_SendString(const char *s)
+{
+    while (*s) UART0_SendChar(*s++);
+}
+
+uint8_t UART0_ReadAvailable(void)
+{
+    return (U0LSR & (1u<<0)) ? 1u : 0u; /* RDR: data ready */
+}
+
+char UART0_ReadChar(void)
+{
+    while (!UART0_ReadAvailable()) { /* wait */ }
+    return (char)U0RBR;
+}
+
+/* One-shot help on GLCD rows */
+void UART0_ShowHelpOnGLCD(void)
+{
+	GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+	GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+	GLCD_RowWriteMargin(4, "UART RECEIVE        ");
+	GLCD_RowWriteMargin(5, "UART LED CONTROL    ");
+	GLCD_RowWriteMargin(6, "0=ALL OFF, Echo UART");
+}
+
+/* Main polling task:
+ * - If a char arrives: echo, act on it, and print action on GLCD row 6.
+ */
+void UART0_Task(void)
+{
+    if (!UART0_ReadAvailable()) return;
+
+    char rx = UART0_ReadChar();
+    UART0_SendChar(rx);
+    UART0_SendString("\r\n");
+
+    switch(rx){
+        case '1': LED_Select('1');GLCD_RowWriteMargin(6, "LED1 ON             "); break;
+        case '2': LED_Select('2');GLCD_RowWriteMargin(6, "LED2 ON             "); break;
+        case '3': LED_Select('3');GLCD_RowWriteMargin(6, "LED3 ON             "); break;
+        case '4': LED_Select('4');GLCD_RowWriteMargin(6, "LED4 ON             "); break;
+        case '5': LED_AllOn();    GLCD_RowWriteMargin(6, "LEDs ON             "); break;
+        case '0': LED_AllOff();   GLCD_RowWriteMargin(6, "LEDs OFF            "); break;
+        default:                  GLCD_RowWriteMargin(6, "Invalid             "); break;
+    }
+}

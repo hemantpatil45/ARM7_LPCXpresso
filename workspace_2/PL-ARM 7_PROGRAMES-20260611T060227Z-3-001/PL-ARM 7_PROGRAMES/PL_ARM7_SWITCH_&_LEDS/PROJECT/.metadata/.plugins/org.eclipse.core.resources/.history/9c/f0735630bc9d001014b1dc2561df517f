@@ -1,0 +1,37 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+#include "glcd.h"
+#include "SYSTEM_INIT.h"
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+int main(void) {
+	PLL_Init();
+	system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "     WELCOME TO     ");
+
+    GLCD_RowWriteMargin(2, "     AKADEMIKA      ");
+
+    GLCD_RowWriteMargin(4, "PL-ARM7 DEVELOPMENT ");
+
+    GLCD_RowWriteMargin(6, "      BOARD         ");
+
+	while(1) {
+
+	}
+	return 0 ;
+}
+

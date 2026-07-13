@@ -1,0 +1,42 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, " Genaration of Ramp ");
+    GLCD_RowWriteMargin(6, "    on DAC8512      ");
+
+    delay_cycles(1000);
+    delay_cycles(1000);
+
+    GLCD_RowWriteMargin(4,"CONNECT DSO PROBE   ");  //Display " Genaration of Ramp " on 4th position on GLCD
+    GLCD_RowWriteMargin(6,"TO J70 & J71        ");
+
+    M_DAC_CLR_OFF;
+    dac8512_ssp0_init();
+    timer0_init_us();
+
+    uint16_t code = 0;
+    const uint16_t MAX_CODE = 4095u; // 12-bit maximum
+
+    for (;;){
+        timer0_wait_match0(); // Wait for 10us
+        dac8512_write(code);  // Output the current code to the DAC
+
+        code++;               // Increment the code for the next step
+        delay_cycles(10000);
+        if (code > MAX_CODE) {
+            code = 0;         // Reset to 0 to restart the ramp wave
+        }
+    }
+}

@@ -1,0 +1,31 @@
+#include <stdint.h>
+#include <math.h> // Ensure you link the math library in your compiler settings
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+// Define number of samples per cycle
+#define SAMPLES 256
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    dac8512_ssp0_init();
+
+    GLCD_RowWriteMargin(0, "TESTING MSB: 2048");
+
+    uint16_t test_value = 2048; // This is the binary 1000 0000 0000
+
+    for (;;) {
+        // Output constant 2048
+        dac8512_write(test_value);
+
+        // Short delay to keep the SPI bus active but stable
+        delay_cycles(1000);
+    }
+}

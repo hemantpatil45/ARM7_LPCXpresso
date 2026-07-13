@@ -1,0 +1,43 @@
+12:21:57 **** Build of configuration Debug for project GGLCD ****
+make -r all 
+Building file: ../src/cr_startup_lpc24.s
+Invoking: MCU Assembler
+arm-none-eabi-gcc -c -x assembler-with-cpp -DDEBUG -D__CODE_RED -D__REDLIB__ -g3 -mcpu=arm7tdmi -specs=redlib.specs -o "src/cr_startup_lpc24.o" "../src/cr_startup_lpc24.s"
+Finished building: ../src/cr_startup_lpc24.s
+ 
+Building file: ../src/crp.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/crp.d" -MT"src/crp.o" -MT"src/crp.d" -o "src/crp.o" "../src/crp.c"
+Finished building: ../src/crp.c
+ 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+Finished building: ../src/main.c
+ 
+Building file: ../src/system_init.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/system_init.d" -MT"src/system_init.o" -MT"src/system_init.d" -o "src/system_init.o" "../src/system_init.c"
+Finished building: ../src/system_init.c
+ 
+Building target: GGLCD.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="GGLCD.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "GGLCD_Debug.ld" -o "GGLCD.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/main.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:        4988 B       512 KB      0.95%
+./src/main.o: In function `main':
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:21: undefined reference to `GLCD_Init'
+           Ram64:          0 GB        64 KB      0.00%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:22: undefined reference to `GLCD_Clear'
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:24: undefined reference to `GLCD_RowWriteMargin'
+      RAM_USB_16:          0 GB        16 KB      0.00%
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:26: undefined reference to `GLCD_RowWriteMargin'
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:28: undefined reference to `GLCD_RowWriteMargin'
+/home/vboxuser/LPCXpresso/workspace_2/GGLCD/Debug/../src/main.c:30: undefined reference to `GLCD_RowWriteMargin'
+collect2: error: ld returned 1 exit status
+make: *** [makefile:32: GGLCD.axf] Error 1
+
+12:21:57 Build Finished (took 107ms)
+

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 12 resources" deleteContents="false" description="Delete 12 resources" element1="/PL_ARM_SDRAM_READ_WRITE/src/glcd_font5x7.h" element10="/PL_ARM_SDRAM_READ_WRITE/src/sys_calls.c" element11="/PL_ARM_SDRAM_READ_WRITE/src/system_init.c" element12="/PL_ARM_SDRAM_READ_WRITE/src/system_init.h" element2="/PL_ARM_SDRAM_READ_WRITE/src/glcd.c" element3="/PL_ARM_SDRAM_READ_WRITE/src/glcd.h" element4="/PL_ARM_SDRAM_READ_WRITE/src/LPC24xx.h" element5="/PL_ARM_SDRAM_READ_WRITE/src/main.c" element6="/PL_ARM_SDRAM_READ_WRITE/src/sdram.c" element7="/PL_ARM_SDRAM_READ_WRITE/src/SDRAM.c" element8="/PL_ARM_SDRAM_READ_WRITE/src/sdram.h" element9="/PL_ARM_SDRAM_READ_WRITE/src/SDRAM.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="12" stamp="1760156783762"/>
+</session>

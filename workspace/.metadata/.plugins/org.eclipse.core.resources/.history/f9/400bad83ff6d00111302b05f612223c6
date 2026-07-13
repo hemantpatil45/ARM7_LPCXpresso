@@ -1,0 +1,55 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+#define CCLK_HZ 72000000u
+#define CCLK_MHZ 72u
+#define STEP_US 10u         // Update period for DAC, microseconds (10us)
+
+void dac8512_write(uint16_t code12){
+    uint16_t data_to_send;
+
+    // Ensure 12-bit safety threshold
+    if(code12 > 4095u) code12 = 4095u;
+
+    // 1. FIX ALIGNMENT & VOLTAGE: Shift left by 4 bits.
+    // This perfectly routes your 2047 max value to represent exactly half-scale,
+    // which drops your peak analog output down to your expected ~1.8V ceiling.
+    data_to_send = (code12 << 4);
+
+    M_DAC_CS_ON;                  // Assert Chip Select Low
+    SSP0DR = data_to_send;        // Transmit 16-bit frame
+
+    // 2. FIX THE RACE CONDITION: Wait for data to completely clear the lines
+    while ((SSP0SR & (1u << 0)) == 0); // Wait until Transmit FIFO is completely empty (TFE)
+    while (SSP0SR & (1u << 4));        // Wait until SPI hardware is completely idle (BSY)
+    delay_cycles(10);                  // Micro-delay to let the voltage on the wire settle
+
+    M_DAC_CS_OFF;                 // De-assert Chip Select High
+
+    // 3. Pulse the DAC Load Latch to update the analog voltage output pin
+    delay_cycles(100);
+    M_DAC_LD_ON;
+    delay_cycles(100);
+    M_DAC_LD_OFF;
+}
+
+void timer0_init_us(void){
+    PCONP |= (1u << 1);             /* power TIMER0 */
+    PCLKSEL0 &= ~(3u << 2);
+    PCLKSEL0 |=  (1u << 2);         /* PCLK = CCLK (72MHz) */
+
+    T0PR = (CCLK_HZ / 1000000u) - 1u; // Prescale to 1us tick: 71
+
+    T0MR0 = STEP_US;                 // Match after 10us (10 * 1us ticks)
+    T0MCR = (1u << 0) | (1u << 1);  /* Interrupt + Reset on Match (MR0I, MR0R) */
+    T0TCR = (1u << 1);               /* Reset Counter */
+    T0TCR = (1u << 0);               /* Enable Counter */
+}
+
+void timer0_wait_match0(void){
+    while ((T0IR & 1u) == 0u) { /* wait for MR0 interrupt flag */ }
+    T0IR = 1u; // Clear MR0 interrupt flag
+}

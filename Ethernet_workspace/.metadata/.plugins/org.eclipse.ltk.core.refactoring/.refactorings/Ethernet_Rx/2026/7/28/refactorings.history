@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;Ethernet_Rx/src/ethernet_tx.h&apos; to &apos;ethernet_rx.h&apos;" description="Rename resource &apos;ethernet_tx.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/ethernet_tx.h" name="ethernet_rx.h" stamp="1783495870697" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;Ethernet_Rx/src/ethernet_tx.c&apos; to &apos;ethernet_rx.c&apos;" description="Rename resource &apos;ethernet_tx.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/ethernet_tx.c" name="ethernet_rx.c" stamp="1783495884754" updateReferences="true"/>
+</session>

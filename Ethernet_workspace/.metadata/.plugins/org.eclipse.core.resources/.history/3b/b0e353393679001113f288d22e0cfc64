@@ -1,0 +1,63 @@
+#include "ethernet_tx.h"
+#include <string.h>
+
+#define AHB_SRAM_SECTION __attribute__((section(".bss.$RamAHB32")))
+
+static TX_Desc_t TX_Desc[NUM_TX_FRAG] AHB_SRAM_SECTION;
+static TX_Stat_t TX_Stat[NUM_TX_FRAG] AHB_SRAM_SECTION;
+static uint8_t   TX_Buffer[NUM_TX_FRAG][ETH_MAX_FLEN] AHB_SRAM_SECTION;
+
+void EMAC_TxInit(void)
+{
+    uint32_t i;
+
+    /* 1. Initialize the Descriptor and Status arrays */
+    for (i = 0; i < NUM_TX_FRAG; i++)
+    {
+        TX_Desc[i].Packet  = (uint32_t)&TX_Buffer[i][0];
+        TX_Desc[i].Control = 0;
+        TX_Stat[i].Info    = 0;
+    }
+
+    /* 2. Point the EMAC registers to the base of our arrays */
+    LPC_EMAC->TXDESCRIPTOR    = (uint32_t)&TX_Desc[0];
+    LPC_EMAC->TXSTATUS        = (uint32_t)&TX_Stat[0];
+    LPC_EMAC->TXDESCRIPTORNUM = NUM_TX_FRAG - 1;
+
+    /* 3. Reset indices */
+    LPC_EMAC->TXPRODUCEINDEX  = 0;
+}
+
+bool EMAC_SendPacket(uint8_t *pData, uint16_t length)
+{
+    uint32_t produce_idx;
+    uint32_t next_idx;
+
+    if (length == 0 || length > ETH_MAX_FLEN) {
+        return false;
+    }
+
+    produce_idx = LPC_EMAC->TXPRODUCEINDEX;
+    next_idx = (produce_idx + 1) % NUM_TX_FRAG;
+
+    if (next_idx == LPC_EMAC->TXCONSUMEINDEX) {
+        return false;
+    }
+
+    memcpy(TX_Buffer[produce_idx], pData, length);
+
+    /* Note: TX_DESC_CTRL_INT has been strictly removed here so we can poll */
+    TX_Desc[produce_idx].Control = TX_DESC_CTRL_SIZE(length - 1) |
+                                   TX_DESC_CTRL_LAST |
+                                   TX_DESC_CTRL_PAD |
+                                   TX_DESC_CTRL_CRC;
+
+    LPC_EMAC->TXPRODUCEINDEX = next_idx;
+
+    return true;
+}
+
+void EMAC_TxEnable(void)
+{
+    LPC_EMAC->COMMAND |= CR_TX_EN;
+}

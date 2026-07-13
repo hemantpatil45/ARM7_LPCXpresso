@@ -1,0 +1,37 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+
+// Define total PWM cycle period (smaller value = smoother, faster switching frequency)
+#define PWM_PERIOD 5000
+#define HIGH_TIME  2000  // 40% of 5000 = 40% Speed
+#define LOW_TIME   3000  // 60% of 5000 = Off duration
+
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+int main(void) {
+    PLL_Init();        // setup PLL & clock
+    system_Init();     // system init
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "PWM FIXED SPEED EXPT");
+    GLCD_RowWriteMargin(5, "SPEED SET: 40%      ");
+
+    // Enable motor driver A
+    M_MOTOR_EN_A_STATE;
+    M_MOTOR_EN_A_ON;
+    M_B_PHASEM_PWM02_OFF;  // Keep IN2 low for clockwise direction
+
+    while(1) {
+        // Software PWM Cycle
+        M_A_PHASEM_PWM01_ON;   // IN1 = HIGH (Motor gets power)
+        delay_cycles(HIGH_TIME);
+
+        M_A_PHASEM_PWM01_OFF;  // IN1 = LOW (Motor coasts/stops)
+        delay_cycles(LOW_TIME);
+    }
+}

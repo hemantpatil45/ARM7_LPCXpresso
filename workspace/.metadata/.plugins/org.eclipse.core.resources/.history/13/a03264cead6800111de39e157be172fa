@@ -1,0 +1,141 @@
+/*
+ * system_init.h
+ *
+ * Created on: 29-Sep-2025
+ * Author: ADMIN
+ */
+
+#ifndef SYSTEM_INIT_H_
+#define SYSTEM_INIT_H_
+
+void PLL_Init(void); // PLL INITIATE
+void system_Init(void);
+void ADC0_InitCh0(void);
+
+unsigned int Read_Switches(void);
+
+//**********************KEBOARD CONTROL LINES***********************************
+#define KEYBOARD0_ON  FIO2SET |= (1 << 0);
+#define KEYBOARD0_OFF FIO2CLR |= (1 << 0);
+#define KEYBOARD1_ON  FIO2SET |= (1 << 1);
+#define KEYBOARD1_OFF FIO2CLR |= (1 << 1);
+#define KEYBOARD2_ON  FIO2SET |= (1 << 22);
+#define KEYBOARD2_OFF FIO2CLR |= (1 << 22);
+#define KEYBOARD3_ON  FIO2SET |= (1 << 23);
+#define KEYBOARD3_OFF FIO2CLR |= (1 << 23);
+#define KEYBOARD4_ON  FIO2CLR |= (1 << 25);
+#define KEYBOARD4_OFF FIO2SET |= (1 << 25);
+#define KEYBOARD5_ON  FIO2CLR |= (1 << 26);
+#define KEYBOARD5_OFF FIO2SET |= (1 << 26);
+#define KEYBOARD6_ON  FIO2CLR |= (1 << 27);
+#define KEYBOARD6_OFF FIO2SET |= (1 << 27);
+#define KEYBOARD7_ON  FIO0CLR |= (1 << 11);
+#define KEYBOARD7_OFF FIO0SET |= (1 << 11);
+
+//**********************GLCD CONTROL LINES**********************************
+#define M_TFT_R0LCD_RS_ON      FIO0SET |= (1 << 4);
+#define M_TFT_R0LCD_RS_OFF     FIO0CLR |= (1 << 4);
+#define M_TFT_R1LCD_RW_ON      FIO0SET |= (1 << 5);
+#define M_TFT_R1LCD_RW_OFF     FIO0CLR |= (1 << 5);
+#define M_TFT_G0LCD_E_ON       FIO0SET |= (1 << 6);
+#define M_TFT_G0LCD_E_OFF      FIO0CLR |= (1 << 6);
+#define M_TFT_G1LCD_DB0_ON     FIO0SET |= (1 << 7);
+#define M_TFT_G1LCD_DB0_OFF    FIO0CLR |= (1 << 7);
+#define M_TFT_B0LCD_DB1_ON     FIO0SET |= (1 << 8);
+#define M_TFT_B0LCD_DB1_OFF    FIO0CLR |= (1 << 8);
+#define M_TFT_B1LCD_DB2_ON     FIO0SET |= (1 << 9);
+#define M_TFT_B1LCD_DB2_OFF    FIO0CLR |= (1 << 9);
+#define M_TFT_G2LCD_DB3_ON     FIO1SET |= (1 << 20);
+#define M_TFT_G2LCD_DB3_OFF    FIO1CLR |= (1 << 20);
+#define M_TFT_G3LCD_DB4_ON     FIO1SET |= (1 << 21);
+#define M_TFT_G3LCD_DB4_OFF    FIO1CLR |= (1 << 21);
+#define M_TFT_G5LCD_DB5_ON     FIO1SET |= (1 << 23);
+#define M_TFT_G5LCD_DB5_OFF    FIO1CLR |= (1 << 23);
+#define M_TFT_G6LCD_DB6_ON     FIO1SET |= (1 << 24);
+#define M_TFT_G6LCD_DB6_OFF    FIO1CLR |= (1 << 24);
+#define M_TFT_G7LCD_DB7_ON     FIO1SET |= (1 << 25);
+#define M_TFT_G7LCD_DB7_OFF    FIO1CLR |= (1 << 25);
+#define M_TFT_B4LCD_CS1_ON     FIO1SET |= (1 << 26);
+#define M_TFT_B4LCD_CS1_OFF    FIO1CLR |= (1 << 26);
+#define M_TFT_B6LCD_CS2_ON     FIO0SET |= (1 << 28);
+#define M_TFT_B6LCD_CS2_OFF    FIO0CLR |= (1 << 28);
+#define M_TFT_B7LCD_RST_ON     FIO1SET |= (1 << 29);
+#define M_TFT_B7LCD_RST_OFF    FIO1CLR |= (1 << 29);
+
+//**********************EXTERNAL ADC CONTROL LINES***********************************
+#define D28M_ADC_CONVST_ON  FIO3CLR |= (1 << 28);
+#define D28M_ADC_CONVST_OFF FIO3SET |= (1 << 28);
+#define D29M_ADC_CS_ON      FIO3CLR |= (1 << 29);
+#define D29M_ADC_CS_OFF     FIO3SET |= (1 << 29);
+#define D30M_ADC_RD_ON      FIO3CLR |= (1 << 30);
+#define D30M_ADC_RD_OFF     FIO3SET |= (1 << 30);
+
+//**********************EXTERNAL DAC CONTROL LINES***********************************
+#define M_DAC_CS_ON  FIO2CLR |= (1 << 14);
+#define M_DAC_CS_OFF FIO2SET  |= (1 << 14);
+#define M_DAC_CLR_ON FIO0CLR  |= (1 << 7);
+#define M_DAC_CLR_OFF FIO0SET |= (1 << 7);
+#define M_DAC_LD_ON  FIO1CLR  |= (1 << 25);
+#define M_DAC_LD_OFF FIO1SET  |= (1 << 25);
+
+//**********************SWITCH CONTROL LINES***********************************
+#define Switch0_ON    FIO4CLR = (1 << 23);
+#define Switch0_STATE (FIO4PIN & (1u << 23))
+#define Switch0_OFF   FIO4SET = (1 << 23);
+#define Switch1_ON    FIO4CLR = (1 << 26);
+#define Switch1_STATE (FIO4PIN & (1u << 26))
+#define Switch1_OFF   FIO4SET = (1 << 26);
+#define Switch2_ON    FIO4CLR = (1 << 27);
+#define Switch2_STATE (FIO4PIN & (1u << 27))
+#define Switch2_OFF   FIO4SET = (1 << 27);
+#define Switch3_ON    FIO4CLR = (1 << 31);
+#define Switch3_STATE (FIO4PIN & (1u << 31))
+#define Switch3_OFF   FIO4SET = (1 << 31);
+
+//**********************LED CONTROL LINES***********************************
+#define LED0_ON  FIO2CLR = (1 << 15);
+#define LED1_ON  FIO2CLR = (1 << 19);
+#define LED2_ON  FIO2CLR = (1 << 21);
+#define LED3_ON  FIO1CLR = (1 << 13);
+#define LED0_OFF FIO2SET = (1 << 15);
+#define LED1_OFF FIO2SET = (1 << 19);
+#define LED2_OFF FIO2SET = (1 << 21);
+#define LED3_OFF FIO1SET = (1 << 13);
+
+//**********************RELAY CONTROL LINES***********************************
+#define RELAY_BUZZER_ON  FIO0SET = (1 << 10);
+#define RELAY_BUZZER_OFF FIO0CLR = (1 << 10);
+
+//**********************MOTOR CONTROL LINES***********************************
+#define M_MOTOR_EN_A_STATE  FIO0DIR |= (1 << 21);
+#define M_MOTOR_EN_B_STATE  FIO0DIR |= (1 << 24);
+#define M_MOTOR_EN_A_ON     FIO0SET |= (1 << 21);
+#define M_MOTOR_EN_B_ON     FIO0SET |= (1 << 24);
+#define M_C_PHASEM_PWM03_ON FIO1SET |= (1 << 5);
+#define M_D_PHASEM_PWM04_ON FIO1SET |= (1 << 6);
+#define M_A_PHASEM_PWM01_OFF FIO1CLR |= (1 << 2);
+#define M_C_PHASEM_PWM03_OFF FIO1CLR |= (1 << 5);
+#define M_D_PHASEM_PWM04_OFF FIO1CLR |= (1 << 6);
+#define M_B_PHASEM_PWM02_OFF FIO1CLR |= (1 << 3);
+#define M_MOTOR_EN_A_OFF     FIO0CLR |= (1 << 21);
+#define M_MOTOR_EN_B_OFF     FIO0CLR |= (1 << 24);
+
+//***********************CONTROL LINES SD CARD***********************
+#define SD_CLOCK_ON   FIO0SET |= (1 << 21);
+#define SD_CLOCK_OFF  FIO0CLR |= (1 << 21);
+#define M_SPI_SSEL_ON FIO0SET |= (1 << 21);
+#define M_SPI_SSEL_OFF FIO0CLR |= (1 << 21);
+
+//***********************SET PINSEL EXTERNAL INTERRUPT***********************
+#define M_ISPM_EINT0_ON  FIO2SET |= (1 << 10);
+#define M_ISPM_EINT0_OFF FIO2CLR |= (1 << 10);
+
+//***********************TFT/DISPLAY GPIO LINES******************************
+#define M_TFT_B2_ON  FIO2SET = (1 << 12);
+#define M_TFT_B2_OFF FIO2CLR = (1 << 12);
+
+#define CONFIG_MOTOR_PINS_AS_PWM() \
+    PINSEL0 &= ~(3UL << 4); PINSEL0 |= (2UL << 4); \
+    PINSEL0 &= ~(3UL << 6); PINSEL0 |= (2UL << 6);
+
+#endif /* SYSTEM_INIT_H_ */

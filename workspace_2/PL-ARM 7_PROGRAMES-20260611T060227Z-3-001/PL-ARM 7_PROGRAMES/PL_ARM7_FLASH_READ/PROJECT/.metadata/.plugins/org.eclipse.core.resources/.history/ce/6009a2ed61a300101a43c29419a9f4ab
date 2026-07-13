@@ -1,0 +1,25 @@
+/*
+ * flashread.h
+ *
+ *  Created on: 07-Oct-2025
+ *      Author: ADMIN
+ */
+
+#ifndef FLASHREAD_H
+#define FLASHREAD_H
+
+#include <stdint.h>
+
+/* NOR flash base on EMC CS0 */
+#define NOR_BASE_ADDR   (0x80000000UL)
+
+/* Public API */
+void FlashRead_EmcInit(void);                        /* Configure EMC CS0 for x16 NOR */
+void FlashRead_Reset(void);                          /* Issue reset/read-array command */
+void FlashRead_ReadBytes(uint32_t byte_addr,
+                         void *dst, uint32_t nbytes);/* Simple memcpy from NOR */
+void FlashRead_DumpWords(uint32_t byte_addr,
+                         uint32_t nwords);           /* Print n 16-bit words via UART */
+
+#endif /* FLASHREAD_H */
+

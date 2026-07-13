@@ -1,0 +1,88 @@
+#include "LPC24xx.h"
+#include "flashread.h"
+#include "uart0.h"
+
+/* Tiny delay */
+static inline void tiny_delay(volatile uint32_t n){ while(n--) __asm__("nop"); }
+
+/* EMC register definitions */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR (0xFFE08000UL)
+#endif
+#define EMCControl        (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCConfig         (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+#define EMCStaticConfig0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0 (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0 (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0(*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0(*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+#define F16(off) (*((volatile uint16_t *)(NOR_BASE_ADDR) + (off)))
+
+/* UART print helpers */
+static void uart_hex16(uint16_t v)
+{
+    static const char H[]="0123456789ABCDEF";
+    for(int i=3;i>=0;--i) UART0_SendChar(H[(v>>(i*4))&0xF]);
+}
+static void uart_hex32(uint32_t v)
+{
+    static const char H[]="0123456789ABCDEF";
+    for(int i=7;i>=0;--i) UART0_SendChar(H[(v>>(i*4))&0xF]);
+}
+
+/* EMC Configuration */
+void FlashRead_EmcInit(void)
+{
+    PCONP |= (1 << 11);  // Power up EMC
+
+    // D0-D15: P3.0..P3.15 -> PINSEL6 = 01
+    for(int b=0;b<32;b+=2)
+        PINSEL6 = (PINSEL6 & ~(3<<b)) | (1<<b);
+
+    // A0-A14: P4.1..P4.15 -> PINSEL8 = 01
+    for(int p=1;p<=15;++p)
+        PINSEL8 = (PINSEL8 & ~(3<<(p*2))) | (1<<(p*2));
+
+    // A15-A22 + OE/WE/CS0 -> PINSEL9 = 01
+    for(int p=16;p<=22;++p)
+        PINSEL9 = (PINSEL9 & ~(3<<((p-16)*2))) | (1<<((p-16)*2));
+    PINSEL9 = (PINSEL9 & ~(3<<((24-16)*2))) | (1<<((24-16)*2)); // OE
+    PINSEL9 = (PINSEL9 & ~(3<<((25-16)*2))) | (1<<((25-16)*2)); // WE
+    PINSEL9 = (PINSEL9 & ~(3<<((30-16)*2))) | (1<<((30-16)*2)); // CS0
+
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    EMCStaticConfig0   = 0x00000001 | (1<<7);
+    EMCStaticWaitWen0  = 2;
+    EMCStaticWaitOen0  = 3;
+    EMCStaticWaitRd0   = 7;
+    EMCStaticWaitPage0 = 0;
+    EMCStaticWaitWr0   = 7;
+    EMCStaticWaitTurn0 = 3;
+}
+
+/* Flash Reset */
+void FlashRead_Reset(void)
+{
+    F16(0) = 0x00F0;
+    tiny_delay(100);
+}
+
+/* Dump Flash Data to UART */
+void FlashRead_DumpWords(uint32_t start_addr, uint32_t count)
+{
+    volatile const uint16_t *p16 = (volatile const uint16_t *)(NOR_BASE_ADDR + start_addr);
+    UART0_SendString("\r\n--- NOR FLASH DUMP ---\r\n");
+    for(uint32_t i=0;i<count;i++)
+    {
+        uint32_t addr = (uint32_t)(NOR_BASE_ADDR + start_addr + (i*2));
+        UART0_SendString("0x"); uart_hex32(addr);
+        UART0_SendString(" = 0x"); uart_hex16(p16[i]);
+        UART0_SendString("\r\n");
+    }
+    UART0_SendString("--- END OF DUMP ---\r\n");
+}

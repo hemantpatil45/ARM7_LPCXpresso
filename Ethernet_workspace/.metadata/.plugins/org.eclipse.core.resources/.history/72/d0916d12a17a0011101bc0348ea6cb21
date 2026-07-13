@@ -1,0 +1,13 @@
+#ifndef ETHERNET_RX_H
+#define ETHERNET_RX_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/*
+ * Polls the DMA ring buffer.
+ * Returns true if a new packet was copied into rx_buffer.
+ */
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t *rx_length);
+
+#endif /* ETHERNET_RX_H */

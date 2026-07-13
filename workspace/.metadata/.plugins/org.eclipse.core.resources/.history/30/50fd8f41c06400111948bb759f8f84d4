@@ -1,0 +1,12 @@
+#ifndef __GLCD_5X7_H
+#define __GLCD_5X7_H
+
+#include <stdint.h>
+
+/* * 5x7 Font Table 
+ * Each character consists of 5 bytes. 
+ * Each byte represents a column of the character.
+ */
+extern const uint8_t Font5x7[95][5];
+
+#endif // __GLCD_5X7_H

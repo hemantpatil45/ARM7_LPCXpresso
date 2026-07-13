@@ -1,0 +1,5 @@
+src/main.o src/main.d: ../src/main.c ../src/LPC24xx.h ../src/ethernetrx.h
+
+../src/LPC24xx.h:
+
+../src/ethernetrx.h:

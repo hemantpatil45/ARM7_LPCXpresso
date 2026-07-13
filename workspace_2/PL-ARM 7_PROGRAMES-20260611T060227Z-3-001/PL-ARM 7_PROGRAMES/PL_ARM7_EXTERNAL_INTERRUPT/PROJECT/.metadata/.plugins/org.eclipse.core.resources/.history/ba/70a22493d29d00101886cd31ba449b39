@@ -1,0 +1,65 @@
+
+#include "system_init.h"
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "ext_interrupt.h"
+
+//=====================EXTERNAL INTERRUPT CODE ====================
+/* ===== EINT0 (P2.10) → toggle LED on P2.19 ================================= */
+
+#ifndef LED_P2_19_MASK
+#define LED_P2_19_MASK  (1u << 19)    /* P2.19 */
+#endif
+
+/* Ensure LED pin is GPIO output and OFF (active-LOW LED => drive HIGH = OFF) */
+static void LED_P2_19_Init(void)
+{
+    /* P2.19 lives in PINSEL5 bits [11:10] -> set to 00 for GPIO */
+    PINSEL5 &= ~(3u << 10);
+
+    FIO2DIR |=  LED_P2_19_MASK;   /* output */
+    FIO2SET  =  LED_P2_19_MASK;   /* OFF initially */
+}
+
+/* Interrupt Service Routine for EINT0 */
+void EINT0_IRQHandler(void) __attribute__((interrupt("IRQ")));
+void EINT0_IRQHandler(void)
+{
+    if (FIO2PIN & LED_P2_19_MASK) {
+        FIO2CLR = LED_P2_19_MASK;    /* Turn LED ON (active-LOW) */
+    } else {
+        FIO2SET = LED_P2_19_MASK;    /* Turn LED OFF */
+    }
+
+    EXTINT = (1u << 0);              /* clear EINT0 flag */
+    VICVectAddr = 0x00;              /* end of interrupt */
+}
+
+/* Public init: route P2.10 to EINT0, falling-edge, vector in VIC, LED ready */
+void EINT0_Init(void)
+{
+    /* Make sure LED pin is ready */
+    LED_P2_19_Init();
+
+    /* P2.10 -> EINT0: PINSEL4 bits [21:20] = 01 */
+    PINSEL4 |=  (1u << 20);
+    PINSEL4 &= ~(1u << 21);
+
+    /* Edge-sensitive, falling edge */
+    EXTMODE  |=  (1u << 0);
+    EXTPOLAR &= ~(1u << 0);
+
+    /* Clear any pending EINT0 before enabling */
+    EXTINT = (1u << 0);
+
+    /* VIC slot 14 is EINT0 on LPC24xx:
+       - set vector address
+       - enable slot and assign source 14
+       - unmask interrupt */
+    VICVectAddr14 = (unsigned long)EINT0_IRQHandler;
+    VICVectCntl14 = 0x20 | 14;          /* enable slot, source #14 */
+    VICIntEnable  = (1u << 14);         /* enable EINT0 in VIC */
+}
+
+
+

@@ -1,0 +1,49 @@
+#include "LPC24xx.h"
+#include "uart0.h"
+
+static inline void UART0_WaitTHR(void)
+{
+    while(!(U0LSR & (1 << 5))); // Wait till THR empty
+}
+
+void UART0_Init_9600(uint32_t pclk_hz)
+{
+    // Enable UART0 power
+    PCONP |= (1 << 3);
+
+    // Set PCLK_UART0 = CCLK/4 (default), assume 12 MHz
+    PCLKSEL0 &= ~(3 << 6); // Bits 6-7 = 00
+
+    // Set P0.2 = TXD0, P0.3 = RXD0
+    PINSEL0 &= ~((3 << 4) | (3 << 6));
+    PINSEL0 |=  (1 << 4) | (1 << 6);  // Function 01
+
+    // Line control: 8 bits, no parity, 1 stop bit, DLAB = 1
+    U0LCR = 0x83;
+
+    // === Baud Rate Calculation ===
+    // DL = 4, DIVADDVAL = 5, MULVAL = 8 → Baud = 115384
+    U0DLM = 0;
+    U0DLL = 4;
+    U0FDR = (8 << 4) | 5; // MULVAL = 8, DIVADDVAL = 5
+
+    // Disable DLAB
+    U0LCR = 0x03;
+
+    // Enable FIFO
+    U0FCR = 0x07;
+}
+void UART0_SendChar(char c)
+{
+    UART0_WaitTHR();
+    U0THR = c;
+}
+
+void UART0_SendString(const char *s)
+{
+    while(*s)
+    {
+        if(*s == '\n') UART0_SendChar('\r');
+        UART0_SendChar(*s++);
+    }
+}

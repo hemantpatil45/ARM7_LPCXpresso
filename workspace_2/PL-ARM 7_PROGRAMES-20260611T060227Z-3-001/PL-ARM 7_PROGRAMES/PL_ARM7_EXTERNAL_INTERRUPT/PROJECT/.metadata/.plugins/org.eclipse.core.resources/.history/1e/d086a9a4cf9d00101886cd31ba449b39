@@ -1,0 +1,74 @@
+
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "ext_interrupt.h"
+
+/* --- Local masks --- */
+#define LED2_P2_21_MASK   (1u << 21)  /* LED2 pin */
+#define EINT0_P2_10_SEL   (1u << 20)  /* PINSEL4 bit for P2.10 function 01 */
+
+/* Ensure LED2 is an output and OFF (active-LOW → drive HIGH) */
+static void LED2_Init_Output_OFF(void)
+{
+    /* P2.21 function = GPIO: PINSEL5 bits [13:12] = 00 */
+    PINSEL5 &= ~(3u << 12);
+
+    /* Direction → output; drive high → LED OFF */
+    FIO2DIR |=  LED2_P2_21_MASK;
+    LED2_OFF;  /* macro from system_init.h */
+}
+
+/* -------- EINT0 ISR -------- */
+void EINT0_IRQHandler(void)
+{
+    /* Toggle LED2 using current pin level (active-LOW) */
+    if (FIO2PIN & LED2_P2_21_MASK) {
+        /* currently HIGH (OFF) → turn ON */
+        LED2_ON;
+    } else {
+        /* currently LOW (ON) → turn OFF */
+        LED2_OFF;
+    }
+
+    /* Clear EINT0 flag and acknowledge VIC */
+    EXTINT = (1u << 0);   /* write 1 to clear EINT0 */
+    VICVectAddr = 0x00;   /* end of interrupt */
+}
+
+/* -------- Public init --------
+ * Route P2.10 to EINT0, falling-edge, enable VIC vector 14.
+ */
+void EINT0_Init(void)
+{
+    /* Prepare LED2 so ISR can toggle it immediately */
+    LED2_Init_Output_OFF();
+
+    /* ----- Pin mux: P2.10 -> EINT0 (PINSEL4 [21:20] = 01) ----- */
+    PINSEL4 &= ~(3u << 20);     /* clear function */
+    PINSEL4 |=  EINT0_P2_10_SEL;
+
+    /* Optional (recommended): pull-up on P2.10 */
+    /* PINMODE4 &= ~(3u << 20); */  /* 00 = pull-up */
+
+    /* Edge sensitive, falling edge (button to GND) */
+    EXTMODE  |=  (1u << 0);     /* 1 = edge */
+    EXTPOLAR &= ~(1u << 0);     /* 0 = falling */
+
+    /* Clear any pending EINT0 before enabling */
+    EXTINT = (1u << 0);
+
+    /* Route as IRQ (not FIQ) */
+    VICIntSelect &= ~(1u << 14);
+
+    /* Vector slot 14 is EINT0 on LPC24xx */
+    VICVectAddr14 = (unsigned long)EINT0_IRQHandler; /* ISR address */
+    VICVectCntl14 = 0x20 | 14;                       /* enable slot + source 14 */
+
+    /* Enable EINT0 in VIC */
+    VICIntEnable  = (1u << 14);
+}
+
+
+

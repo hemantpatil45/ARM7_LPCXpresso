@@ -1,0 +1,57 @@
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include <stdint.h>
+#include <stdio.h> // Required for sprintf
+
+// --- UART Functions ---
+void UART0_Init(void) {
+    PCONP |= (1 << 3);
+    PCLKSEL0 &= ~(3 << 6);
+    PINSEL0 &= ~((3 << 4) | (3 << 6));
+    PINSEL0 |= (1 << 4) | (1 << 6);
+    U0LCR = 0x83; U0DLM = 0; U0DLL = 117; U0LCR = 0x03; U0FCR = 0x07;
+}
+
+void UART0_SendString(const char *s) {
+    while(*s) {
+        while(!(U0LSR & (1 << 5)));
+        U0THR = *s++;
+    }
+}
+
+// --- GLCD Debug Helper ---
+void GLCD_Debug(int line, const char *label, int value) {
+    char buffer[21];
+    sprintf(buffer, "%s: %d      ", label, value); // Formats "Label: Value"
+    GLCD_RowWriteMargin(line, buffer);
+}
+
+int main(void) {
+    // 1. Initial Setup
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+    UART0_Init();
+
+    // 2. Debug Initial Status
+    GLCD_RowWriteMargin(0, "UART TEST MODE");
+    UART0_SendString("Debug Session Started\r\n");
+
+    int counter = 0;
+
+    while(1) {
+        // Increment and send to UART
+        counter++;
+        UART0_SendString("Sending Data...\r\n");
+
+        // 3. Update GLCD Debuggers
+        GLCD_Debug(2, "Counter", counter);
+        GLCD_Debug(4, "PCONP", PCONP); // Watch if peripheral is enabled
+        GLCD_Debug(6, "U0DLL", U0DLL); // Verify baud divisor
+
+        // Small delay for readability
+        volatile uint32_t i;
+        for(i = 0; i < 5000000; i++);
+    }
+}

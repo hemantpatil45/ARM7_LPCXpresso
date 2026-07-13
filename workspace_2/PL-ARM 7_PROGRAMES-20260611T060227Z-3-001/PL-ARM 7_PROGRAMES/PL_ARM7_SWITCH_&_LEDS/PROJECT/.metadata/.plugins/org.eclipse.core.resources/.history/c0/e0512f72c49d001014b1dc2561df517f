@@ -1,0 +1,81 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+
+
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+int main(void) {
+    PLL_Init();        // setup PLL & clock
+    system_Init();     // system init (pins, fast GPIO, etc.)
+    GLCD_Init();
+    GLCD_Clear();
+
+    // Banner (print once)
+    GLCD_RowWriteMargin(0, "     WELCOME TO     ");
+    GLCD_RowWriteMargin(2, "     AKADEMIKA      ");
+    GLCD_RowWriteMargin(4, "PL-ARM7 DEVELOPMENT ");
+    GLCD_RowWriteMargin(6, "       BOARD        ");
+    delay_cycles(10000);
+
+
+
+    while (1) {
+        unsigned int sw_state = Read_Switches();
+
+        // SW0 -> LED0 and status line 4
+        if (sw_state & (1u << 0)) {
+            LED0_ON;
+            GLCD_RowWriteMargin(4, "LED 1 ON");
+        } else {
+            LED0_OFF;
+            GLCD_RowWriteMargin(4, "LED 1 OFF           ");
+        }
+
+        // SW1 -> LED1 and status line 5
+        if (sw_state & (1u << 1)) {
+            LED1_ON;
+            GLCD_RowWriteMargin(5, "LED 2 ON            ");
+        } else {
+            LED1_OFF;
+            GLCD_RowWriteMargin(5, "LED 2 OFF           ");
+        }
+
+        // SW2 -> LED2 and status line 6
+        if (sw_state & (1u << 2)) {
+            LED2_ON;
+            GLCD_RowWriteMargin(6, "LED 3 ON            ");
+        } else {
+            LED2_OFF;
+            GLCD_RowWriteMargin(6, "LED 3 OFF           ");
+        }
+
+        // SW3 -> LED3 and status line 7
+        if (sw_state & (1u << 3)) {
+            LED3_ON;
+            GLCD_RowWriteMargin(7, "LED 4 ON            ");
+        } else {
+            LED3_OFF;
+            GLCD_RowWriteMargin(7, "LED 4 OFF           ");
+        }
+    }
+
+    // (never reached)
+     return 0;
+}
+

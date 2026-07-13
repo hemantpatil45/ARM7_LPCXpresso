@@ -1,0 +1,307 @@
+/*
+ * system_init.h
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+#ifndef SYSTEM_INIT_H_
+#define SYSTEM_INIT_H_
+void PLL_Init(void); // PLL INITIATE
+void system_Init(void);
+void ADC0_InitCh0(void);
+
+unsigned int Read_Switches(void);
+//**********************KEBOARD CONTROL LINES***********************************
+
+#define KEYBOARD0_ON FIO2SET |= (1 << 0);//KEYBOARD0 P2[0]  WORK AS OUTPUT SET GPIO
+#define KEYBOARD0_OFF FIO2CLR |= (1 << 0);//KEYBOARD0 P2[0]  WORK AS OUTPUT SET GPIO
+
+#define KEYBOARD1_ON FIO2SET |= (1 << 1);//KEYBOARD1 P2[1]  WORK AS OUTPUT SET GPIO
+#define KEYBOARD1_OFF FIO2CLR |= (1 << 1);//KEYBOARD1 P2[1]  WORK AS OUTPUT SET GPIO
+
+#define KEYBOARD2_ON FIO2SET |= (1 << 22);//KEYBOARD2 P2[22]  WORK AS OUTPUT SET GPIO
+#define KEYBOARD2_OFF FIO2CLR |= (1 << 22);//KEYBOARD2 P2[22]  WORK AS OUTPUT SET GPIO
+
+#define KEYBOARD3_ON FIO2SET |= (1 << 23);//KEYBOARD3 P2[23]  WORK AS OUTPUT SET GPIO
+#define KEYBOARD3_OFF FIO2CLR |= (1 << 23);//KEYBOARD3 P2[23]  WORK AS OUTPUT SET GPIO
+
+#define KEYBOARD4_ON FIO2CLR |= (1 << 25);//KEYBOARD4 P2[25]  WORK AS OUTPUT CLR GPIO
+#define KEYBOARD4_OFF FIO2SET |= (1 << 25);//KEYBOARD4 P2[25]  WORK AS OUTPUT CLR GPIO
+
+#define KEYBOARD5_ON FIO2CLR |= (1 << 26);//KEYBOARD5 P2[26] WORK AS OUTPUT CLR GPIO
+#define KEYBOARD5_OFF FIO2SET |= (1 << 26);//KEYBOARD5 P2[26] WORK AS OUTPUT CLR GPIO
+
+#define KEYBOARD6_ON FIO2CLR |= (1 << 27);//kEYBOARD6 P2[27]  WORK AS OUTPUT CLR GPIO
+#define KEYBOARD6_OFF FIO2SET |= (1 << 27);//kEYBOARD6 P2[27]  WORK AS OUTPUT CLR GPIO
+
+#define KEYBOARD7_ON FIO0CLR |= (1 << 11);//KEYBOARD7 P0[11]  WORK AS OUTPUT CLR GPIO
+#define KEYBOARD7_OFF FIO0SET |= (1 << 11);//KEYBOARD7 P0[11]  WORK AS OUTPUT CLR GPIO
+
+//**********************GLCD CONTROL LINES**********************************
+//#define   FIO0DIR |= (1 << 4);//M_TFT_R0/LCD_RS P0[4]WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 5);//M_TFT_R1/LCD_RW P0[5] WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 6);//M_TFT_G0/LCD_E P0[6] WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 7);//M_TFT_G1/LCD_DB0 P0[7]WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 8);//M_TFT_B0/LCD_DB1 P0[8] WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 9);//M_TFT_B1/LCD_DB2 P0[9] WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 20);//M_TFT_G2/LCD_DB3 P1[20]WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 21);//M_TFT_G3/LCD_DB4 P1[21] WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 23);//M_TFT_G5/LCD_DB5 P1[23] WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 24);//M_TFT_G6/LCD_DB6 P1[24] WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 25);//M_TFT_G7/LCD_DB7[25] WORK AS OUTPUT
+//#define   FIO1DIR |= (1 << 26);//M_TFT_B4/LCD_CS1 P1[26] WORK AS OUTPUT
+//#define   FIO0DIR |= (1 << 28);//M_TFT_B6/LCD_CS2 P1[28] WORK AS OUTPUT
+//#define   FIO1DIR = (1 << 22); //AS a GPIO for P1[22] ALL Direction = NA(OUT)
+
+
+#define M_TFT_R0LCD_RS_ON FIO0SET |= (1 << 4);//M_TFT_R0/LCD_RS P0[4] SET TO 01
+#define M_TFT_R0LCD_RS_OFF FIO0CLR |= (1 << 4);//M_TFT_R0/LCD_RS P0[4] SET TO 01
+
+#define M_TFT_R1LCD_RW_ON FIO0SET |= (1 << 5);//M_TFT_R1/LCD_RW P0[5] SET TO 01
+#define M_TFT_R1LCD_RW_OFF FIO0CLR |= (1 << 5);//M_TFT_R1/LCD_RW P0[5] SET TO 01
+
+#define M_TFT_G0LCD_E_ON FIO0SET |= (1 << 6);//M_TFT_G0/LCD_E P0[6] SET TO 01
+#define M_TFT_G0LCD_E_OFF FIO0CLR |= (1 << 6);//M_TFT_G0/LCD_E P0[6] SET TO 01
+
+#define M_TFT_G1LCD_DB0_ON FIO0SET |= (1 << 7);//M_TFT_G1/LCD_DB0 P0[7] SET TO 01
+#define M_TFT_G1LCD_DB0_OFF FIO0CLR |= (1 << 7);//M_TFT_G1/LCD_DB0 P0[7] SET TO 01
+
+#define M_TFT_B0LCD_DB1_ON FIO0SET |= (1 << 8);//M_TFT_B0/LCD_DB1 P0[8] SET TO 01
+#define M_TFT_B0LCD_DB1_OFF FIO0CLR |= (1 << 8);//M_TFT_B0/LCD_DB1 P0[8] SET TO 01
+
+#define M_TFT_B1LCD_DB2_ON FIO0SET |= (1 << 9);//M_TFT_B1/LCD_DB2 P0[9] SET TO 01
+#define M_TFT_B1LCD_DB2_OFF FIO0CLR |= (1 << 9);//M_TFT_B1/LCD_DB2 P0[9] SET TO 01
+
+#define M_TFT_G2LCD_DB3_ON FIO1SET |= (1 << 20);//M_TFT_G2/LCD_DB3 P1[20] SET TO 01
+#define M_TFT_G2LCD_DB3_OFF FIO1CLR |= (1 << 20);//M_TFT_G2/LCD_DB3 P1[20] SET TO 01
+
+#define M_TFT_G3LCD_DB4_ON FIO1SET |= (1 << 21);//M_TFT_G3/LCD_DB4 P1[21] SET TO 01
+#define M_TFT_G3LCD_DB4_OFF FIO1CLR |= (1 << 21);//M_TFT_G3/LCD_DB4 P1[21] SET TO 01
+
+#define M_TFT_G5LCD_DB5_ON FIO1SET |= (1 << 23);//M_TFT_G5/LCD_DB5 P1[23] SET TO 01
+#define M_TFT_G5LCD_DB5_OFF FIO1CLR |= (1 << 23);//M_TFT_G5/LCD_DB5 P1[23] SET TO 01
+
+#define M_TFT_G6LCD_DB6_ON FIO1SET |= (1 << 24);//M_TFT_G6/LCD_DB6 P1[24] SET TO 01
+#define M_TFT_G6LCD_DB6_OFF FIO1CLR|= (1 << 24);//M_TFT_G6/LCD_DB6 P1[24] SET TO 01
+
+#define M_TFT_G7LCD_DB7_ON FIO1SET |= (1 << 25);//M_TFT_G7/LCD_DB7[25] SET TO 01
+#define M_TFT_G7LCD_DB7_OFF FIO1CLR |= (1 << 25);//M_TFT_G7/LCD_DB7[25] SET TO 01
+
+#define M_TFT_B4LCD_CS1_ON FIO1SET |= (1 << 26);//M_TFT_B4/LCD_CS1 P1[26] SET TO 01
+#define M_TFT_B4LCD_CS1_OFF FIO1CLR |= (1 << 26);//M_TFT_B4/LCD_CS1 P1[26] SET TO 01
+
+#define M_TFT_B6LCD_CS2_ON FIO0SET |= (1 << 28);//M_TFT_B6/LCD_CS2 P1[28] SET TO 01
+#define M_TFT_B6LCD_CS2_OFF FIO0CLR |= (1 << 28);//M_TFT_B6/LCD_CS2 P1[28] SET TO 01
+
+#define M_TFT_B7LCD_RST_ON FIO1SET |= (1 << 29);//M_TFT_B7/LCD_RST P1[29] SET TO 01
+#define M_TFT_B7LCD_RST_OFF FIO1CLR |= (1 << 29);//M_TFT_B7/LCD_RST P1[29] SET TO 01
+
+
+
+//**********************EXTERNAL ADC CONTROL LINES***********************************
+
+#define D28M_ADC_CONVST_ON FIO3CLR |=  (1 << 28);//D28/M_ADC_CONVST# P3[28] WORK AS OUTPUT
+#define D28M_ADC_CONVST_OFF FIO3SET |=  (1 << 28);//D28/M_ADC_CONVST# P3[28] WORK AS OUTPUT
+
+#define D29M_ADC_CS_ON FIO3CLR |=  (1 << 29);//D29/M_ADC_CS# P3[29] WORK AS OUTPUT
+#define D29M_ADC_CS_OFF FIO3SET |=  (1 << 29);//D29/M_ADC_CS# P3[29] WORK AS OUTPUT
+
+#define D30M_ADC_RD_ON FIO3CLR |=  (1 << 30);//D30/M_ADC_RD# P3[30] WORK AS OUTPUT
+#define D30M_ADC_RD_OFF FIO3SET |=  (1 << 30);//D30/M_ADC_RD# P3[30] WORK AS OUTPUT
+
+//#define D31M_ADC_BUSY FIO3PIN |=  (1 << 31);//D31/M_ADC_BUSY P3[31] WORK AS INPUT
+
+////**********************EXTERNAL ADC INPUT  CONTROL LINES***********************************
+//
+//#define D16M_ADC_DB0_ON FIO3SET |=  (1 << 16);//D16/M_ADC_DB0 P3[16] WORK AS INPUT
+//#define D16M_ADC_DB1_ON FIO3SET |=  (1 << 17);//D16/M_ADC_DB1 P3[17] WORK AS INPUT
+//#define D16M_ADC_DB2_ON FIO3SET |=  (1 << 18);//D16/M_ADC_DB2 P3[18] WORK AS INPUT
+//#define D16M_ADC_DB3_ON FIO3SET |=  (1 << 19);//D16/M_ADC_DB3 P3[19] WORK AS INPUT
+//#define D16M_ADC_DB4_ON FIO3SET |=  (1 << 20);//D16/M_ADC_DB4 P3[20] WORK AS INPUT
+//#define D16M_ADC_DB5_ON FIO3SET |=  (1 << 21);//D16/M_ADC_DB5 P3[21] WORK AS INPUT
+//#define D16M_ADC_DB6 FIO3SET |=  (1 << 22);//D16/M_ADC_DB6 P3[22] WORK AS INPUT
+//#define D16M_ADC_DB7_ON FIO3SET |=  (1 << 23);//;D16/M_ADC_DB7 P3[23] WORK AS INPUT
+//#define D16M_ADC_DB8ON FIO3SET |=  (1 << 24);//D16/M_ADC_DB8 P3[24] WORK AS INPUT
+//#define D16M_ADC_DB9_ON FIO3SET |=  (1 << 25);//D1;6/M_ADC_DB9 P3[25] WORK AS INPUT
+//#define D16M_ADC_DB10_ON FIO3SET |=  (1 << 26);//D16/M_ADC_DB10 P3[26] WORK AS INPUT
+//#define D16M_ADC_DB11_ON FIO3SET |=  (1 << 27);//D16/M_ADC_DB11 P3[27] WORK AS INPUT
+//
+//#define D16M_ADC_DB0_OFF FIO3CLR |=  (1 << 16);//D16/M_ADC_DB0 P3[16] WORK AS INPUT
+//#define D16M_ADC_DB1_OFF FIO3CLR |=  (1 << 17);//D16/M_ADC_DB1 P3[17] WORK AS INPUT
+//#define D16M_ADC_DB2_OFF FIO3CLR |=  (1 << 18);//D16/M_ADC_DB2 P3[18] WORK AS INPUT
+//#define D16M_ADC_DB3_OFF FIO3CLR |=  (1 << 19);//D16/M_ADC_DB3 P3[19] WORK AS INPUT
+//#define D16M_ADC_DB4_OFF FIO3CLR |=  (1 << 20);//D16/M_ADC_DB4 P3[20] WORK AS INPUT
+//#define D16M_ADC_DB5_OFF FIO3CLR |=  (1 << 21);//D16/M_ADC_DB5 P3[21] WORK AS INPUT
+//#define D16M_ADC_DB6_OFF FIO3CLR |=  (1 << 22);//D16/M_ADC_DB6 P3[22] WORK AS INPUT
+//#define D16M_ADC_DB7_OFF FIO3CLR |=  (1 << 23);//D16/M_ADC_DB7 P3[23] WORK AS INPUT
+//#define D16M_ADC_DB8_OFF FIO3CLR |=  (1 << 24);//D16/M_ADC_DB8 P3[24] WORK AS INPUT
+//#define D16M_ADC_DB9_OFF FIO3CLR |=  (1 << 25);//D16/M_ADC_DB9 P3[25] WORK AS INPUT
+//#define D16M_ADC_DB10_OFF FIO3CLR |=  (1 << 26);//D16M_ADC_DB10 P3[26] WORK AS INPUT
+//#define D16M_ADC_DB11_OFF FIO3CLR |=  (1 << 27);//D16/M_ADC_DB11 P3[27] WORK AS INPUT
+
+//**********************EXTERNAL DAC CONTROL LINES***********************************
+
+#define M_DAC_CS_ON FIO2CLR |= (1 << 14);//M_DAC_CS# P2[14]  WORK AS OUTPUT SET GPIO
+#define M_DAC_CS_OFF FIO2SET  |= (1 << 14);//M_DAC_CS# P2[14]  WORK AS OUTPUT SET GPIO
+
+
+#define M_DAC_CLR_ON FIO0CLR |= (1 << 7);//M_DAC_CLR# P1[7] WORK AS OUTPUT SET GPIO
+#define M_DAC_CLR_OFF FIO0SET  |= (1 << 7);//M_DAC_CLR# P1[7] WORK AS OUTPUT SET GPIO
+
+#define M_DAC_LD_ON FIO1CLR |= (1 << 25);//M_DAC_LD# P0[25] WORK AS OUTPUT SET GPIO
+#define M_DAC_LD_OFF FIO1SET |= (1 << 25);//M_DAC_LD# P0[25] WORK AS OUTPUT SET GPIO
+
+//**********************SWITCH CONTROL LINES***********************************
+
+#define Switch0_ON FIO4CLR = (1 << 23);
+#define Switch0_STATE   (FIO4PIN & (1u << 23))  // SW0 on P4.23
+#define Switch0_OFF FIO4SET = (1 << 23);
+
+#define Switch1_ON FIO4CLR = (1 << 26);
+#define Switch1_STATE   (FIO4PIN & (1u << 26))   // SW1 on P4.26
+#define Switch1_OFF FIO4SET = (1 << 26);
+
+#define Switch2_ON FIO4CLR = (1 << 27);
+#define Switch2_STATE   (FIO4PIN & (1u << 27))  // SW2 on P4.27
+#define Switch2_OFF FIO4SET = (1 << 27);
+
+#define Switch3_ON FIO4CLR = (1 << 31);
+#define Switch3_STATE   (FIO4PIN & (1u << 31))   // SW2 on P4.27
+#define Switch3_OFF FIO4SET = (1 << 31);
+
+
+
+//**********************LED CONTROL LINES***********************************
+
+#define LED0_ON FIO2CLR = (1 << 15);
+#define LED1_ON FIO2CLR = (1 << 19);
+#define LED2_ON FIO2CLR = (1 << 21);
+#define LED3_ON FIO1CLR = (1 << 13);
+
+#define LED0_OFF FIO2SET = (1 << 15);
+#define LED1_OFF FIO2SET = (1 << 19);
+#define LED2_OFF FIO2SET = (1 << 21);
+#define LED3_OFF FIO1SET = (1 << 13);
+
+//**********************RELAY CONTROL LINES***********************************
+#define RELAY_BUZZER_ON FIO0DIR = (1 << 10);
+
+#define RELAY_BUZZER_ON FIO0SET = (1 << 10);
+#define RELAY_BUZZER_OFF FIO0CLR = (1 << 10);
+
+//**********************MOTOR CONTROL LINES***********************************
+#define M_MOTOR_EN_A_STATE  FIO0DIR |= (1 << 21);
+#define M_MOTOR_EN_A_ON FIO0SET |= (1 << 21);//M_MOTOR_EN_A  P0[21] WORK AS OUTPUT SET GPIO
+#define M_MOTOR_EN_A_OFF FIO0CLR |= (1 << 21);//M_MOTOR_EN_A  P0[21] WORK AS OUTPUT SET GPIO
+
+#define M_MOTOR_EN_B_STATE  FIO0DIR |= (1 << 24);
+#define M_MOTOR_EN_B_ON FIO0SET |= (1 << 24);//M_MOTOR_EN_A  P0[21] WORK AS OUTPUT SET GPIO
+#define M_MOTOR_EN_B_OFF FIO0CLR |= (1 << 24);//M_MOTOR_EN_A  P0[21] WORK AS OUTPUT SET GPIO
+
+#define M_A_PHASEM_PWM01_ON FIO1SET |= (1 << 2);//M_A_PHASE/M_PWM0[1] P1[2] WORK AS OUTPUT SET GPIO
+#define M_A_PHASEM_PWM01_OFF FIO1CLR |= (1 << 2);//M_A_PHASE/M_PWM0[1] P1[2] WORK AS OUTPUT SET GPIO
+
+#define M_B_PHASEM_PWM02_ON FIO1SET |= (1 << 3);///M_B_PHASE/M_PWM0[2] P1[3] OUTPUT SET GPIO
+#define M_B_PHASEM_PWM02_OFF FIO1CLR |= (1 << 3);///M_B_PHASE/M_PWM0[2] P1[3] OUTPUT SET GPIO
+
+#define M_C_PHASEM_PWM03_ON FIO1SET|= (1 << 5);//M_C_PHASE/M_PWM0[3] P1[15] OUTPUT SET GPIO
+#define M_C_PHASEM_PWM03_OFF FIO1CLR|= (1 << 5);//M_C_PHASE/M_PWM0[3] P1[15] OUTPUT SET GPIO
+
+#define M_D_PHASEM_PWM04_ON FIO1SET |= (1 << 6);//M_D_PHASE/M_PWM0[4] P1[16] OUTPUT SET GPIO
+#define M_D_PHASEM_PWM04_OFF FIO1CLR |= (1 << 6);//M_D_PHASE/M_PWM0[4] P1[16] OUTPUT SET GPIO
+
+//***********************CONTROL LINES SD CARD***********************
+
+#define SD_CLOCK_ON FIO0SET |= (1 << 21);////SD_CLOCK P0[19]
+#define SD_CLOCK_OFF FIO0CLR |= (1 << 21);////SD_CLOCK P0[19]
+
+#define M_SPI_SSEL_ON FIO0SET |= (1 << 21);//M_SPI_SSEL P0[20]  SET TO 0
+#define M_SPI_SSEL_OFF FIO0CLR |= (1 << 21);//M_SPI_SSEL P0[20]  SET TO 0
+
+#define M_SPI_MISO_ON FIO0SET |= (1 << 21);//M_SPI_MISO P0[22] SET TO 0
+#define M_SPI_MISO_OFF FIO0CLR |= (1 << 21);//M_SPI_MISO P0[22] SET TO 0
+
+#define M_SPI_MOSI_ON FIO0SET |= (1 << 21);//M_SPI_MOSI P2[11] SET TO 0
+#define M_SPI_MOSI_OFF FIO0CLR |= (1 << 21);//M_SPI_MOSI P2[11] SET TO 0
+
+#define M_SPI_MOSI1_ON FIO0SET |= (1 << 21);//M_SPI_MOSI P1[11] SET TO 0
+#define M_SPI_MOSI1_OFF FIO0CLR |= (1 << 21);//M_SPI_MOSI P1[11] SET TO 0
+
+#define SD_CS_ON FIO0SET |= (1 << 21);//SD_CS P1[12] SET TO 0
+#define SD_CS_OFF FIO0CLR |= (1 << 21);//SD_CS P1[12] SET TO 0
+
+//***********************SET PINSEL EXTERNAL INTERRUPT***********************
+
+#define M_ISPM_EINT0_ON FIO2SET |= (1 << 10);//M_ISP/M_EINT0# P2[10] SET TO 01
+#define M_ISPM_EINT0_OFF FIO2CLR |= (1 << 10);//M_ISP/M_EINT0# P2[10] SET TO 01
+
+//*********************** CONTROL LINE FOR WITHOUT TFT PIN SET AS GPIO  ***********************
+
+#define M_TFT_G4_ON FIO1SET = (1 << 22); //AS a GPIO for P1[22]
+#define M_TFT_G4_OFF FIO1CLR = (1 << 22); //AS a GPIO for P1[22]
+
+
+#define M_TFT_DCLK_ON FIO2SET = (1 << 2); //AS a GPIO for P2[2]
+#define M_TFT_DCLK_OFF FIO2CLR = (1 << 2); //AS a GPIO for P2[2]
+
+
+#define M_TFT_VSYNC_ON FIO2SET = (1 << 3); //AS a GPIO for P2[3]
+#define M_TFT_VSYNC_OFF FIO2CLR = (1 << 3); //AS a GPIO for P2[3]
+
+
+#define M_TFT_DATA_EN_ON FIO2SET = (1 << 4); //AS a GPIO for P2[4]
+#define M_TFT_DATA_EN_OFF FIO2CLR = (1 << 4); //AS a GPIO for P2[4]
+
+
+#define M_TFT_HSYNC_ON FIO2SET = (1 << 5); //AS a GPIO for P2[5]
+#define M_TFT_HSYNC_OFF FIO2CLR = (1 << 5); //AS a GPIO for P2[5]
+
+
+#define M_TFT_R2_ON FIO2SET |= (1 << 28);//GPIO for P4[28]
+#define M_TFT_R2_OFF FIO2CLR |= (1 << 28);//GPIO for P4[29]
+
+#define M_TFT_R3_ON FIO2SET |= (1 << 29);//M_ISP/M_EINT0# P2[10] SET TO 01
+#define M_TFT_R3_OFF FIO2CLR |= (1 << 29);//M_ISP/M_EINT0# P2[10] SET TO 01
+
+#define M_TFT_R4_ON FIO2SET = (1 << 6); //AS a GPIO for P2[6]
+#define M_TFT_R4_OFF FIO2CLR = (1 << 6); //AS a GPIO for P2[6]
+
+#define M_TFT_R5_ON FIO2SET = (1 << 7); //AS a GPIO for P2[7]
+#define M_TFT_R5_OFF FIO2CLR = (1 << 7); //AS a GPIO for P2[7]
+
+#define M_TFT_R6_ON FIO2SET = (1 << 8); //AS a GPIO for P2[8]
+#define M_TFT_R6_OFF FIO2CLR = (1 << 8); //AS a GPIO for P2[8]
+
+#define M_TFT_R7_ON FIO2SET = (1 << 9); //AS a GPIO for P2[9]
+#define M_TFT_R7_OFF FIO2CLR = (1 << 9); //AS a GPIO for P2[9]
+
+#define M_TFT_B2_ON FIO2SET = (1 << 12); //AS a GPIO for P2[12]
+#define M_TFT_B2_OFF FIO2CLR = (1 << 12); //AS a GPIO for P2[12]
+
+#define M_TFT_B3_ON FIO2SET = (1 << 13); //AS a GPIO for P2[13]
+#define M_TFT_B3_OFF FIO2CLR = (1 << 13); //AS a GPIO for P2[13]
+
+#define M_TFT_B5_ON FIO1SET = (1 << 27); //AS a GPIO for P1[27]
+#define M_TFT_B5_OFF FIO1CLR = (1 << 27); //AS a GPIO for P1[27]
+
+//**********************USB2 CONTROL LINES***********************************
+#define VBUS_ON FIO0CLR |= (1 << 14);//VBUS P0[14] WORK AS OUTPUT
+#define VBUS_OFF FIO0SET |= (1 << 14);//VBUS P0[14] WORK AS OUTPUT
+
+
+//****************************Not_Connected_Pins Direction**********************************
+
+#define NC_ON FIO0SET = (1 << 19); //AS a GPIO for P0[19] NA (OUTPUT)
+#define NC_OFF FIO0CLR = (1 << 19); //AS a GPIO for P0[19] NA (OUTPUT)
+
+#define NC1_ON FIO0SET = (1 << 20); //AS a GPIO for P0[20] NA (OUTPUT)
+#define NC1_OFF FIO0CLR = (1 << 20); //AS a GPIO for P0[20] NA (OUTPUT)
+
+#define NC2_ON FIO0SET = (1 << 22); //AS a GPIO for P0[22] NA (OUTPUT)
+#define NC2_OFF FIO0CLR = (1 << 22); //AS a GPIO for P0[22] NA (OUTPUT)
+
+#define NC3_ON FIO2SET = (1 << 11); //As a GPIO for P2[11] NA (OUTPUT)
+#define NC3_OFF FIO2CLR = (1 << 11); //As a GPIO for P2[11] NA (OUTPUT)
+
+#endif /* SYSTEM_INIT_H_ */

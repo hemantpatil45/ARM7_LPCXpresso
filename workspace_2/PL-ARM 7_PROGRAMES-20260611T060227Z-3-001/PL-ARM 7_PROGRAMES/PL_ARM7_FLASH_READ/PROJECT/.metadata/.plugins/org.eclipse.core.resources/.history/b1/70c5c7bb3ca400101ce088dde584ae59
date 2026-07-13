@@ -1,0 +1,191 @@
+///*
+//===============================================================================
+// Name        : main.c
+// Author      : $(author)
+// Version     :
+// Copyright   : $(copyright)
+// Description : main definition
+//===============================================================================
+//*/
+////****************code for flash read using GLCD ************************
+//// TODO: insert include files here
+//
+//// TODO: insert other definitions and declarations here
+//
+///*
+// * main_flash_read.c — LPC2478 + SST39VF3202C (x16) — READ → GLCD
+// * - EMC Static CS0 @ 0x8000_0000
+// * - Keeps rows 0/2/4 constant; updates ONLY row 6 with "AAAA:VVVV"
+// * - Reads 200 words that the writer stored at base (word 0..199)
+// */
+//
+//#include <stdint.h>
+//#include "LPC24xx.h"
+//#include "system_init.h"
+//#include "glcd.h"
+//
+///* ===== NOR base / x16 helpers ===== */
+//#define NOR_BASE   (0x80000000UL)
+//#define F16(off)   (*((volatile const uint16_t *)(NOR_BASE) + (off))) /* off in WORDS */
+//
+///* Tiny delays */
+//static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+//static inline void delay_ms(uint32_t ms){ while (ms--) delay_loops(72000); } /* ~1ms @ ~72MHz */
+//
+///* ===== EMC Static CS0, x16 NOR (P3 data, P4 addr/ctrl) ===== */
+////#define EMC_BASE_ADDR          (0xFFE08000UL)
+//#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+//#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+//#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+//#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+//#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+//#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+//#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+//#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+//#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+//
+//static void EMC_Init_CS0_x16(void)
+//{
+//    /* Power EMC */
+//    PCONP |= (1u << 11);
+//
+//    /* Data P3.0..P3.15 -> 01 */
+//    for (int b = 0; b < 32; b += 2)
+//        PINSEL6 = (PINSEL6 & ~(3u << b)) | (1u << b);
+//
+//    /* Address P4.1..P4.15 -> 01 */
+//    for (int p = 1; p <= 15; ++p)
+//        PINSEL8 = (PINSEL8 & ~(3u << (p*2))) | (1u << (p*2));
+//
+//    /* Address P4.16..P4.22 -> 01 */
+//    for (int p = 16; p <= 22; ++p)
+//        PINSEL9 = (PINSEL9 & ~(3u << ((p-16)*2))) | (1u << ((p-16)*2));
+//
+//    /* Control: OE/WE/CS0 -> 01 */
+//    PINSEL9 = (PINSEL9 & ~(3u << ((24-16)*2))) | (1u << ((24-16)*2)); /* OE  */
+//    PINSEL9 = (PINSEL9 & ~(3u << ((25-16)*2))) | (1u << ((25-16)*2)); /* WE  */
+//    PINSEL9 = (PINSEL9 & ~(3u << ((30-16)*2))) | (1u << ((30-16)*2)); /* CS0 */
+//
+//    EMCControl = 1; EMCConfig = 0;
+//
+//    EMCStaticConfig0   = (1u << 7) | 0x00000001u; /* PB=1, x16 */
+//    EMCStaticWaitWen0  = 2;
+//    EMCStaticWaitOen0  = 3;
+//    EMCStaticWaitRd0   = 7;
+//    EMCStaticWaitPage0 = 0;
+//    EMCStaticWaitWr0   = 7;
+//    EMCStaticWaitTurn0 = 3;
+//
+//    delay_loops(5000);
+//}
+//
+///* Read/Reset mode */
+//static void nor_reset(void){ *((volatile uint16_t *)(NOR_BASE)) = 0x00F0u; delay_loops(10); }
+//
+///* Small hex */
+//static void hex4(uint16_t v, char s[5]){
+//    for (int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; s[i]=(n<10)?('0'+n):('A'+(n-10)); }
+//    s[4]='\0';
+//}
+//
+///* Make "AAAA:VVVV" 20-char padded */
+//static void make_line(uint16_t addr_word, uint16_t value, char out20[21])
+//{
+//    char a[5], v[5]; hex4(addr_word,a); hex4(value,v);
+//    int pos=0;
+//    out20[pos++]=a[0]; out20[pos++]=a[1]; out20[pos++]=a[2]; out20[pos++]=a[3];
+//    out20[pos++]=':';  out20[pos++]=v[0]; out20[pos++]=v[1]; out20[pos++]=v[2]; out20[pos++]=v[3];
+//    while (pos<20) out20[pos++]=' ';
+//    out20[20]='\0';
+//}
+//
+//int main(void)
+//{
+//    PLL_Init();
+//    system_Init();
+//    GLCD_Init();
+//    GLCD_Clear();
+//
+//    EMC_Init_CS0_x16();
+//    nor_reset();
+//
+//    /* Fixed header rows (remain constant) */
+//    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+//    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+//    GLCD_RowWriteMargin(4, "FLASH READ (GLCD)   ");
+//    GLCD_RowWriteMargin(6, "READING 200 WORDS.. ");
+//
+//    /* Show 200 words one-by-one ONLY on row 6 */
+//    char line[21];
+//    for (uint32_t i=0;i<1000u;i++){
+//        uint16_t val = F16(i);
+//        make_line((uint16_t)i, val, line);
+//        GLCD_RowWriteMargin(7, line);   /* only row 6 is updated */
+//        delay_ms(1);                  /* adjust speed to taste */
+//    }
+//
+//    GLCD_RowWriteMargin(6, "DONE                ");
+//    while (1) { }
+//}
+
+
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"    /* library: EMC + read + keypad */
+
+static void hex4(uint16_t v, char s[5]){
+    for (int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; s[i]=(n<10)?('0'+n):('A'+(n-10)); }
+    s[4]='\0';
+}
+static void make_line(uint16_t addr_word, uint16_t value, char out20[21])
+{
+    char a[5], v[5]; hex4(addr_word,a); hex4(value,v);
+    int pos=0;
+    out20[pos++]=a[0]; out20[pos++]=a[1]; out20[pos++]=a[2]; out20[pos++]=a[3];
+    out20[pos++]=':';  out20[pos++]=v[0]; out20[pos++]=v[1]; out20[pos++]=v[2]; out20[pos++]=v[3];
+    while (pos<20) out20[pos++]=' ';
+    out20[20]='\0';
+}
+
+static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static inline void delay_ms(uint32_t ms){ while (ms--) delay_loops(72000); } /* ~1ms @ ~72MHz */
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "FLASH READ EXPT     ");
+    GLCD_RowWriteMargin(5, "PRESS SW2 TO READ   ");
+
+
+    EMC_Init_CS0_x16();
+    nor_reset();
+    Keypad_Col1Row12_Init();
+
+    while (!SW2_Pressed()) { /* wait */ }
+    for (volatile uint32_t d=0; d<600000; ++d) __asm volatile("nop");
+    while (SW2_Pressed()) {  }
+
+
+    char line[21];
+    for (uint32_t i=0;i<1000u;i++){ // TOTAL NUMBER CAN BE  WRITE HERE  i VALUE SET THAT TIME FLASH WRITE OTHER DATA WILL SHOW FFFF
+ //IF i=200u SET C8.... IF i VALUE SET 1000u THE 3E8... IF iarflashwrite VALUE SHOW 200 OTHER SHOW FFFF
+    	uint16_t val = flash_read_word(i);   /* word offset i */
+        make_line((uint16_t)i, val, line);
+        GLCD_RowWriteMargin(6, line);
+        delay_ms(1);
+    }
+
+    GLCD_RowWriteMargin(7, "FLASH Read COMPLETED");
+    while (1) { }
+}
+

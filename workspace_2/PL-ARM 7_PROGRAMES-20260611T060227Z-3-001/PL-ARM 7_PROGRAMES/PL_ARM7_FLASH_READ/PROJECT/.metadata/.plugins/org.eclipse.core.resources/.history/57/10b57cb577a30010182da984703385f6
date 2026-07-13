@@ -1,0 +1,47 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"
+
+/* Small delay */
+static inline void delay_ms(uint32_t ms)
+{
+    volatile uint32_t n = ms * 8000u;
+    while (n--) __asm volatile("nop");
+}
+
+int main(void)
+{
+    PLL_Init();          // Initialize PLL to target frequency (e.g., 72 MHz)
+    system_Init();       // Configure MAM, VPB, peripheral clocks
+
+    GLCD_Init();         // Initialize GLCD
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "    PL-ARM7 BOARD    ");
+    GLCD_RowWriteMargin(4, "FLASH READ EXPT READY");
+
+    FlashRead_EmcInit();  // Configure EMC for NOR flash
+    FlashRead_Reset();    // Reset NOR chip
+
+    delay_ms(500);
+
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "READING NOR FLASH...");
+    delay_ms(1000);
+
+    /* Read and display the first 80 bytes as ASCII text */
+    FlashRead_ShowFirst80_ASCII(0x00000000);
+
+    GLCD_RowWriteMargin(4, "DATA READ COMPLETE");
+    GLCD_RowWriteMargin(6, "CHECK ABOVE ROWS");
+
+    while (1)
+    {
+        // Idle loop (can be extended for keypress or auto-refresh)
+    }
+
+    return 0;
+}

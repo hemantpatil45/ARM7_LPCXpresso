@@ -1,0 +1,117 @@
+/*
+ * flashread.c
+ *
+ *  Created on: 07-Oct-2025
+ *      Author: ADMIN
+ */
+
+
+#include "LPC24xx.h"
+#include "flashread.h"
+
+/* ===== UART hooks (use your existing UART0 code) ===== */
+extern void UART0_SendChar(char c);
+extern void UART0_SendString(const char *s);
+
+/* Tiny helpers to print hex */
+static void uart_put_hex16(uint16_t v){
+    static const char H[]="0123456789ABCDEF";
+    for(int i=3;i>=0;--i) UART0_SendChar(H[(v>>(i*4))&0xF]);
+}
+static void uart_put_hex32(uint32_t v){
+    static const char H[]="0123456789ABCDEF";
+    for(int i=7;i>=0;--i) UART0_SendChar(H[(v>>(i*4))&0xF]);
+}
+
+/* ===== EMC register window (not in some LPC24xx headers) ===== */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR          (0xFFE08000UL)
+#endif
+#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCStatus              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x004))
+#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+/* Static CS0 config block */
+#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+/* NOR access macro (x16 bus: offset is in 16-bit words) */
+#define F16(off) (*((volatile uint16_t *)(NOR_BASE_ADDR) + (off)))
+
+/* JEDEC common (SST39VF3202C) */
+#define NOR_CMD_RESET          (0x00F0u)
+
+/* Small delay (few cycles, only used after reset) */
+static inline void _tiny_delay(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+
+/* ===== Public API ===== */
+
+void FlashRead_EmcInit(void)
+{
+    /* Power EMC */
+    PCONP |= (1u<<11); /* PCEMC */
+
+    /* Data D0..D15 -> P3.0..P3.15 via PINSEL6 function 01 */
+    for (int b=0; b<32; b+=2)
+        PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+
+    /* Address A0..A14 -> P4.1..P4.15 via PINSEL8 function 01 */
+    for (int p=1; p<=15; ++p)
+        PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+
+    /* Address A15..A22 + OE(P4.24)/WE(P4.25)/CS0(P4.30) via PINSEL9 function 01 */
+    for (int p=16; p<=22; ++p)
+        PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2)); /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2)); /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2)); /* CS0 */
+
+    /* Enable EMC, little endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static CS0 timing: x16, conservative waits (OK @ ~60–72 MHz) */
+    EMCStaticConfig0   = 0x00000001u      /* MW=01 (16-bit bus) */
+                       | (1u<<7);         /* buffer/page enable */
+    EMCStaticWaitWen0  = 2;               /* WE# to CS# delay    */
+    EMCStaticWaitOen0  = 3;               /* OE# access delay    */
+    EMCStaticWaitRd0   = 7;               /* read wait states    */
+    EMCStaticWaitPage0 = 0;               /* no page mode        */
+    EMCStaticWaitWr0   = 7;               /* write wait states   */
+    EMCStaticWaitTurn0 = 3;               /* turnaround cycles   */
+
+    _tiny_delay(5000);
+}
+
+void FlashRead_Reset(void)
+{
+    /* JEDEC reset/read-array: write 0xF0 to any address (use base) */
+    F16(0) = NOR_CMD_RESET;
+    _tiny_delay(100);
+}
+
+void FlashRead_ReadBytes(uint32_t byte_addr, void *dst, uint32_t nbytes)
+{
+    /* NOR is memory-mapped; just copy */
+    volatile const uint8_t *src = (volatile const uint8_t *)(NOR_BASE_ADDR + byte_addr);
+    uint8_t *d = (uint8_t *)dst;
+    for (uint32_t i=0; i<nbytes; ++i) d[i] = src[i];
+}
+
+void FlashRead_DumpWords(uint32_t byte_addr, uint32_t nwords)
+{
+    volatile const uint16_t *p = (volatile const uint16_t *)(NOR_BASE_ADDR + (byte_addr & ~1u));
+
+    UART0_SendString("\r\n=== NOR DUMP (16-bit words) ===\r\n");
+    for (uint32_t i=0; i<nwords; ++i) {
+        uint32_t addr = (uint32_t)(NOR_BASE_ADDR + (byte_addr & ~1u) + (i<<1));
+        UART0_SendString("0x"); uart_put_hex32(addr);
+        UART0_SendString(" = 0x"); uart_put_hex16(p[i]);
+        UART0_SendString("\r\n");
+    }
+    UART0_SendString("=== END ===\r\n");
+}

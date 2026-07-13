@@ -1,0 +1,39 @@
+/*
+ * switch_led.c
+ *
+ *  Created on: 30-Sep-2025
+ *      Author: ADMIN
+ */
+
+#include "switch_led.h"
+
+/* Reads all four switches and returns a bitfield:
+ * bit0 = SW0, bit1 = SW1, bit2 = SW2, bit3 = SW3
+ */
+unsigned int Read_Switches(void) {
+    unsigned int sw = 0;
+
+    if (Switch0_STATE) sw |= (1u << 0);
+    if (Switch1_STATE) sw |= (1u << 1);
+    if (Switch2_STATE) sw |= (1u << 2);
+    if (Switch3_STATE) sw |= (1u << 3);
+
+    return sw;
+}
+
+static inline void update_row_on_change(uint8_t row, uint8_t bit, unsigned sw, unsigned prev) {
+    if ( ((sw ^ prev) & (1u << bit)) != 0u ) {
+        const char* on_txt  =
+            (bit==0) ? "LED 1 ON            " :
+            (bit==1) ? "LED 2 ON            " :
+            (bit==2) ? "LED 3 ON            " :
+                       "LED 4 ON            ";
+        const char* off_txt =
+            (bit==0) ? "LED 1 OFF           " :
+            (bit==1) ? "LED 2 OFF           " :
+            (bit==2) ? "LED 3 OFF           " :
+                       "LED 4 OFF           ";
+        GLCD_RowWriteMargin(row, (sw & (1u<<bit)) ? on_txt : off_txt);
+    }
+}
+

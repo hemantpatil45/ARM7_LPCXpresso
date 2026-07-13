@@ -1,0 +1,77 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "can_self.h"
+
+extern unsigned char rx_data[8];  // Declare only, no allocation
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    unsigned int CAN_11bit_ID = 0x123;
+    unsigned char CAN_DATA_frame[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+    char DATA_BUFFER[40];
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"PRESS SW2 KEY       ");
+
+    Timer0_init();
+    SW2_Keypad_Init();
+    SW6_Keypad_Init();
+    CAN_CONTROLLER_SELF_TEST_INIT();
+
+    uint8_t armed = 1;
+    while (armed == 1)
+    {
+        if (armed && SW2_Pressed())
+        {
+            GLCD_Clear();
+            GLCD_RowWriteMargin(0,"CAN BUS IN SELF TEST        ");
+            sprintf(DATA_BUFFER, "TX ID = %03X         ", CAN_11bit_ID);
+            GLCD_RowWriteMargin(0, DATA_BUFFER);
+            sprintf(DATA_BUFFER, "TX DATA A = %02X%02X%02X%02X",
+                    CAN_DATA_frame[0], CAN_DATA_frame[1], CAN_DATA_frame[2], CAN_DATA_frame[3]);
+            GLCD_RowWriteMargin(1, DATA_BUFFER);
+            sprintf(DATA_BUFFER, "TX DATA B = %02X%02X%02X%02X",
+                    CAN_DATA_frame[4], CAN_DATA_frame[5], CAN_DATA_frame[6], CAN_DATA_frame[7]);
+            GLCD_RowWriteMargin(2, DATA_BUFFER);
+
+            GLCD_RowWriteMargin(5,"PRESS SWITCH SW6 TO  ");
+            GLCD_RowWriteMargin(6,"SEND & RECEIVE DATA  ");
+        }
+        else if (armed && SW6_Pressed())
+        {
+            CAN1_TX1_frame(CAN_11bit_ID, CAN_DATA_frame);
+            CAN1CMR = (1 << 4);
+            while ((CAN1GSR & (1 << 3)) != 0);
+            CAN1CMR &= ~(1 << 4);
+
+            rx_data[0] = (CAN1RDA >> 0) & 0xFF;
+            rx_data[1] = (CAN1RDA >> 8) & 0xFF;
+            rx_data[2] = (CAN1RDA >> 16) & 0xFF;
+            rx_data[3] = (CAN1RDA >> 24) & 0xFF;
+            rx_data[4] = (CAN1RDB >> 0) & 0xFF;
+            rx_data[5] = (CAN1RDB >> 8) & 0xFF;
+            rx_data[6] = (CAN1RDB >> 16) & 0xFF;
+            rx_data[7] = (CAN1RDB >> 24) & 0xFF;
+
+                sprintf(DATA_BUFFER, "RX ID = %03X         ", CAN1RID & 0x7FF);
+                GLCD_RowWriteMargin(3, DATA_BUFFER);
+                sprintf(DATA_BUFFER, "RX DATA A = %02X%02X%02X%02X",
+                        rx_data[0], rx_data[1], rx_data[2], rx_data[3]);
+                GLCD_RowWriteMargin(4, DATA_BUFFER);
+                sprintf(DATA_BUFFER, "RX DATA B = %02X%02X%02X%02X",
+                        rx_data[4], rx_data[5], rx_data[6], rx_data[7]);
+                GLCD_RowWriteMargin(5, DATA_BUFFER);
+                delay(2000000);
+                    CAN1CMR = (1 << 2);
+        }
+    }
+    armed =0;
+}
+

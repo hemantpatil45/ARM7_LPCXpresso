@@ -1,0 +1,61 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "ethernet.h"
+#include "ethernet_tx.h"
+
+void Delay1Sec(void)
+{
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) {
+        __asm("NOP");
+    }
+}
+
+int main(void)
+{
+    bool link_status;
+    uint32_t tx_counter = 0;
+
+    /* Standard Raw Ethernet Broadcast Frame */
+    uint8_t broadcast_frame[64] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+        0x88, 0xB5,
+        'H', 'e', 'l', 'l', 'o', ' H', 'E', 'M', 'A', 'N', 'T', '!',
+        '\r', '\n'
+    };
+
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"Ethernet Demo       ");
+
+    /* Initializes MAC, PHY, and routing. Returns true if Link is negotiated. */
+    link_status = Eth_Init();
+
+    if (link_status) {
+        GLCD_RowWriteMargin(6, "Link Status: UP   ");
+    } else {
+        GLCD_RowWriteMargin(6, "Link Status: FAIL ");
+    }
+
+    while(1) {
+        if (link_status) {
+            /* If the packet successfully copies to DMA SRAM */
+            if (EMAC_SendPacket(broadcast_frame, sizeof(broadcast_frame))) {
+                tx_counter++;
+            } else {
+                GLCD_RowWriteMargin(6, "TX Error: FULL    ");
+            }
+        }
+        Delay1Sec();
+    }
+    return 0;
+}

@@ -1,0 +1,55 @@
+18:12:25 **** Build of configuration Debug for project PL_ARM7_HEX_KEYBOARD ****
+make -r all 
+Building file: ../src/KEYPAD.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/KEYPAD.d" -MT"src/KEYPAD.o" -MT"src/KEYPAD.d" -o "src/KEYPAD.o" "../src/KEYPAD.c"
+../src/KEYPAD.c:18:13: warning: 'keymap' initialized and declared 'extern'
+ extern char keymap[4][4] = {
+             ^
+Finished building: ../src/KEYPAD.c
+ 
+Building file: ../src/cr_startup_lpc24.s
+Invoking: MCU Assembler
+arm-none-eabi-gcc -c -x assembler-with-cpp -DDEBUG -D__CODE_RED -D__REDLIB__ -g3 -mcpu=arm7tdmi -specs=redlib.specs -o "src/cr_startup_lpc24.o" "../src/cr_startup_lpc24.s"
+Finished building: ../src/cr_startup_lpc24.s
+ 
+Building file: ../src/crp.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/crp.d" -MT"src/crp.o" -MT"src/crp.d" -o "src/crp.o" "../src/crp.c"
+Finished building: ../src/crp.c
+ 
+Building file: ../src/glcd.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/glcd.d" -MT"src/glcd.o" -MT"src/glcd.d" -o "src/glcd.o" "../src/glcd.c"
+../src/glcd.c: In function 'glcd_enable_pulse':
+../src/glcd.c:65:5: warning: implicit declaration of function 'delay_cycles' [-Wimplicit-function-declaration]
+     delay_cycles(80);
+     ^
+Finished building: ../src/glcd.c
+ 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+Finished building: ../src/main.c
+ 
+Building file: ../src/system_init.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/system_init.d" -MT"src/system_init.o" -MT"src/system_init.d" -o "src/system_init.o" "../src/system_init.c"
+Finished building: ../src/system_init.c
+ 
+Building target: PL_ARM7_HEX_KEYBOARD.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="PL_ARM7_HEX_KEYBOARD.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "PL_ARM7_HEX_KEYBOARD_Debug.ld" -o "PL_ARM7_HEX_KEYBOARD.axf" ./src/KEYPAD.o ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:        9400 B       512 KB      1.79%
+           Ram64:          16 B        64 KB      0.02%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: PL_ARM7_HEX_KEYBOARD.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -v -O ihex "PL_ARM7_HEX_KEYBOARD.axf" "PL_ARM7_HEX_KEYBOARD.hex" ; # checksum -p LPC2478 -d "PL_ARM7_HEX_KEYBOARD.bin"
+copy from `PL_ARM7_HEX_KEYBOARD.axf' [elf32-littlearm] to `PL_ARM7_HEX_KEYBOARD.hex' [ihex]
+ 

@@ -1,0 +1,30 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+
+void system_Init(void) {
+    SCS |= (1 << 0);
+
+    // ... (Keep your other peripheral initializations as they were) ...
+
+    //***********************SET PINSEL FOR MOTOR - CORRECTED***********************
+    // P1.2 (PWM0[1]) and P1.3 (PWM0[2])
+    // We must set these to 11 (binary) to enable the PWM peripheral.
+    // P1.2 is PINSEL2 bits 5:4
+    // P1.3 is PINSEL2 bits 7:6
+    PINSEL2 &= ~(3UL << 4);
+    PINSEL2 |=  (3UL << 4);
+
+    PINSEL2 &= ~(3UL << 6);
+    PINSEL2 |=  (3UL << 6);
+
+    //***********************SET GPIO DIRECTIONS*******************************
+    // Set Enable Pins as GPIO Outputs
+    FIO0DIR |= (1 << 21) | (1 << 24);
+
+    // IMPORTANT: DO NOT set FIO1DIR for P1.2, P1.3, P1.15, or P1.16.
+    // The PWM peripheral needs these pins, so leave them out of the FIOxDIR bitmask.
+
+    // Set other necessary GPIO directions
+    FIO0DIR |= (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 28);
+    FIO1DIR |= (1 << 20) | (1 << 21) | (1 << 23) | (1 << 24) | (1 << 25) | (1 << 26);
+}

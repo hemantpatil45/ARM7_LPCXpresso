@@ -1,0 +1,10 @@
+#ifndef ETHERNET_RX_H
+#define ETHERNET_RX_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+void EMAC_RxInit(void);
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t *rx_length);
+
+#endif /* ETHERNET_RX_H */

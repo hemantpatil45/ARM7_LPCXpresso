@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 7 resources" deleteContents="false" description="Delete 7 resources" element1="/PL_ARM7_UART_RX/src/glcd_font5x7.h" element2="/PL_ARM7_UART_RX/src/glcd.c" element3="/PL_ARM7_UART_RX/src/glcd.h" element4="/PL_ARM7_UART_RX/src/LPC24xx.h" element5="/PL_ARM7_UART_RX/src/main.c" element6="/PL_ARM7_UART_RX/src/system_init.c" element7="/PL_ARM7_UART_RX/src/system_init.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="7" stamp="1760075638169"/>
+</session>

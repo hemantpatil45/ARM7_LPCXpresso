@@ -1,0 +1,33 @@
+/*
+ * flashwrite.h
+ *
+ *  Created on: 03-Oct-2025
+ *      Author: ADMIN
+ */
+
+
+#ifndef FLASHWRITE_H_
+#define FLASHWRITE_H_
+
+#include <stdint.h>
+
+/* ===== Keypad: Col1(P2.25) drives; Row1(P2.0)=SW2, Row2(P2.1)=SW6 ===== */
+void    Keypad_Col1Row12_Init(void);
+uint8_t SW2_Pressed(void);   /* 1 if SW2 pressed (debounced) */
+uint8_t SW6_Pressed(void);   /* 1 if SW6 pressed (debounced) */
+
+/* ===== EMC CS0 (x16) setup for external NOR ===== */
+void emc_init_cs0_x16(void);
+
+/* ===== NOR flash basic ops (AMD/SST compatible, x16) ===== */
+void flash_reset(void);
+int  flash_sector_erase(uint32_t byte_addr);                            /* erase sector containing byte_addr */
+int  flash_write_buf(uint32_t dst_byte_addr, const void *src, uint32_t nbytes); /* program buffer */
+
+/* Expose base so main can read memory-mapped contents */
+#define NOR_BASE (0x80000000UL)
+
+#endif /* FLASHWRITE_H_ */
+
+
+

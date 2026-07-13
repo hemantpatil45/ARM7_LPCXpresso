@@ -1,0 +1,6 @@
+13:31:20 **** Incremental Build of configuration Debug for project PL_ARM7_EXTERNAL_INTERRUPT ****
+make -r all 
+make: Nothing to be done for `all'.
+
+13:31:20 Build Finished (took 118ms)
+

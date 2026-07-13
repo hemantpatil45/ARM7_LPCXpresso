@@ -1,0 +1,112 @@
+/*
+ * flashwrite.c
+ *
+ *  Created on: 03-Oct-2025
+ *      Author: ADMIN
+ */
+/*
+ * flashwrite.c — LPC2478 + SST39VF3202C (x16) on EMC CS0
+ * Implements keypad scan, EMC CS0 timings, and NOR flash primitives.
+ */
+
+#include "flashwrite.h"
+#include "LPC24xx.h"
+
+/* ---------- tiny local delays ---------- */
+static inline void dly_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static void dly_ms(uint32_t ms){ while(ms--) dly_loops(72000); }   /* ~1ms @72MHz */
+
+/* =======================================================================================
+ *                                     KEYPAD
+ *  Col1 -> P2.25 (output we drive LOW while sampling)
+ *  Row1 -> P2.0  (input)  => SW2
+ *  Row2 -> P2.1  (input)  => SW6
+ * ======================================================================================= */
+#define KBD_COL1_BIT   25u
+#define KBD_ROW1_BIT    0u
+#define KBD_ROW2_BIT    1u
+
+#define KBD_COL1_MASK  (1u<<KBD_COL1_BIT)
+#define KBD_ROW1_MASK  (1u<<KBD_ROW1_BIT)
+#define KBD_ROW2_MASK  (1u<<KBD_ROW2_BIT)
+
+void Keypad_Col1Row12_Init(void)
+{
+    /* make pins GPIO */
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));           /* P2.0  GPIO */
+    PINSEL4 &= ~(3u << (KBD_ROW2_BIT*2));           /* P2.1  GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));     /* P2.25 GPIO */
+
+    /* dirs */
+    FIO2DIR &= ~(KBD_ROW1_MASK | KBD_ROW2_MASK);    /* rows inputs */
+    FIO2DIR |=  KBD_COL1_MASK;                      /* column output */
+
+    /* idle HIGH */
+    FIO2SET = KBD_COL1_MASK;
+}
+
+static inline uint32_t read_rows_when_col1_low(void)
+{
+    FIO2CLR = KBD_COL1_MASK;        /* drive LOW */
+    dly_loops(300);
+    uint32_t pins = FIO2PIN;
+    FIO2SET = KBD_COL1_MASK;        /* release HIGH */
+    return pins;
+}
+
+static uint8_t debounced_is_low(uint32_t row_mask)
+{
+    uint8_t a = ((read_rows_when_col1_low() & row_mask) == 0u);
+    dly_ms(2);
+    uint8_t b = ((read_rows_when_col1_low() & row_mask) == 0u);
+    return (a && b) ? 1u : 0u;
+}
+
+uint8_t SW2_Pressed(void){ return debounced_is_low(KBD_ROW1_MASK); }
+uint8_t SW6_Pressed(void){ return debounced_is_low(KBD_ROW2_MASK); }
+
+/* =======================================================================================
+ *                                  EMC (CS0, x16)
+ *  D0..D15 on P3.0..P3.15 (PINSEL6 = 01)
+ *  A0..A14 on P4.1..P4.15 (PINSEL8 = 01)
+ *  A15..A22, OE=P4.24, WE=P4.25, CS0=P4.30 (PINSEL9 = 01)
+ * ======================================================================================= */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR       (0xFFE08000UL)
+#endif
+#define EMCControl          (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCConfig           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+
+#define EMCStaticConfig0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+void emc_init_cs0_x16(void)
+{
+    /* power EMC */
+    PCONP |= (1u<<11);                     /* PCEMC */
+
+    /* Data bus P3.0..P3.15 -> D0..D15 */
+    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+
+    /* Address A0..A14 -> P4.1..P4.15 */
+    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+
+    /* A15..A22 + OE/WE/CS0 */
+    for (int p=16; p<=22; ++p) PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2));  /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2));  /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2));  /* CS0 */
+
+    /* enable EMC, little-endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static timings — conservative @ ~60–72 MHz */
+    EMCStaticConfig0   = 0x00000001u | (1u<<7);  /
+
+

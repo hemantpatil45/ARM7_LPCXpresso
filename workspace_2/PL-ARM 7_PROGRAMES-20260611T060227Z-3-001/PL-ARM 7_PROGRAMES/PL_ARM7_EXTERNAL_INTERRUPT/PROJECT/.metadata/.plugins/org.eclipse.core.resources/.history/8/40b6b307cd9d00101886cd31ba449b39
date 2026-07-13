@@ -1,0 +1,31 @@
+/*
+ * ext_interrupt.h
+ *
+ *  Created on: 30-Sep-2025
+ *      Author: ADMIN
+ */
+
+/*
+ * ext_interrupt.h
+ * EINT0 (P2.10) → toggle LED on P2.19 (active-LOW)
+ *
+ * Toolchain: GCC (arm-none-eabi-gcc)
+ */
+
+#ifndef EXT_INTERRUPT_H_
+#define EXT_INTERRUPT_H_
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Initialize LED (P2.19) and EINT0 on P2.10, falling-edge, VIC slot 14 */
+void EINT0_Init(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* EXT_INTERRUPT_H_ */

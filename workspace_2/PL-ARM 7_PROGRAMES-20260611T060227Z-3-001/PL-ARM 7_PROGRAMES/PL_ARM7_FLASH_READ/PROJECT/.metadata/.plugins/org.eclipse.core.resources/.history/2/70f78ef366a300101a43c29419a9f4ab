@@ -1,0 +1,81 @@
+//-------------------------------PL-ARM7 V14.1----------------------------------
+// Date:- 07/10/2025
+// Description :- LPC2478 FLASH READ Experiment using UART0 @9600 baud
+// Hardware used:- LPC2478 (PL-ARM7 V14.1)
+//------------------------------------------------------------------------------
+
+//-------------------------------HEADER FILES---------------------------------//
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"
+#include "uart0.h"
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+//---------------------------- FUNCTION DECLARATIONS --------------------------//
+void delay_ms(uint32_t ms);
+void SW2_Init(void);
+uint8_t SW2_Pressed(void);
+
+//---------------------------------- DELAY ------------------------------------//
+void delay_ms(uint32_t ms)
+{
+    volatile uint32_t i;
+    while(ms--)
+    {
+        for(i=0;i<8000;i++) __asm__("nop");
+    }
+}
+
+//---------------------------------- SW2 INIT ---------------------------------//
+// SW2 connected to P2.10 (active LOW)
+void SW2_Init(void)
+{
+	PINSEL9 &= ~(3UL << 14);  // Switch 0 P4[23]
+    FIO4DIR &= ~(1 << 23);  // Input
+}
+uint8_t SW2_Pressed(void)
+{
+    return ((FIO4PIN & (1 << 23)) == 0);
+}
+
+//---------------------------------- MAIN -------------------------------------//
+int main(void)
+{
+   // PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    UART0_Init_9600(12000000);  // UART0 @ 9600bps, PCLK=12MHz
+
+    GLCD_RowWriteMargin(0x00, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(0x02, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(0x04, "FLASH READ EXPT     ");
+    GLCD_RowWriteMargin(0x06, "                    ");
+    delay_ms(1);
+
+    UART0_SendString("\r\n==== AKADEMIKA LPC2478 FLASH READ TEST ====\r\n");
+    UART0_SendString("Press SW2 to read NOR Flash content...\r\n");
+
+    SW2_Init();
+    FlashRead_EmcInit();
+    FlashRead_Reset();
+
+    GLCD_RowWriteMargin(0x05, "OPEN SERIAL MONITOR");
+    GLCD_RowWriteMargin(0x06, "& PRESS SW2 TO READ");
+
+    while(!SW2_Pressed());   // Wait for keypress
+    delay_ms(1);
+
+    GLCD_RowWriteMargin(0x06, "READING FLASH...    ");
+    UART0_SendString("\r\nReading NOR Flash (First 64 words)...\r\n");
+
+    FlashRead_DumpWords(0x00000000, 64);
+
+    GLCD_RowWriteMargin(0x06, "FLASH READ DONE     ");
+    UART0_SendString("=== FLASH READ COMPLETE ===\r\n");
+
+    while(1);
+}

@@ -1,0 +1,39 @@
+/*
+ * system_init.h
+ *
+ * Created on: 29-Sep-2025
+ * Author: ADMIN
+ */
+
+#ifndef SYSTEM_INIT_H_
+#define SYSTEM_INIT_H_
+
+#include "LPC24xx.h"
+#include <stdint.h>
+
+void PLL_Init(void);
+void system_Init(void);
+void ADC0_InitCh0(void);
+
+//**********************KEBOARD CONTROL LINES***********************************
+// ... (Your existing keyboard macros remain unchanged) ...
+
+//**********************GLCD CONTROL LINES**********************************
+// ... (Your existing GLCD macros remain unchanged) ...
+
+//**********************MOTOR CONTROL LINES (Simplified for Clarity)**********
+// Use these for the Enable and Phase logic.
+// Do NOT use FIO commands on P1.2, P1.3, P1.15, P1.16 as they are for PWM.
+
+#define M_MOTOR_EN_A_ON     FIO0SET |= (1 << 21);
+#define M_MOTOR_EN_A_OFF    FIO0CLR |= (1 << 21);
+#define M_MOTOR_EN_B_ON     FIO0SET |= (1 << 24);
+#define M_MOTOR_EN_B_OFF    FIO0CLR |= (1 << 24);
+
+// Note: PWM phases (P1.2, P1.3, etc.) are now controlled exclusively
+// by the PWM0 peripheral and should NOT be toggled by FIO macros.
+
+//**********************LED, SWITCH, RELAY, ADC/DAC**************************
+// ... (Keep your existing macros for these peripherals) ...
+
+#endif /* SYSTEM_INIT_H_ */

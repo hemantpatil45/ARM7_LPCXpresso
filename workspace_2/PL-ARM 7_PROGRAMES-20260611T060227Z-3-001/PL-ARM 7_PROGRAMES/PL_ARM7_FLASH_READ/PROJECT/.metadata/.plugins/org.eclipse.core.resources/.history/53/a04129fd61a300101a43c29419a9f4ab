@@ -1,0 +1,368 @@
+/////*
+////===============================================================================
+//// Name        : main.c
+//// Author      : $(author)
+//// Version     :
+//// Copyright   : $(copyright)
+//// Description : main definition
+////===============================================================================
+////*/
+////
+////// TODO: insert include files here
+////
+////// TODO: insert other definitions and declarations here
+////
+////#include <stdint.h>
+////#include "LPC24xx.h"
+////#include "system_init.h"
+////#include "glcd.h"
+////
+/////* ================= EMC register block ================= */
+////#ifndef EMC_BASE_ADDR
+////#define EMC_BASE_ADDR       (0xFFE08000UL)
+////#endif
+////#define EMCControl          (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+////#define EMCConfig           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+////#define EMCStaticConfig0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+////#define EMCStaticWaitWen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+////#define EMCStaticWaitOen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+////#define EMCStaticWaitRd0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+////#define EMCStaticWaitPage0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+////#define EMCStaticWaitWr0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+////#define EMCStaticWaitTurn0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+////
+/////* ================= Flash base ================= */
+////#define NOR_BASE            (0x80000000UL) /* CS0 */
+////
+/////* ================= Helpers ================= */
+////static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+////
+////static inline void row_wr(uint8_t page, const char *s){
+////    extern void GLCD_RowWriteMargin(uint8_t page, const char *s);
+////    GLCD_RowWriteMargin(page, s);
+////}
+////
+/////* ================= EMC init for CS0 x16 ================= */
+////static void emc_init_cs0_x16(void)
+////{
+////    PCONP |= (1u<<11); /* PCEMC */
+////
+////    /* Data D0..D15 -> P3.0..P3.15 */
+////    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+////
+////    /* Address A0..A14 -> P4.1..P4.15 */
+////    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+////
+////    /* A15..A22, OE=P4.24, WE=P4.25, CS0=P4.30 */
+////    for (int p=16; p<=22; ++p) PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+////    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2));
+////    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2));
+////    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2));
+////
+////    EMCControl = 1;
+////    EMCConfig  = 0;
+////
+////    EMCStaticConfig0   = 0x1 | (1u<<7); /* 16-bit, buffer enable */
+////    EMCStaticWaitWen0  = 2;
+////    EMCStaticWaitOen0  = 3;
+////    EMCStaticWaitRd0   = 7;
+////    EMCStaticWaitPage0 = 0;
+////    EMCStaticWaitWr0   = 7;
+////    EMCStaticWaitTurn0 = 3;
+////
+////    delay_loops(5000);
+////}
+////
+/////* ================= UART0 Init (115200) ================= */
+////static void uart0_init_115200(void)
+////{
+////    /* P0.2=TXD0, P0.3=RXD0 */
+////    PINSEL0 |= (1<<4)|(1<<6);
+////
+////    U0LCR = 0x83;  /* 8-bit, 1 stop, DLAB=1 */
+////    U0DLL = 39;    /* For 72 MHz PCLK, ~115200 baud */
+////    U0DLM = 0;
+////    U0LCR = 0x03;  /* clear DLAB */
+////}
+////
+////static void uart0_putc(char c){ while (!(U0LSR & (1<<5))); U0THR = c; }
+////static void uart0_puts(const char* s){ while(*s) uart0_putc(*s++); }
+////
+/////* Send 16-bit word as 4 hex chars */
+////static void uart0_put_hex16(uint16_t val)
+////{
+////    const char hex[]="0123456789ABCDEF";
+////    uart0_putc(hex[(val>>12)&0xF]);
+////    uart0_putc(hex[(val>>8)&0xF]);
+////    uart0_putc(hex[(val>>4)&0xF]);
+////    uart0_putc(hex[val&0xF]);
+////}
+////
+/////* ================= MAIN ================= */
+////int main(void)
+////{
+////    PLL_Init();
+////    system_Init();
+////
+////    GLCD_Init(); GLCD_Clear();
+////    row_wr(0x00,"WELCOME TO AKADEMIKA");
+////    row_wr(0x02,"      PL-ARM7       ");
+////    row_wr(0x04,"FLASH READ EXPT     ");
+////    row_wr(0x05,"OPEN HYPER TERMINAL");
+////    row_wr(0x06,"& PRESS SW2 TO READ");
+////
+////    emc_init_cs0_x16();
+////    uart0_init_115200();
+////
+////    /* Configure SW2 on P2.10 as GPIO input */
+////    PINSEL4 &= ~(3u<<(10*2));  /* P2.10 as GPIO */
+////    FIO2DIR &= ~(1u<<10);
+////
+////    /* Wait for button spress (active low) */
+////    while (FIO2PIN & (1u<<10));
+////
+////    /* Read 256 bytes from Flash base and send to UART */
+////    row_wr(0x02,"READING FLASH...");
+////    for (int i=0;i<256;i+=2){
+////        uint16_t d = *((volatile uint16_t*)(NOR_BASE+i));
+////        uart0_put_hex16(d);
+////        uart0_putc(' ');
+////        if ((i & 0x1F)==0x1E) uart0_puts("\r\n"); /* newline every 16 words */
+////    }
+////    row_wr(0x02,"FLASH READ COMPLETED");
+////
+////    while(1);
+////}
+//
+///*
+//===============================================================================
+// Name        : main.c (Flash READ)
+// Board       : LPC2478 + SST39VF3202C (x16) on EMC Static CS0
+// Flow        : GLCD banner -> "OPEN HYPER TERMINAL & PRESS SW2 TO READ"
+//               On SW2 press -> Read N bytes from flash base and send as HEX via UART0
+//               -> Show "FLASH READ COMPLETED"
+//===============================================================================
+//*/
+//
+//#include <stdint.h>
+//#include "LPC24xx.h"
+//#include "system_init.h"
+//#include "glcd.h"
+//
+///* ===================== Tiny delays ===================== */
+//static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+//static void delay_ms(uint32_t ms){ while(ms--) delay_loops(72000); }     /* ~72MHz */
+//
+///* ===================== GLCD row helper (your API) ===================== */
+//static inline void row_wr(uint8_t page, const char* s){
+//    extern void GLCD_RowWriteMargin(uint8_t page, const char* s);
+//    GLCD_RowWriteMargin(page, s);
+//}
+//
+///* =======================================================================================
+// *                          Keypad: SW2 + SW6 on Col1 / Rows
+// *  Col1 -> P2.25 (we drive this column LOW to scan)
+// *  Row1 -> P2.0  (read)  => SW2  [used in READ]
+// *  Row2 -> P2.1  (read)  => SW6  [unused here]
+// * ======================================================================================= */
+//#define KBD_COL1_BIT   25u
+//#define KBD_ROW1_BIT    0u
+//#define KBD_ROW2_BIT    1u
+//
+//#define KBD_COL1_MASK  (1u<<KBD_COL1_BIT)
+//#define KBD_ROW1_MASK  (1u<<KBD_ROW1_BIT)
+//#define KBD_ROW2_MASK  (1u<<KBD_ROW2_BIT)
+//
+//static void Keypad_Col1Row12_Init(void)
+//{
+//    /* GPIO function */
+//    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));                 /* P2.0 -> GPIO  */
+//    PINSEL4 &= ~(3u << (KBD_ROW2_BIT*2));                 /* P2.1 -> GPIO  */
+//    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+//
+//    /* Directions */
+//    FIO2DIR &= ~(KBD_ROW1_MASK | KBD_ROW2_MASK);          /* rows inputs  */
+//    FIO2DIR |=  KBD_COL1_MASK;                            /* column output*/
+//
+//    /* Column idle HIGH */
+//    FIO2SET = KBD_COL1_MASK;
+//}
+//
+//static inline uint32_t read_rows_when_col1_low(void)
+//{
+//    FIO2CLR = KBD_COL1_MASK;          /* drive Col1 LOW (active) */
+//    delay_loops(300);
+//    uint32_t pins = FIO2PIN;
+//    FIO2SET = KBD_COL1_MASK;          /* release Col1 (idle HIGH) */
+//    return pins;
+//}
+//
+///* simple debounce: two consistent samples ~2ms apart */
+//static uint8_t debounced_is_low(uint32_t row_mask)
+//{
+//    uint8_t first  = ((read_rows_when_col1_low() & row_mask) == 0u);
+//    delay_ms(2);
+//    uint8_t second = ((read_rows_when_col1_low() & row_mask) == 0u);
+//    return (first && second) ? 1u : 0u;
+//}
+//
+//static inline uint8_t SW2_Pressed(void){ return debounced_is_low(KBD_ROW1_MASK); }  /* Row1 */
+//
+///* =======================================================================================
+// *                      EMC registers (if not in your header)
+// * ======================================================================================= */
+//#ifndef EMC_BASE_ADDR
+//#define EMC_BASE_ADDR       (0xFFE08000UL)
+//#endif
+//#define EMCControl          (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+//#define EMCStatus           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x004))
+//#define EMCConfig           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+//
+///* Static Memory Bank 0 (CS0) */
+//#define EMCStaticConfig0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+//#define EMCStaticWaitWen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+//#define EMCStaticWaitOen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+//#define EMCStaticWaitRd0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+//#define EMCStaticWaitPage0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+//#define EMCStaticWaitWr0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+//#define EMCStaticWaitTurn0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+//
+///* ===================== EMC + pinmux for CS0, x16 ===================== */
+//static void emc_init_cs0_x16(void)
+//{
+//    /* Power EMC */
+//    PCONP |= (1u<<11);           /* PCEMC */
+//
+//    /* Data bus D0..D15 -> P3.0..P3.15 via PINSEL6, function 01 */
+//    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+//
+//    /* Address A0..A14 -> P4.1..P4.15 via PINSEL8, function 01 */
+//    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+//
+//    /* Address A15..A22 + control OE(P4.24)/WE(P4.25)/CS0(P4.30) via PINSEL9 */
+//    for (int p=16; p<=22; ++p) PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+//    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2));  /* OE  */
+//    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2));  /* WE  */
+//    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2));  /* CS0 */
+//
+//    /* Enable EMC, little-endian */
+//    EMCControl = 1;
+//    EMCConfig  = 0;
+//
+//    /* Static CS0: 16-bit bus, conservative waits (OK @ ~60–72 MHz) */
+//    EMCStaticConfig0   = 0x00000001u      /* 16-bit bus (MW=01) */
+//                       | (1u<<7);         /* Page/buffer enable */
+//    EMCStaticWaitWen0  = 2;   /* WE# to CS# delay    */
+//    EMCStaticWaitOen0  = 3;   /* OE# access delay    */
+//    EMCStaticWaitRd0   = 7;   /* read wait states    */
+//    EMCStaticWaitPage0 = 0;   /* no page mode        */
+//    EMCStaticWaitWr0   = 7;   /* write wait states   */
+//    EMCStaticWaitTurn0 = 3;   /* turnaround cycles   */
+//
+//    delay_loops(5000);
+//}
+//
+///* =======================================================================================
+// *                             UART0 @ 115200 (no stdio)
+// * ======================================================================================= */
+//static void uart0_init_115200(void)
+//{
+//    /* TxD0 (P0.2), RxD0 (P0.3) */
+//    PINSEL0 |= (1<<4)|(1<<6);   /* set to function 01 */
+//
+//    U0LCR = 0x83;               /* 8N1, DLAB=1 */
+//    /* Assuming PCLK = 72 MHz (CCLK), divisor 39 -> ~115200 */
+//    U0DLL = 39;
+//    U0DLM = 0;
+//    U0LCR = 0x03;               /* DLAB=0 */
+//}
+//
+//static void uart0_putc(char c){ while (!(U0LSR & (1<<5))); U0THR = c; }
+//static void uart0_puts(const char* s){ while(*s) uart0_putc(*s++); }
+//static void uart0_put_hex16(uint16_t v)
+//{
+//    static const char hex[] = "0123456789ABCDEF";
+//    uart0_putc(hex[(v>>12)&0xF]);
+//    uart0_putc(hex[(v>>8 )&0xF]);
+//    uart0_putc(hex[(v>>4 )&0xF]);
+//    uart0_putc(hex[(v>>0 )&0xF]);
+//}
+//
+///* =======================================================================================
+// *                                  FLASH base window
+// * ======================================================================================= */
+//#define NOR_BASE            (0x80000000UL)   /* EMC Static CS0 base */
+//
+///* =======================================================================================
+// *                                         MAIN
+// * ======================================================================================= */
+//int main(void)
+//{
+//    /* Clocks / board init (from your project) */
+//    PLL_Init();
+//    system_Init();
+//
+//    /* GLCD banner */
+//    GLCD_Init();
+//    GLCD_Clear();
+//    row_wr(0x00,"WELCOME TO AKADEMIKA");
+//    row_wr(0x02,"      PL-ARM7       ");
+//    row_wr(0x04,"FLASH READ EXPT     ");
+//    row_wr(0x05,"OPEN HYPER TERMINAL");
+//    row_wr(0x06,"& PRESS SW2 TO READ");
+//
+//    /* Peripherals */
+//    Keypad_Col1Row12_Init();
+//    emc_init_cs0_x16();
+//    uart0_init_115200();
+//
+//    /* Wait for SW2 press (Row1 on Col1) */
+//    while (!SW2_Pressed()) { /* idle */ }
+//
+//    /* Read and dump flash */
+//    row_wr(0x02,"READING FLASH...   ");
+//
+//    /* How many bytes to dump? Adjust as required. */
+//    const uint32_t dump_bytes = 512;          /* 512 bytes from base */
+//    const volatile uint16_t* p16 = (const volatile uint16_t*)NOR_BASE;
+//
+//    /* Print 16 words per line */
+//    for (uint32_t i = 0; i < dump_bytes/2; ++i) {
+//        uint16_t w = p16[i];
+//        uart0_put_hex16(w);
+//        uart0_putc(' ');
+//
+//        if ((i & 0x0F) == 0x0F) {
+//            uart0_puts("\r\n");
+//        }
+//    }
+//    uart0_puts("\r\n");
+//
+//    row_wr(0x02,"FLASH READ COMPLETED");
+//
+//    while (1) { /* idle */ }
+//}
+//
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "flashread.h"
+
+// If you have your own UART0_Init/UART0_SendString, include that header too.
+
+int main(void)
+{
+    // init clocks / pins as needed (PLL_Init/system_Init if you use them)
+    UART0_Init();                // your 9600 init
+    FlashRead_EmcInit();         // set up EMC CS0 x16
+    FlashRead_Reset();           // put NOR in read array mode
+
+    UART0_SendString("\r\nPress key to dump first 64 words...\r\n");
+    /* … optionally wait for a key … */
+
+    FlashRead_DumpWords(0x00000000u, 64);  // dump 0x8000_0000.. first 64 words
+
+    // Or copy bytes into a RAM buffer:
+    // uint8_t buf[32]; FlashRead_ReadBytes(0, buf, sizeof(buf));
+
+    while (1) { /* idle */ }
+}

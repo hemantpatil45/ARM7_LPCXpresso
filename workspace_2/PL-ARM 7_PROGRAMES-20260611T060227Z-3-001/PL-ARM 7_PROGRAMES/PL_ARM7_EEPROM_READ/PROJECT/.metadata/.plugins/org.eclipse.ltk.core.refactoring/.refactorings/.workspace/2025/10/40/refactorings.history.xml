@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 6 resources" deleteContents="false" description="Delete 6 resources" element1="/PL_ARM7_EEPROM_READ/src/glcd_font5x7.h" element2="/PL_ARM7_EEPROM_READ/src/glcd.c" element3="/PL_ARM7_EEPROM_READ/src/glcd.h" element4="/PL_ARM7_EEPROM_READ/src/main.c" element5="/PL_ARM7_EEPROM_READ/src/system_init.c" element6="/PL_ARM7_EEPROM_READ/src/system_init.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="6" stamp="1759476823139"/>
+</session>

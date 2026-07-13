@@ -1,0 +1,157 @@
+/*
+ * temp35.c
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+
+//#include <stdint.h>
+//#include "internaladc.h"   /* ADC0_InitCh0/Read/Convert */  /* uses your ADC API */
+//#include "temp35.h"
+//
+///* Public API */
+//void TEMP35_Init(void) { ADC0_InitCh0(); }
+//
+//uint16_t TEMP35_ReadRaw(void) { return ADC0_ReadCh0(); }
+//
+//uint16_t TEMP35_ReadRawAvg(uint8_t samples) {
+//    if (!samples) samples = TEMP35_DEFAULT_SAMPLES;
+//    return ADC0_ReadCh0_Avg(samples);
+//}
+//
+//uint32_t TEMP35_RawToMicroVolts(uint16_t raw, uint16_t vref_mv) {
+//    return ADC0_CodeToMicroVolts(raw, vref_mv);
+//}
+//
+///* LM35: 10 mV/°C -> 10,000 uV per °C.
+//   Return °C×10 (deci-°C), rounded: c10 = round(uV / 10,000). */
+//uint16_t TEMP35_uV_to_c10(uint32_t uV) {
+//    return (uint16_t)((uV + 5000u) / 10000u);
+//}
+//
+///* tiny int->dec (no printf) */
+//static char* _u32_to_dec(char *out, uint32_t v){
+//    char tmp[11]; int i=0;
+//    if (v==0){ *out++='0'; *out='\0'; return out; }
+//    while (v){ tmp[i++] = (char)('0' + (v%10)); v/=10; }
+//    while (i--) *out++ = tmp[i];
+//    *out = '\0';
+//    return out;
+//}
+//
+//void TEMP35_FormatLine(char *dst21, uint16_t vref_mv, uint8_t samples)
+//{
+//    if (!vref_mv) vref_mv = TEMP35_DEFAULT_VREF_MV;
+//    if (!samples) samples = TEMP35_DEFAULT_SAMPLES;
+//
+//    uint16_t raw = TEMP35_ReadRawAvg(samples);
+//    uint32_t uV  = TEMP35_RawToMicroVolts(raw, vref_mv);
+//    uint16_t c10 = TEMP35_uV_to_c10(uV);      /* °C×10 */
+//
+//    uint16_t c_int = c10 / 10;                /* integer °C */
+//    uint16_t c_dec = c10 % 10;                /* one decimal */
+//
+//    char *p = dst21;
+//    const char *pre = "TEMP = ";
+//    while (*pre) *p++ = *pre++;
+//
+//    /* integer part */
+//    char tmp[6]; int i=0;
+//    if (c_int == 0) { *p++='0'; }
+//    else { uint16_t t = c_int; while (t){ tmp[i++] = (char)('0' + (t%10)); t/=10; }
+//           while (i--) *p++ = tmp[i]; }
+//
+//    /* ".x*C" */
+//    *p++ = '.';
+//    *p++ = (char)('0' + (uint8_t)c_dec);
+//    *p++ = '*';
+//    *p++ = 'C';
+//
+//    /* pad to 21 chars for a full KS0108 row */
+//    while ((p - dst21) < 21) *p++ = ' ';
+//    *p = '\0';
+//}
+
+
+// main.c — LM35/TEMP35 on LPC2478 (AD0.0 / P0.23) → GLCD: "TEMP = xx.x*C"
+#include <stdint.h>
+#include "internaladc.h"   // ADC0_InitCh0, ADC0_ReadCh0_Avg, ADC0_CodeToMicroVolts
+#include "glcd.h"          // GLCD_RowWriteMargin (centered text rows)
+#include "SYSTEM_INIT.h"   // PLL_Init, system_Init
+
+/* Map your row writer name to the GLCD helper you have */
+#ifndef row_wr
+#define row_wr(page, str)  GLCD_RowWriteMargin((uint8_t)(page), (str))
+#endif
+
+/* Board reference voltage in millivolts (change if not 3300 mV) */
+#define VREF_MV   3300u
+/* ADC averaging for stability */
+#define AVG_SAMPLES  8u
+
+static inline void delay_ms(uint32_t ms){
+    while (ms--) { for (volatile uint32_t i=0;i<72000u;i++) __asm__("nop"); }
+}
+
+/* Build exactly 21 chars: "TEMP = xx.x*C_________" (spaces pad to 21) */
+static void format_temp_line(char *dst21, uint16_t raw, uint16_t vref_mv)
+{
+    /* uV = raw * Vref(mV) * 1000 / 1023  (rounded inside +5000 below) */
+    uint32_t uV = ((uint32_t)raw * vref_mv * 1000u);
+    /* °C × 10 (deci-degrees): LM35 is 10 mV/°C → 10,000 uV per °C */
+    uint16_t c10 = (uint16_t)((uV + 511u) / 1023u);      // convert to uV (rounded from ADC)
+    c10 = (uint16_t)((c10 + 5000u) / 10000u);            // uV → °C×10, rounded
+
+    uint16_t c_int = c10 / 10;    // integer °C
+    uint16_t c_dec = c10 % 10;    // one decimal
+
+    char *p = dst21;
+    const char *pre = "TEMP = ";
+    while (*pre) *p++ = *pre++;
+
+    /* integer °C (no printf) */
+    char tmp[6]; int i = 0;
+    if (c_int == 0) { *p++ = '0'; }
+    else { uint16_t t = c_int; while (t){ tmp[i++] = (char)('0' + (t%10)); t/=10; }
+           while (i--) *p++ = tmp[i]; }
+
+    /* ".x*C" */
+    *p++ = '.';
+    *p++ = (char)('0' + (uint8_t)c_dec);
+    *p++ = '*';
+    *p++ = 'C';
+
+    /* pad to 21 chars total for a full GLCD row (5x7 font ~ 21 chars wide) */
+    while ((p - dst21) < 21) *p++ = ' ';
+    *p = '\0';
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* Title / wiring as you requested */
+    row_wr(0x00, "WELCOME TO AKADEMIKA");
+    row_wr(0x02, "      PL-ARM7       ");
+    row_wr(0x04, "TEMPARATURE SENSOR ");
+    row_wr(0x05, "CONNECT J41-J53 &  ");
+    row_wr(0x06, "J40-J69            ");
+
+    /* ADC0.0 (P0.23) init */
+    ADC0_InitCh0();
+
+    /* Live display on last row: "TEMP = xx.x*C" */
+    char line[22];
+    while (1)
+    {
+        uint16_t raw = ADC0_ReadCh0_Avg(AVG_SAMPLES);
+        format_temp_line(line, raw, VREF_MV);
+        row_wr(0x07, line);
+        delay_ms(120);
+    }
+}

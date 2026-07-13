@@ -1,0 +1,26 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "flashread.h"
+
+/* Your UART0 9600 code declares & defines:
+   void UART0_Init(void);
+   void UART0_SendChar(char);
+   void UART0_SendString(const char*);
+*/
+
+extern void UART0_Init(void);
+
+int main(void)
+{
+    UART0_Init();                 // set up UART0 @9600 (your code)
+    FlashRead_EmcInit();          // pinmux + timings
+    FlashRead_Reset();            // safe read mode
+
+    UART0_SendString("\r\nPress any key to dump first 64 words...\r\n");
+    while (!(U0LSR & (1 << 0))) ; // wait for a byte
+    (void)U0RBR;
+
+    FlashRead_DumpWords(0x00000000u, 64u);
+
+    while (1) { /* idle */ }
+}

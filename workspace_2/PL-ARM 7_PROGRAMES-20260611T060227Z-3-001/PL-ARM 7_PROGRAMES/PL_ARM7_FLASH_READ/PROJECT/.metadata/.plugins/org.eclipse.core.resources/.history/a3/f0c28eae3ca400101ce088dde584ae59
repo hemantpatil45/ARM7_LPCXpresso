@@ -1,0 +1,86 @@
+#include <stdint.h>
+#include <stdio.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"
+
+#define NOR_BASE_ADDR   (0x80000000UL)
+#define TOTAL_BYTES     64      // Show 64 bytes (8 bytes × 8 rows)
+#define BYTES_PER_LINE  8
+
+static inline void delay_ms(uint32_t ms)
+{
+    volatile uint32_t n = ms * 8000u;
+    while (n--) __asm volatile("nop");
+}
+void UART0_Init(void) {
+    PCONP |= (1 << 3); // Power up UART0
+    PCLKSEL0 &= ~(3 << 6); // PCLK for UART0 = CCLK / 4
+
+    PINSEL0 &= ~((3 << 4) | (3 << 6));
+    PINSEL0 |=  (1 << 4) | (1 << 6);
+
+    U0LCR = 0x83; // 8 bits, no parity, 1 stop bit, DLAB = 1
+
+    U0DLM = 0;
+    U0DLL = 4;
+    U0FDR = (8 << 4) | 5; // MULVAL = 8, DIVADDVAL = 5
+
+    U0LCR = 0x03; // DLAB = 0
+    U0FCR = 0x07; // Enable FIFO, reset RX/TX FIFO
+}
+
+/* Converts a byte to two ASCII hex characters */
+void byte_to_hex(uint8_t byte, char *hex)
+{
+    const char HEX[] = "0123456789ABCDEF";
+    hex[0] = HEX[(byte >> 4) & 0x0F];
+    hex[1] = HEX[byte & 0x0F];
+}
+static void UART0_PutC(char c){ while(!(U0LSR&(1<<5))); U0THR=c; }
+static void UART0_PutS(const char *s){ while(*s){ if(*s=='\n')UART0_PutC('\r'); UART0_PutC(*s++);} }
+
+
+
+ 
+
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"FLASH EXPT          ");
+    GLCD_RowWriteMargin(6,"PRESS SW2 TO ERASE  ");
+
+    UART0_Init(72000000);
+
+    flash_hw_init();
+    UART0_PutS("System Ready.\nPress SW2 to Erase or SW6 to Write.\n");
+
+    while(1)
+    {
+        if(SW2_Pressed()){
+            GLCD_RowWriteMargin(6,"PRESS SW2 TO ERASE  ");
+            flash_erase();
+            GLCD_RowWriteMargin(6,"ERASE DONE");
+            UART0_PutS("Erase done.\n");
+            GLCD_RowWriteMargin(6," PL-ARM7 FLASH READ ");
+
+        }
+
+        if(SW6_Pressed()){
+            GLCD_RowWriteMargin(6,"WRITING...");
+            flash_write_demo();
+            GLCD_RowWriteMargin(6,"WRITE DONE");
+            UART0_PutS("Write complete.\n");
+            flash_uart_dump();
+        }
+    }
+}
+

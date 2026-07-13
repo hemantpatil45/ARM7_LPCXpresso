@@ -1,0 +1,22 @@
+/*
+ * ext_interrupt.h
+ * EINT0 (P2.10) → toggle LED2 (P2.21, active-LOW)
+ */
+
+#ifndef EXT_INTERRUPT_H_
+#define EXT_INTERRUPT_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Configure P2.10 as EINT0 (falling edge), set LED2 as output OFF, and enable VIC. */
+void EINT0_Init(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* EXT_INTERRUPT_H_ */
+
+

@@ -1,0 +1,44 @@
+12:08:04 **** Incremental Build of configuration Debug for project test_project.c ****
+make -r all 
+Building file: ../src/glcd.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/glcd.d" -MT"src/glcd.o" -MT"src/glcd.d" -o "src/glcd.o" "../src/glcd.c"
+Finished building: ../src/glcd.c
+ 
+Building file: ../src/project_glcd.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/project_glcd.d" -MT"src/project_glcd.o" -MT"src/project_glcd.d" -o "src/project_glcd.o" "../src/project_glcd.c"
+Finished building: ../src/project_glcd.c
+ 
+Building target: test_project.c.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="test_project.c.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "test_project_c_Debug.ld" -o "test_project.c.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/project_glcd.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:        8188 B       512 KB      1.56%
+./src/project_glcd.o: In function `GLCD_Init':
+/home/vboxuser/LPCXpresso/workspace_2/test_project.c/Debug/../src/project_glcd.c:105: multiple definition of `GLCD_Init'
+           Ram64:          0 GB        64 KB      0.00%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+./src/glcd.o:/home/vboxuser/LPCXpresso/workspace_2/test_project.c/Debug/../src/glcd.c:99: first defined here
+./src/project_glcd.o: In function `GLCD_Clear':
+project_glcd.c:(.text.GLCD_Clear+0x0): multiple definition of `GLCD_Clear'
+./src/glcd.o:glcd.c:(.text.GLCD_Clear+0x0): first defined here
+./src/project_glcd.o: In function `GLCD_SetXY':
+project_glcd.c:(.text.GLCD_SetXY+0x0): multiple definition of `GLCD_SetXY'
+./src/glcd.o:glcd.c:(.text.GLCD_SetXY+0x0): first defined here
+./src/project_glcd.o: In function `GLCD_PutChar':
+project_glcd.c:(.text.GLCD_PutChar+0x0): multiple definition of `GLCD_PutChar'
+./src/glcd.o:glcd.c:(.text.GLCD_PutChar+0x0): first defined here
+./src/project_glcd.o: In function `GLCD_PutString':
+project_glcd.c:(.text.GLCD_PutString+0x0): multiple definition of `GLCD_PutString'
+./src/glcd.o:glcd.c:(.text.GLCD_PutString+0x0): first defined here
+./src/project_glcd.o: In function `GLCD_RowWriteMargin':
+project_glcd.c:(.text.GLCD_RowWriteMargin+0x0): multiple definition of `GLCD_RowWriteMargin'
+./src/glcd.o:glcd.c:(.text.GLCD_RowWriteMargin+0x0): first defined here
+collect2: error: ld returned 1 exit status
+make: *** [makefile:32: test_project.c.axf] Error 1
+
+12:08:04 Build Finished (took 115ms)
+

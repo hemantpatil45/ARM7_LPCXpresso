@@ -1,0 +1,87 @@
+#include <stdint.h>
+#include <stdio.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"
+
+#define NOR_BASE_ADDR   (0x80000000UL)
+#define TOTAL_BYTES     64      // Show 64 bytes (8 bytes × 8 rows)
+#define BYTES_PER_LINE  8
+
+static inline void delay_ms(uint32_t ms)
+{
+    volatile uint32_t n = ms * 8000u;
+    while (n--) __asm volatile("nop");
+}
+
+/* Converts a byte to two ASCII hex characters */
+void byte_to_hex(uint8_t byte, char *hex)
+{
+    const char HEX[] = "0123456789ABCDEF";
+    hex[0] = HEX[(byte >> 4) & 0x0F];
+    hex[1] = HEX[byte & 0x0F];
+}
+
+/* Display flash data in formatted hex dump style */
+void Flash_DisplayFormatted(uint32_t addr)
+{
+    volatile const uint8_t *flash = (volatile const uint8_t *)(NOR_BASE_ADDR + addr);
+    char line[21];   // GLCD row (max 20 chars + '\0')
+    uint32_t i = 0, row = 0;
+    uint32_t offset = 0;
+
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "ADDR  DATA BYTES");
+    row = 2;
+
+    for (offset = 0; offset < TOTAL_BYTES; offset += BYTES_PER_LINE)
+    {
+        // Example: "0000: 01 02 03 04 05 06 07 08"
+        char *p = line;
+
+        // Print address offset
+        sprintf(p, "%04X: ", offset);
+        p += 6;
+
+        // Convert next 8 bytes to hex text
+        for (i = 0; i < BYTES_PER_LINE; i++)
+        {
+            char hex[3];
+            byte_to_hex(flash[offset + i], hex);
+            *p++ = hex[0];
+            *p++ = hex[1];
+            *p++ = ' ';
+        }
+
+        *p = '\0';
+        GLCD_RowWriteMargin(row, line);
+        row += 2;
+        if (row > 10) break;  // Avoid overflow (fits on 128x64 GLCD)
+    }
+
+    GLCD_RowWriteMargin(12, "READ COMPLETE");
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, " PL-ARM7 FLASH READ ");
+    GLCD_RowWriteMargin(4, "DISPLAY IN HEX MODE ");
+    delay_ms(1000);
+
+    FlashRead_EmcInit();   // Setup EMC and pins for NOR
+    FlashRead_Reset();     // Put NOR in read mode
+
+    delay_ms(500);
+
+    // Display formatted flash data
+    Flash_DisplayFormatted(0x00000000);
+
+    while (1){
+}

@@ -1,0 +1,25 @@
+/* ... [Your existing system and GLCD init code] ... */
+
+    /* Initialize Ethernet MAC and DP83848 PHY (Using your unchanged driver) */
+    link_status = Eth_Init();
+
+    /* ==================================================================== */
+    /* OVERRIDE PATCH: Fix hardware clock routing and disable interrupts    */
+    /* ==================================================================== */
+    /* 1. Force route the 50MHz ENET_REF_CLK to P1.15 so the MAC can transmit */
+    PINSEL3 = (PINSEL3 & ~0xF000000F) | 0x50000005;
+
+    /* 2. Disable EMAC interrupts so the DMA doesn't lock up waiting for an ISR */
+    LPC_EMAC->INTENABLE = 0;
+    LPC_EMAC->INTCLEAR  = 0xFFFF;
+    /* ==================================================================== */
+
+    if (link_status) {
+        GLCD_RowWriteMargin(6, "Link Status: UP   ");
+    } else {
+        GLCD_RowWriteMargin(6, "Link Status: FAIL ");
+    }
+
+    /* Infinite loop sending a broadcast frame every second */
+    while(1) {
+    /* ... [Rest of your loop] ... */

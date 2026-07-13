@@ -1,0 +1,38 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+
+// TODO: insert other definitions and declarations here
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"Ethernet Demo       ");
+    GLCD_RowWriteMargin(6,"PRESS SW2 TO INIT   ");
+
+	// TODO: insert code here
+
+	// Enter an infinite loop, just incrementing a counter
+	volatile static int i = 0 ;
+	while(1) {
+		i++ ;
+	}
+	return 0 ;
+}

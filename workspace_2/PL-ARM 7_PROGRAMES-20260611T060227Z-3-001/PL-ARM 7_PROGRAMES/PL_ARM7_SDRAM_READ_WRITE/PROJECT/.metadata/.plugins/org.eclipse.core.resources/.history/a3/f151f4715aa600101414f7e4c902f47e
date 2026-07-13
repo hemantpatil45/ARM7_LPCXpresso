@@ -1,0 +1,47 @@
+#ifndef SDRAM_H_
+#define SDRAM_H_
+
+#define SDRAM_H_
+#define P2C(x) ((x) / (1000000000 / (EMC_CLK_FREQ)))
+#define EMC_CLK_FREQ 100000000
+#define SDRAM_TRP 20
+#define SDRAM_TRAS 45
+#define SDRAM_TXSR 70
+#define SDRAM_TAPR 5
+#define SDRAM_TDAL 7
+#define SDRAM_TWR 2
+#define SDRAM_TRC 65
+#define SDRAM_TRFC 70
+#define SDRAM_TRRD 15
+#define SDRAM_TMRD 2
+#define SDRAM_REFRESH 64000000
+#define MAX_SDRAM_DATA 5
+
+#define EMC_BUSY_TIMEOUT 1000000
+#define EMCSTATUS_BIT_0 (1U << 0)
+
+#define KBD_ROW1_BIT    0u
+#define KBD_COL1_BIT   25u
+#define KBD_ROW1_MASK  (1u << KBD_ROW1_BIT)
+#define KBD_COL1_MASK  (1u << KBD_COL1_BIT)
+#define KBD_ROW2_BIT    1u
+#define KBD_ROW2_MASK  (1u << KBD_ROW2_BIT)
+#define MAX_SDRAM_DATA 5
+
+extern unsigned int SDRAM_data[MAX_SDRAM_DATA];
+extern unsigned int test1234[MAX_SDRAM_DATA];
+extern char buffer[64];
+extern volatile unsigned int *SDRAM_pointer;
+
+void SW2_Keypad_Init(void);
+void SW6_Keypad_Init(void);
+uint32_t SW2_Pressed(void);
+uint32_t SW6_Pressed(void);
+void Timer0_irq(void);
+void Timer0_init();
+void timer_delay(unsigned int time);
+void SDRAM_init_32BIT(void);
+void SDRAM_write(void);
+void SDRAM_read(void);
+
+#endif

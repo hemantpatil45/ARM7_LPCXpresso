@@ -1,0 +1,158 @@
+/*
+===============================================================================
+ Name        : main.c
+ Description : LPC2478 UART0 + GLCD + LED/Relay control demo
+               - UART0 @ 9600 (from uart.c / uart.h)
+               - GLCD banner
+               - Periodic '.' over UART
+               - On any received char, echo and drive LEDs/relay, also show on GLCD
+===============================================================================
+*/
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"   // PLL_Init(), system_Init()
+#include "glcd.h"          // GLCD_Init(), GLCD_Clear(), GLCD_RowWriteMargin()
+#include "uart.h"          // UART0_Init(), UART0_SendChar(), UART0_SendString()
+
+/* ---------- Prototypes for local helpers ---------- */
+static void LED_GPIO_Init(void);
+static void Display_Status_On_GLCD(const char *message);
+static void LED_Control(char command);
+static void LED_GPIO_Init(void)
+{
+    SCS |= (1u << 0);  /* Fast GPIO */
+
+    /* P2.15, P2.19, P2.21 = LED1..LED3; P1.13 = LED4; P0.10 = Relay */
+    FIO2DIR |= (1u << 15) | (1u << 19) | (1u << 21);
+    FIO1DIR |= (1u << 13);
+    FIO0DIR |= (1u << 10);
+
+    /* All OFF initially (LEDs off = set high; relay off = set high) */
+    FIO2SET = (1u << 15) | (1u << 19) | (1u << 21);
+    FIO1SET = (1u << 13);
+    FIO0SET = (1u << 10);
+}
+
+static void Display_Status_On_GLCD(const char *message)
+{
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "AKADEMIKA SYSTEM");
+    GLCD_RowWriteMargin(2, "LED + RELAY CTRL");
+    GLCD_RowWriteMargin(4, message);
+}
+
+static void LED_Control(char command)
+{
+    /* Turn all LEDs OFF first (set pins high) */
+    FIO2SET = (1u << 15) | (1u << 19) | (1u << 21);
+    FIO1SET = (1u << 13);
+
+    switch (command) {
+        case '1':
+            FIO2CLR = (1u << 15);            /* LED1 ON */
+            UART0_SendString("LED1 ON (P2.15)\r\n");
+            Display_Status_On_GLCD("LED1 ON");
+            break;
+
+        case '2':
+            FIO2CLR = (1u << 19);            /* LED2 ON */
+            UART0_SendString("LED2 ON (P2.19)\r\n");
+            Display_Status_On_GLCD("LED2 ON");
+            break;
+
+        case '3':
+            FIO2CLR = (1u << 21);            /* LED3 ON */
+            UART0_SendString("LED3 ON (P2.21)\r\n");
+            Display_Status_On_GLCD("LED3 ON");
+            break;
+
+        case '4':
+            FIO1CLR = (1u << 13);            /* LED4 ON */
+            UART0_SendString("LED4 ON (P1.13)\r\n");
+            Display_Status_On_GLCD("LED4 ON");
+            break;
+
+        case '5':                             /* All LEDs ON */
+            FIO2CLR = (1u << 15) | (1u << 19) | (1u << 21);
+            FIO1CLR = (1u << 13);
+            UART0_SendString("All LEDs ON\r\n");
+            Display_Status_On_GLCD("All LEDs ON");
+            break;
+
+        case '0':                             /* All LEDs OFF */
+            UART0_SendString("All LEDs OFF\r\n");
+            Display_Status_On_GLCD("All LEDs OFF");
+            break;
+
+        case 'r':
+        case 'R':
+            FIO0CLR = (1u << 10);            /* Relay ON (active low) */
+            UART0_SendString("Relay ON (P0.10)\r\n");
+            Display_Status_On_GLCD("Relay ON");
+            break;
+
+        case 'o':
+        case 'O':
+            FIO0SET = (1u << 10);            /* Relay OFF */
+            UART0_SendString("Relay OFF (P0.10)\r\n");
+            Display_Status_On_GLCD("Relay OFF");
+            break;
+
+        default:
+            UART0_SendString("Invalid Command. Use 0-5, R, or O\r\n");
+            Display_Status_On_GLCD("Invalid Command");
+            break;
+    }
+}
+
+int main(void)
+{
+    /* Clocks & board init (keep both if available in your BSP) */
+    PLL_Init();
+    system_Init();
+
+    /* UART + GLCD init */
+    UART0_Init();                 /* 9600 per your uart.c */
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* GLCD banner */
+    GLCD_RowWriteMargin(0, "UARTTX Demo");
+    GLCD_RowWriteMargin(2, "UART0 sending...");
+    GLCD_RowWriteMargin(4, "Open terminal 9600");
+
+    /* GPIO for LEDs and Relay */
+    LED_GPIO_Init();
+
+    /* Hello text on UART */
+    UART0_SendString("\r\n=== UARTTX ready ===\r\n");
+    UART0_SendString("Send 1..4 = LED1..4 ON, 5 = ALL ON, 0 = ALL OFF\r\n");
+    UART0_SendString("Send R = Relay ON, O = Relay OFF\r\n");
+
+    /* Main loop:
+       - Periodically print '.'
+       - If a character is received, echo it, newline, and apply control
+    */
+    for (;;)
+    {
+        /* Periodic dot so you can see the app is alive */
+        UART0_SendString(".");
+
+        /* crude delay ~ few ms; adjust as needed */
+        for (volatile uint32_t i = 0; i < 200000; ++i) __asm volatile("nop");
+
+        /* RX echo + action (polling) */
+        if (U0LSR & (1u << 0)) {       /* RDR: data available */
+            char rx = (char)U0RBR;     /* read */
+            UART0_SendChar(rx);        /* echo */
+            UART0_SendString("\r\n");  /* new line */
+            LED_Control(rx);           /* act + update GLCD */
+        }
+    }
+
+
+}
+
+/* ---------- Local helpers ---------- */
+

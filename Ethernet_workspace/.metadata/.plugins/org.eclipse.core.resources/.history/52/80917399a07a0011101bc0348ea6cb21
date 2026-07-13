@@ -1,0 +1,55 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include <stdbool.h>
+
+/* These should match the descriptor arrays in your EMAC initialization */
+extern uint32_t *RX_DESC_PACKET_PTRS;
+extern uint32_t *RX_STAT_INFO_PTRS;
+
+/*
+ * Polls the DMA ring buffer.
+ * Returns true if a packet was copied into rx_buffer.
+ */
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t *rx_length)
+{
+    uint32_t consume_idx;
+    uint32_t produce_idx;
+    uint32_t packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t info_word;
+    uint32_t i;
+
+    consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+
+    /* 1. Check if the Ring Buffer is empty */
+    if (consume_idx == produce_idx) {
+        return false; /* No new packets */
+    }
+
+    /* 2. Get packet info and calculate size (masking the lower 11 bits) */
+    /* Note: You may need to adapt RX_STAT_INFO_PTRS based on your ethernet_reg.h */
+    info_word = RX_STAT_INFO_PTRS[consume_idx];
+    packet_size = (info_word & 0x7FF);
+
+    /* Subtract the 4-byte Ethernet CRC hardware appends to the end */
+    if (packet_size > 4) {
+        packet_size -= 4;
+    }
+
+    *rx_length = packet_size;
+
+    /* 3. Copy data from the DMA SRAM to your local array */
+    dma_buffer_ptr = (uint8_t *)RX_DESC_PACKET_PTRS[consume_idx];
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = dma_buffer_ptr[i];
+    }
+
+    /* 4. Advance the Consume Index to give the block back to the hardware */
+    if (++consume_idx == LPC_EMAC->RXDESCRIPTORNUM) {
+        consume_idx = 0;
+    }
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true; /* Packet successfully received */
+}

@@ -1,0 +1,21 @@
+06:59:07 **** Build of configuration Debug for project PL_ARM7_CAN_RX ****
+make -r all 
+Building target: PL_ARM7_CAN_RX.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="PL_ARM7_CAN_RX.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "PL_ARM7_CAN_RX_Debug.ld" -o "PL_ARM7_CAN_RX.axf" ./src/can_rx.o ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/sys_calls.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       24712 B       512 KB      4.71%
+           Ram64:          48 B        64 KB      0.07%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: PL_ARM7_CAN_RX.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -v -O ihex "PL_ARM7_CAN_RX.axf" "PL_ARM7_CAN_RX.hex" ; # checksum -p LPC2478 -d "PL_ARM7_CAN_RX.bin"
+copy from `PL_ARM7_CAN_RX.axf' [elf32-littlearm] to `PL_ARM7_CAN_RX.hex' [ihex]
+ 
+
+06:59:07 Build Finished (took 56ms)
+

@@ -1,0 +1,477 @@
+Archive member included to satisfy reference by file (symbol)
+
+/usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                              ./src/cr_startup_lpc24.o (__main)
+
+Discarded input sections
+
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .group         0x00000000        0x8 ./src/KEYPAD.o
+ .text          0x00000000        0x0 ./src/KEYPAD.o
+ .data          0x00000000        0x0 ./src/KEYPAD.o
+ .bss           0x00000000        0x0 ./src/KEYPAD.o
+ .bss.key       0x00000000        0x1 ./src/KEYPAD.o
+ .text          0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .data          0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .bss           0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .group         0x00000000        0x8 ./src/crp.o
+ .group         0x00000000        0x8 ./src/crp.o
+ .text          0x00000000        0x0 ./src/crp.o
+ .data          0x00000000        0x0 ./src/crp.o
+ .bss           0x00000000        0x0 ./src/crp.o
+ .debug_macro   0x00000000      0x826 ./src/crp.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .text          0x00000000        0x0 ./src/glcd.o
+ .data          0x00000000        0x0 ./src/glcd.o
+ .bss           0x00000000        0x0 ./src/glcd.o
+ .text.GLCD_PutString
+                0x00000000       0x8c ./src/glcd.o
+ .debug_macro   0x00000000      0x826 ./src/glcd.o
+ .debug_macro   0x00000000     0x19c4 ./src/glcd.o
+ .debug_macro   0x00000000       0x10 ./src/glcd.o
+ .debug_macro   0x00000000      0x12d ./src/glcd.o
+ .debug_macro   0x00000000      0x5b2 ./src/glcd.o
+ .debug_macro   0x00000000      0x3ab ./src/glcd.o
+ .debug_macro   0x00000000       0x1c ./src/glcd.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .text          0x00000000        0x0 ./src/main.o
+ .data          0x00000000        0x0 ./src/main.o
+ .bss           0x00000000        0x0 ./src/main.o
+ .debug_macro   0x00000000      0x826 ./src/main.o
+ .debug_macro   0x00000000       0x10 ./src/main.o
+ .debug_macro   0x00000000      0x12d ./src/main.o
+ .debug_macro   0x00000000      0x5b2 ./src/main.o
+ .debug_macro   0x00000000     0x19c4 ./src/main.o
+ .debug_macro   0x00000000       0x1c ./src/main.o
+ .debug_macro   0x00000000      0x3ab ./src/main.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .text          0x00000000        0x0 ./src/system_init.o
+ .data          0x00000000        0x0 ./src/system_init.o
+ .bss           0x00000000        0x0 ./src/system_init.o
+ .text.delay_cycle
+                0x00000000       0x3c ./src/system_init.o
+ .debug_macro   0x00000000      0x826 ./src/system_init.o
+ .debug_macro   0x00000000      0x3ab ./src/system_init.o
+ .debug_macro   0x00000000     0x19c4 ./src/system_init.o
+ .debug_macro   0x00000000       0x10 ./src/system_init.o
+ .debug_macro   0x00000000      0x12d ./src/system_init.o
+ .debug_macro   0x00000000      0x5b2 ./src/system_init.o
+ .text          0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+ .data          0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+ .bss           0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+MFlash512        0x00000000         0x00080000         xr
+Ram64            0x40000000         0x00010000         xrw
+RAM_ETH_16       0x7fe00000         0x00004000         xrw
+RAM_USB_16       0x7fd00000         0x00004000         xrw
+RAM_RTC_2        0xe0084000         0x00000800         xrw
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD ./src/KEYPAD.o
+LOAD ./src/cr_startup_lpc24.o
+LOAD ./src/crp.o
+LOAD ./src/glcd.o
+LOAD ./src/main.o
+LOAD ./src/system_init.o
+START GROUP
+LOAD /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a
+LOAD /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a
+END GROUP
+                0x00000000                __base_MFlash512 = 0x0
+                0x00000000                __base_Flash = 0x0
+                0x00080000                __top_MFlash512 = 0x80000
+                0x00080000                __top_Flash = 0x80000
+                0x40000000                __base_Ram64 = 0x40000000
+                0x40000000                __base_RAM = 0x40000000
+                0x40010000                __top_Ram64 = 0x40010000
+                0x40010000                __top_RAM = 0x40010000
+                0x7fe00000                __base_RAM_ETH_16 = 0x7fe00000
+                0x7fe00000                __base_RAM2 = 0x7fe00000
+                0x7fe04000                __top_RAM_ETH_16 = 0x7fe04000
+                0x7fe04000                __top_RAM2 = 0x7fe04000
+                0x7fd00000                __base_RAM_USB_16 = 0x7fd00000
+                0x7fd00000                __base_RAM3 = 0x7fd00000
+                0x7fd04000                __top_RAM_USB_16 = 0x7fd04000
+                0x7fd04000                __top_RAM3 = 0x7fd04000
+                0xe0084000                __base_RAM_RTC_2 = 0xe0084000
+                0xe0084000                __base_RAM4 = 0xe0084000
+                0xe0084800                __top_RAM_RTC_2 = 0xe0084800
+                0xe0084800                __top_RAM4 = 0xe0084800
+
+.text           0x00000000     0x24a8
+ FILL mask 0xff
+                0x00000000                __vectors_start__ = ABSOLUTE (.)
+ *(.isr_vector)
+ .isr_vector    0x00000000      0x17c ./src/cr_startup_lpc24.o
+                0x00000000                _boot
+                0x00000050                _mainCRTStartup
+                0x00000050                _start
+                0x00000050                start
+                0x0000015c                reset
+                0x0000015c                _reset
+                0x0000017c                . = ALIGN (0x4)
+                0x0000017c                __section_table_start = .
+                0x0000017c                __data_section_table = .
+                0x0000017c        0x4 LONG 0x24a8 LOADADDR (.data)
+                0x00000180        0x4 LONG 0x40000000 ADDR (.data)
+                0x00000184        0x4 LONG 0x10 SIZEOF (.data)
+                0x00000188        0x4 LONG 0x24a8 LOADADDR (.data_RAM2)
+                0x0000018c        0x4 LONG 0x7fe00000 ADDR (.data_RAM2)
+                0x00000190        0x4 LONG 0x0 SIZEOF (.data_RAM2)
+                0x00000194        0x4 LONG 0x24a8 LOADADDR (.data_RAM3)
+                0x00000198        0x4 LONG 0x7fd00000 ADDR (.data_RAM3)
+                0x0000019c        0x4 LONG 0x0 SIZEOF (.data_RAM3)
+                0x000001a0        0x4 LONG 0x24a8 LOADADDR (.data_RAM4)
+                0x000001a4        0x4 LONG 0xe0084000 ADDR (.data_RAM4)
+                0x000001a8        0x4 LONG 0x0 SIZEOF (.data_RAM4)
+                0x000001ac                __data_section_table_end = .
+                0x000001ac                __bss_section_table = .
+                0x000001ac        0x4 LONG 0x40000010 ADDR (.bss)
+                0x000001b0        0x4 LONG 0x0 SIZEOF (.bss)
+                0x000001b4        0x4 LONG 0x7fe00000 ADDR (.bss_RAM2)
+                0x000001b8        0x4 LONG 0x0 SIZEOF (.bss_RAM2)
+                0x000001bc        0x4 LONG 0x7fd00000 ADDR (.bss_RAM3)
+                0x000001c0        0x4 LONG 0x0 SIZEOF (.bss_RAM3)
+                0x000001c4        0x4 LONG 0xe0084000 ADDR (.bss_RAM4)
+                0x000001c8        0x4 LONG 0x0 SIZEOF (.bss_RAM4)
+                0x000001cc                __bss_section_table_end = .
+                0x000001cc                __section_table_end = .
+ *(.after_vectors*)
+                0x000001fc                . = 0x1fc
+ *fill*         0x000001cc       0x30 ff
+                0x000001fc                PROVIDE (__CRP_WORD_START__, .)
+ *(.crp)
+ .crp           0x000001fc        0x4 ./src/crp.o
+                0x000001fc                CRP_WORD
+                0x00000200                PROVIDE (__CRP_WORD_END__, .)
+                0x00000001                ASSERT (! ((__CRP_WORD_START__ == __CRP_WORD_END__)), Linker CRP Enabled, but no CRP_WORD provided within application)
+ *(.text*)
+ .text.keypad_init
+                0x00000200      0x10c ./src/KEYPAD.o
+                0x00000200                keypad_init
+ .text.columns_all_high
+                0x0000030c       0x38 ./src/KEYPAD.o
+                0x0000030c                columns_all_high
+ .text.drive_column_low
+                0x00000344       0x94 ./src/KEYPAD.o
+                0x00000344                drive_column_low
+ .text.read_rows_pressed
+                0x000003d8      0x108 ./src/KEYPAD.o
+                0x000003d8                read_rows_pressed
+ .text.first_set4
+                0x000004e0       0x88 ./src/KEYPAD.o
+                0x000004e0                first_set4
+ .text.keypad_scan_once
+                0x00000568      0x104 ./src/KEYPAD.o
+                0x00000568                keypad_scan_once
+ .text.cs_none  0x0000066c       0x48 ./src/glcd.o
+ .text.cs_left  0x000006b4       0x48 ./src/glcd.o
+ .text.cs_right
+                0x000006fc       0x48 ./src/glcd.o
+ .text.cs_both  0x00000744       0x48 ./src/glcd.o
+ .text.glcd_set_data
+                0x0000078c      0x128 ./src/glcd.o
+ .text.glcd_enable_pulse
+                0x000008b4       0x58 ./src/glcd.o
+ .text.glcd_write
+                0x0000090c       0xd8 ./src/glcd.o
+ .text.GLCD_Init
+                0x000009e4       0xb0 ./src/glcd.o
+                0x000009e4                GLCD_Init
+ .text.GLCD_Clear
+                0x00000a94      0x148 ./src/glcd.o
+                0x00000a94                GLCD_Clear
+ .text.GLCD_SetXY
+                0x00000bdc      0x11c ./src/glcd.o
+                0x00000bdc                GLCD_SetXY
+ .text.GLCD_PutChar
+                0x00000cf8      0x1f0 ./src/glcd.o
+                0x00000cf8                GLCD_PutChar
+ .text.GLCD_RowWriteMargin
+                0x00000ee8      0x134 ./src/glcd.o
+                0x00000ee8                GLCD_RowWriteMargin
+ .text.main     0x0000101c       0xb4 ./src/main.o
+                0x0000101c                main
+ .text.delay_cycles
+                0x000010d0       0x3c ./src/system_init.o
+                0x000010d0                delay_cycles
+ .text.delay_us
+                0x0000110c       0x54 ./src/system_init.o
+                0x0000110c                delay_us
+ .text.PLL_Init
+                0x00001160      0x124 ./src/system_init.o
+                0x00001160                PLL_Init
+ .text.system_Init
+                0x00001284      0xf74 ./src/system_init.o
+                0x00001284                system_Init
+ .text.__weak_main
+                0x000021f8       0x10 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                0x000021f8                __main
+                0x000021f8                __weak_main
+ *(.rodata .rodata.* .constdata .constdata.*)
+ .rodata.font5x7
+                0x00002208      0x240 ./src/glcd.o
+ .rodata        0x00002448       0x5d ./src/main.o
+                0x000024a8                . = ALIGN (0x4)
+ *fill*         0x000024a5        0x3 ff
+
+.glue_7         0x000024a8        0x0
+ .glue_7        0x000024a8        0x0 linker stubs
+
+.glue_7t        0x000024a8        0x0
+ .glue_7t       0x000024a8        0x0 linker stubs
+
+.vfp11_veneer   0x000024a8        0x0
+ .vfp11_veneer  0x000024a8        0x0 linker stubs
+
+.v4_bx          0x000024a8        0x0
+ .v4_bx         0x000024a8        0x0 linker stubs
+
+.iplt           0x000024a8        0x0
+ .iplt          0x000024a8        0x0 ./src/KEYPAD.o
+
+.rel.dyn        0x000024a8        0x0
+ .rel.iplt      0x000024a8        0x0 ./src/KEYPAD.o
+
+.ARM.extab
+ *(.ARM.extab* .gnu.linkonce.armextab.*)
+                0x000024a8                __exidx_start = .
+
+.ARM.exidx
+ *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+                0x000024a8                __exidx_end = .
+                0x000024a8                _etext = .
+
+.data_RAM2      0x7fe00000        0x0 load address 0x000024a8
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM2, .)
+ *(.ramfunc.$RAM2)
+ *(.ramfunc.$RAM_ETH_16)
+ *(.data.$RAM2*)
+ *(.data.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM2, .)
+
+.data_RAM3      0x7fd00000        0x0 load address 0x000024a8
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM3, .)
+ *(.ramfunc.$RAM3)
+ *(.ramfunc.$RAM_USB_16)
+ *(.data.$RAM3*)
+ *(.data.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM3, .)
+
+.data_RAM4      0xe0084000        0x0 load address 0x000024a8
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM4, .)
+ *(.ramfunc.$RAM4)
+ *(.ramfunc.$RAM_RTC_2)
+ *(.data.$RAM4*)
+ *(.data.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM4, .)
+
+.uninit_RESERVED
+                0x40000000        0x0
+ *(.bss.$RESERVED*)
+                0x40000000                . = ALIGN (0x4)
+                0x40000000                _end_uninit_RESERVED = .
+
+.data           0x40000000       0x10 load address 0x000024a8
+ FILL mask 0xff
+                0x40000000                _data = .
+ *(vtable)
+ *(.ramfunc*)
+ *(.data*)
+ .data.keymap   0x40000000       0x10 ./src/KEYPAD.o
+                0x40000000                keymap
+                0x40000010                . = ALIGN (0x4)
+                0x40000010                _edata = .
+
+.igot.plt       0x40000010        0x0 load address 0x000024b8
+ .igot.plt      0x40000010        0x0 ./src/KEYPAD.o
+
+.bss_RAM2       0x7fe00000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM2, .)
+ *(.bss.$RAM2*)
+ *(.bss.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM2, .)
+
+.bss_RAM3       0x7fd00000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM3, .)
+ *(.bss.$RAM3*)
+ *(.bss.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM3, .)
+
+.bss_RAM4       0xe0084000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM4, .)
+ *(.bss.$RAM4*)
+ *(.bss.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM4, .)
+
+.bss            0x40000010        0x0
+                0x40000010                _bss = .
+ *(.bss*)
+ *(COMMON)
+                0x40000010                . = ALIGN (0x4)
+                0x40000010                _ebss = .
+                [!provide]                PROVIDE (end, .)
+
+.noinit_RAM2    0x7fe00000        0x0
+ *(.noinit.$RAM2*)
+ *(.noinit.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN (0x4)
+
+.noinit_RAM3    0x7fd00000        0x0
+ *(.noinit.$RAM3*)
+ *(.noinit.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN (0x4)
+
+.noinit_RAM4    0xe0084000        0x0
+ *(.noinit.$RAM4*)
+ *(.noinit.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN (0x4)
+
+.noinit         0x40000010        0x0
+                0x40000010                _noinit = .
+ *(.noinit*)
+                0x40000010                . = ALIGN (0x4)
+                0x40000010                _end_noinit = .
+                [!provide]                PROVIDE (_pvHeapStart, DEFINED (__user_heap_base)?__user_heap_base:.)
+                0x40010000                PROVIDE (_vStackTop, DEFINED (__user_stack_top)?__user_stack_top:(__top_Ram64 - 0x0))
+OUTPUT(PL_ARM7_HEX_KEYBOARD.axf elf32-littlearm)
+
+.debug_info     0x00000000      0x88e
+ .debug_info    0x00000000      0x20d ./src/KEYPAD.o
+ .debug_info    0x0000020d       0xab ./src/cr_startup_lpc24.o
+ .debug_info    0x000002b8       0x3f ./src/crp.o
+ .debug_info    0x000002f7      0x3a8 ./src/glcd.o
+ .debug_info    0x0000069f       0xd8 ./src/main.o
+ .debug_info    0x00000777      0x117 ./src/system_init.o
+
+.debug_abbrev   0x00000000      0x3cc
+ .debug_abbrev  0x00000000      0x10e ./src/KEYPAD.o
+ .debug_abbrev  0x0000010e       0x14 ./src/cr_startup_lpc24.o
+ .debug_abbrev  0x00000122       0x36 ./src/crp.o
+ .debug_abbrev  0x00000158      0x13a ./src/glcd.o
+ .debug_abbrev  0x00000292       0x82 ./src/main.o
+ .debug_abbrev  0x00000314       0xb8 ./src/system_init.o
+
+.debug_aranges  0x00000000      0x160
+ .debug_aranges
+                0x00000000       0x48 ./src/KEYPAD.o
+ .debug_aranges
+                0x00000048       0x20 ./src/cr_startup_lpc24.o
+ .debug_aranges
+                0x00000068       0x18 ./src/crp.o
+ .debug_aranges
+                0x00000080       0x80 ./src/glcd.o
+ .debug_aranges
+                0x00000100       0x20 ./src/main.o
+ .debug_aranges
+                0x00000120       0x40 ./src/system_init.o
+
+.debug_ranges   0x00000000       0xe8
+ .debug_ranges  0x00000000       0x38 ./src/KEYPAD.o
+ .debug_ranges  0x00000038       0x70 ./src/glcd.o
+ .debug_ranges  0x000000a8       0x10 ./src/main.o
+ .debug_ranges  0x000000b8       0x30 ./src/system_init.o
+
+.debug_macro    0x00000000     0x2ea9
+ .debug_macro   0x00000000       0x61 ./src/KEYPAD.o
+ .debug_macro   0x00000061      0x826 ./src/KEYPAD.o
+ .debug_macro   0x00000887       0x10 ./src/KEYPAD.o
+ .debug_macro   0x00000897      0x12d ./src/KEYPAD.o
+ .debug_macro   0x000009c4      0x5b2 ./src/KEYPAD.o
+ .debug_macro   0x00000f76     0x19c4 ./src/KEYPAD.o
+ .debug_macro   0x0000293a       0x1c ./src/KEYPAD.o
+ .debug_macro   0x00002956      0x3ab ./src/KEYPAD.o
+ .debug_macro   0x00002d01       0x1a ./src/crp.o
+ .debug_macro   0x00002d1b       0x34 ./src/crp.o
+ .debug_macro   0x00002d4f       0x9b ./src/glcd.o
+ .debug_macro   0x00002dea       0x61 ./src/main.o
+ .debug_macro   0x00002e4b       0x5e ./src/system_init.o
+
+.debug_line     0x00000000      0xa63
+ .debug_line    0x00000000      0x24d ./src/KEYPAD.o
+ .debug_line    0x0000024d       0xb2 ./src/cr_startup_lpc24.o
+ .debug_line    0x000002ff       0x7c ./src/crp.o
+ .debug_line    0x0000037b      0x323 ./src/glcd.o
+ .debug_line    0x0000069e      0x147 ./src/main.o
+ .debug_line    0x000007e5      0x27e ./src/system_init.o
+
+.debug_str      0x00000000    0x136dc
+ .debug_str     0x00000000    0x133d9 ./src/KEYPAD.o
+                              0x13457 (size before relaxing)
+ .debug_str     0x000133d9       0xe9 ./src/crp.o
+                               0x2468 (size before relaxing)
+ .debug_str     0x000134c2      0x1b6 ./src/glcd.o
+                              0x1358b (size before relaxing)
+ .debug_str     0x00013678       0x18 ./src/main.o
+                              0x133e0 (size before relaxing)
+ .debug_str     0x00013690       0x4c ./src/system_init.o
+                              0x133df (size before relaxing)
+
+.comment        0x00000000       0xdc
+ .comment       0x00000000       0x6e ./src/KEYPAD.o
+                                 0x6f (size before relaxing)
+ .comment       0x0000006e       0x6f ./src/crp.o
+ .comment       0x0000006e       0x6f ./src/glcd.o
+ .comment       0x0000006e       0x6f ./src/main.o
+ .comment       0x0000006e       0x6f ./src/system_init.o
+ .comment       0x0000006e       0x6e /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                                 0x6f (size before relaxing)
+
+.ARM.attributes
+                0x00000000       0x2e
+ .ARM.attributes
+                0x00000000       0x30 ./src/KEYPAD.o
+ .ARM.attributes
+                0x00000030       0x20 ./src/cr_startup_lpc24.o
+ .ARM.attributes
+                0x00000050       0x30 ./src/crp.o
+ .ARM.attributes
+                0x00000080       0x30 ./src/glcd.o
+ .ARM.attributes
+                0x000000b0       0x30 ./src/main.o
+ .ARM.attributes
+                0x000000e0       0x30 ./src/system_init.o
+ .ARM.attributes
+                0x00000110       0x30 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+
+.debug_frame    0x00000000      0x3ac
+ .debug_frame   0x00000000       0xdc ./src/KEYPAD.o
+ .debug_frame   0x000000dc      0x1e8 ./src/glcd.o
+ .debug_frame   0x000002c4       0x2c ./src/main.o
+ .debug_frame   0x000002f0       0xbc ./src/system_init.o

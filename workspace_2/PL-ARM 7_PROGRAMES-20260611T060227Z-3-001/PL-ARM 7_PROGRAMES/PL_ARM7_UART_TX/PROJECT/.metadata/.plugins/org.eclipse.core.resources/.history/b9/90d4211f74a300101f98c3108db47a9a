@@ -1,0 +1,18 @@
+/*
+ * uart.h
+ *
+ *  Created on: 07-Oct-2025
+ *      Author: ADMIN
+ */
+
+#ifndef UART_H
+#define UART_H
+
+#include <stdint.h>
+
+void UART0_Init(void);
+void UART0_SendChar(char c);
+void UART0_SendString(const char *str);
+
+#endif
+

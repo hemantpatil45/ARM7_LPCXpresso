@@ -1,0 +1,34 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+
+int main(void) {
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+
+    // 1. Configure pins for PWM mode
+    CONFIG_MOTOR_PINS_AS_PWM();
+
+    // 2. Setup PWM Peripheral (assuming system_Init didn't do it)
+    PCONP |= (1 << 5);      // Power up PWM0
+    PWM0TCR = 0x02;         // Reset Timer
+    PWM0MR0 = 5000;         // PWM Period (frequency)
+    PWM0PCR = (1 << 9) | (1 << 10); // Enable PWM output for Channel 1 & 2
+    PWM0TCR = 0x01;         // Enable PWM Timer
+
+    M_MOTOR_EN_A_STATE;     // Direction of the enable pin
+
+    while(1) {
+        M_MOTOR_EN_A_ON;
+
+        // 3. Set Duty Cycle (0 to 5000)
+        // 2500 = 50% Speed
+        PWM0MR1 = 50;
+        PWM0MR2 = 0;
+        PWM0LER = (1 << 1) | (1 << 2); // Latch updates
+
+        // No manual delay needed for PWM signal generation
+    }
+}

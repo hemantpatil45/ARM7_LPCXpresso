@@ -1,0 +1,100 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "ethernet.h"
+#include "ethernet_tx.h"
+
+void Delay1Sec(void)
+{
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) {
+        __asm("NOP");
+    }
+}
+void SW2_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));                 /* P2.0  -> GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+    FIO2DIR &= ~KBD_ROW1_MASK;    /* row input  */
+    FIO2DIR |=  KBD_COL1_MASK;    /* col output */
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+void SW6_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));                 /* P2.0  -> GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+
+    FIO2DIR &= ~KBD_ROW2_MASK;    /* row input  */
+    FIO2DIR |=  KBD_COL1_MASK;    /* col output */
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+uint32_t SW2_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      /* scan: drive low */
+    delay_us(200);              /* settle (not debounce) */
+    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      /* release column */
+    return pressed;
+}
+
+uint32_t SW6_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      /* scan: drive low */
+    delay_us(200);              /* settle (not debounce) */
+    uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      /* release column */
+    return pressed;
+}
+int main(void)
+{ uint8_t armed = 1;
+    bool link_status;
+    uint32_t tx_counter = 0;
+
+    /* Standard Raw Ethernet Broadcast Frame */
+    uint8_t broadcast_frame[64] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+        0x88, 0xB5,
+        'H', 'e', 'l', 'l', 'o', ' ', 'A', 'k', 'a', 'd', 'e', 'm', 'i', 'k', 'a', '!',
+		'P', 'L', 'A', 'R', 'M', '-', '7',
+		'T', 'X', 'D', 'A', 'T', 'A',
+		'\r', '\n'
+    };
+
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"Ethernet Press SW-2 ");
+
+    /* Initializes MAC, PHY, and routing. Returns true if Link is negotiated. */
+    link_status = Eth_Init();
+
+    if (link_status) {
+        GLCD_RowWriteMargin(6, "Link Status: UP   ");
+    } else {
+        GLCD_RowWriteMargin(6, "Link Status: FAIL ");
+    }
+
+    if (armed && SW2_Pressed()) {
+    	 GLCD_RowWriteMargin(0,"Ethernet IN TX MODE");
+        if (link_status) {
+            /* If the packet successfully copies to DMA SRAM */
+            if (EMAC_SendPacket(broadcast_frame, sizeof(broadcast_frame))) {
+                tx_counter++;
+            } else {
+                GLCD_RowWriteMargin(6, "TX Error: FULL    ");
+            }
+        }
+        Delay1Sec();
+    }
+    return 0;
+}

@@ -1,0 +1,139 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+
+
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+int main(void) {
+    PLL_Init();        // setup PLL & clock
+    system_Init();     // system init
+    GLCD_Init();
+    GLCD_Clear();
+        // motor pins setup
+
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+
+    GLCD_RowWriteMargin(4, "DC MOTOR EXPT       ");
+
+    GLCD_RowWriteMargin(5, "CONNECT J58-J46, J59");
+
+    GLCD_RowWriteMargin(6, "-J45 & DC MOTOR @J19");
+     // system init
+        // motor pins setup
+    M_MOTOR_EN_A_STATE;
+
+    while(1) {
+        M_MOTOR_EN_A_ON;
+         M_MOTOR_EN_B_ON;
+         M_A_PHASEM_PWM01_ON; //IN1 =
+         M_B_PHASEM_PWM02_OFF; //IN2 =
+         M_C_PHASEM_PWM03_OFF; //IN3 =
+         M_D_PHASEM_PWM04_OFF; //IN4 =
+         delay_cycles(10000);
+
+     	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+         M_MOTOR_EN_A_ON;
+         M_MOTOR_EN_B_ON;
+         M_A_PHASEM_PWM01_OFF; //IN1 =
+         M_B_PHASEM_PWM02_ON; //IN2 =
+         M_C_PHASEM_PWM03_OFF; //IN3 =
+         M_D_PHASEM_PWM04_OFF; //IN4 =
+         delay_cycles(10000);
+
+     	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+         M_MOTOR_EN_A_ON;
+         M_MOTOR_EN_B_ON;
+         M_A_PHASEM_PWM01_OFF; //IN1 =
+         M_B_PHASEM_PWM02_OFF; //IN2 =
+         M_C_PHASEM_PWM03_ON; //IN3 =
+         M_D_PHASEM_PWM04_OFF; //IN4 =
+         delay_cycles(10000);
+
+     	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+         M_MOTOR_EN_A_ON;
+         M_MOTOR_EN_B_ON;
+         M_A_PHASEM_PWM01_OFF; //IN1 =
+         M_B_PHASEM_PWM02_OFF; //IN2 =
+         M_C_PHASEM_PWM03_OFF; //IN3 =
+         M_D_PHASEM_PWM04_ON; //IN4 =
+         delay_cycles(10000);
+         //MOTOR ROTATE IN CLOCLWISE DIRRECTION
+//        M_MOTOR_EN_A_ON;
+//        M_A_PHASEM_PWM01_ON;   // IN1 = HIGH
+//        M_B_PHASEM_PWM02_OFF;  // IN2 = LOW
+//        delay_cycles(1000);
+
+//        void Motor_Reverse(void);//MOTOR ROTATE IN ANTCLOCLWISE DIRRECTION
+//        M_MOTOR_EN_A_ON;
+//        M_A_PHASEM_PWM01_OFF;  // IN1 = LOW
+//        M_B_PHASEM_PWM02_ON;   // IN2 = HIGH
+//        delay_cycles(1000);
+//        int main(void) {
+//            PLL_Init();        // setup PLL & clock
+//            system_Init();     // system init
+//            void Motor_Init(void);      // motor pins setup
+//            M_MOTOR_EN_A_STATE;
+//            M_MOTOR_EN_B_STATE;
+//
+//            while(1) {
+            	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+                M_MOTOR_EN_A_ON;
+                M_MOTOR_EN_B_ON;
+                M_A_PHASEM_PWM01_ON; //IN1 =
+                M_B_PHASEM_PWM02_OFF; //IN2 =
+                M_C_PHASEM_PWM03_OFF; //IN3 =
+                M_D_PHASEM_PWM04_OFF; //IN4 =
+                delay_cycles(10000);
+
+            	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+                M_MOTOR_EN_A_ON;
+                M_MOTOR_EN_B_ON;
+                M_A_PHASEM_PWM01_OFF; //IN1 =
+                M_B_PHASEM_PWM02_ON; //IN2 =
+                M_C_PHASEM_PWM03_OFF; //IN3 =
+                M_D_PHASEM_PWM04_OFF; //IN4 =
+                delay_cycles(10000);
+
+            	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+                M_MOTOR_EN_A_ON;
+                M_MOTOR_EN_B_ON;
+                M_A_PHASEM_PWM01_OFF; //IN1 =
+                M_B_PHASEM_PWM02_OFF; //IN2 =
+                M_C_PHASEM_PWM03_ON; //IN3 =
+                M_D_PHASEM_PWM04_OFF; //IN4 =
+                delay_cycles(10000);
+
+            	//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+                M_MOTOR_EN_A_ON;
+                M_MOTOR_EN_B_ON;
+                M_A_PHASEM_PWM01_OFF; //IN1 =
+                M_B_PHASEM_PWM02_OFF; //IN2 =
+                M_C_PHASEM_PWM03_OFF; //IN3 =
+                M_D_PHASEM_PWM04_ON; //IN4 =
+                delay_cycles(10000);
+
+
+
+    }
+}
+

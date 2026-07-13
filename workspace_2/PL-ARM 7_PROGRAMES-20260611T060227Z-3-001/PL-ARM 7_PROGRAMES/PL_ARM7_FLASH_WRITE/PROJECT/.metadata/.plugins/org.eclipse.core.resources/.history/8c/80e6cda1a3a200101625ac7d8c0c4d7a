@@ -1,0 +1,68 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashwrite.h"   /* Keypad + EMC + NOR APIs */
+
+/* Tiny delay (for brief UI pacing only) */
+static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static void delay_ms(uint32_t ms){ while(ms--) delay_loops(72000); } /* ~1ms @72MHz */
+
+int main(void)
+{
+    /* ---- Board / clocks / GLCD ---- */
+    PLL_Init();
+    system_Init();
+
+    GLCD_Init();
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0x00,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(0x02,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(0x04,"FLASH EXPT          ");
+    GLCD_RowWriteMargin(0x06,"                    ");
+
+    /* ---- Keypad + EMC + NOR ---- */
+    Keypad_Col1Row12_Init();   /* SW2 on Row1/Col1, SW6 on Row2/Col1 */
+    emc_init_cs0_x16();        /* CS0 x16 timings/pinmux */
+    flash_reset();
+
+    /* ---- Wait SW2 to ERASE ---- */
+    GLCD_RowWriteMargin(0x06,"PRESS SW2 TO ERASE  ");
+    while (!SW2_Pressed()) { /* wait */ }
+    GLCD_RowWriteMargin(0x06,"ERASING...          ");
+    (void)flash_sector_erase(0x00000000);
+    GLCD_RowWriteMargin(0x06,"FLASH ERASE COMPLETED");
+    delay_ms(10);
+
+    /* ---- Wait SW6 to WRITE ---- */
+    static const char Flash_data[] = "AKADEMIKA NOR FLASH OK";
+    GLCD_RowWriteMargin(0x06,"PRESS SW6 TO WRITE  ");
+    while (!SW6_Pressed()) { /* wait */ }
+    GLCD_RowWriteMargin(0x06,"WAIT WRITING FLASH  ");
+    (void)flash_write_buf(0x00000000, Flash_data, sizeof(Flash_data));
+    GLCD_RowWriteMargin(0x06,"FLASH WRITE COMPLETED");
+
+    /* ---- Show read-back preview (first 20 chars) ---- */
+    char rb[22] = {0};
+    volatile const uint8_t* p = (volatile const uint8_t*)(NOR_BASE_ADDR + 0x00000000);
+    for (int i = 0; i < 20; i++) rb[i] = p[i];
+    rb[20] = 0;
+    GLCD_RowWriteMargin(0x05, rb);
+
+    while (1) { /* idle */ }
+}

@@ -1,0 +1,50 @@
+/*
+ * switch_led.h
+ *
+ *  Created on: 30-Sep-2025
+ *      Author: ADMIN
+ */
+
+#ifndef SWITCH_LED_H
+#define SWITCH_LED_H
+
+#include "LPC24xx.h"
+#include <stdint.h>
+
+/* ================== SWITCH DEFINITIONS ================== */
+/* Switches on P4.23, P4.26, P4.27, P4.31 */
+#define SWITCH0_PIN   (1u << 23)
+#define SWITCH1_PIN   (1u << 26)
+#define SWITCH2_PIN   (1u << 27)
+#define SWITCH3_PIN   (1u << 31)
+
+/* Macros to read switch state (returns non-zero if pressed) */
+#define Switch0_STATE   (!(FIO4PIN & SWITCH0_PIN))   // active-LOW
+#define Switch1_STATE   (!(FIO4PIN & SWITCH1_PIN))
+#define Switch2_STATE   (!(FIO4PIN & SWITCH2_PIN))
+#define Switch3_STATE   (!(FIO4PIN & SWITCH3_PIN))
+
+/* ================== LED DEFINITIONS ================== */
+/* LEDs on P2.15, P2.19, P2.21, P1.13 (active-LOW) */
+#define LED0_PIN   (1u << 15)  // P2.15
+#define LED1_PIN   (1u << 19)  // P2.19
+#define LED2_PIN   (1u << 21)  // P2.21
+#define LED3_PIN   (1u << 13)  // P1.13
+
+#define LED0_ON    (FIO2SET = LED0_PIN)
+#define LED0_OFF   (FIO2CLR = LED0_PIN)
+
+#define LED1_ON    (FIO2SET = LED1_PIN)
+#define LED1_OFF   (FIO2CLR = LED1_PIN)
+
+#define LED2_ON    (FIO2SET = LED2_PIN)
+#define LED2_OFF   (FIO2CLR = LED2_PIN)
+
+#define LED3_ON    (FIO1SET = LED3_PIN)
+#define LED3_OFF   (FIO1CLR = LED3_PIN)
+
+/* ================== FUNCTIONS ================== */
+unsigned int Read_Switches(void);
+static inline void update_row_on_change(uint8_t row, uint8_t bit, unsigned sw, unsigned prev)(void);
+#endif // SWITCH_LED_H
+

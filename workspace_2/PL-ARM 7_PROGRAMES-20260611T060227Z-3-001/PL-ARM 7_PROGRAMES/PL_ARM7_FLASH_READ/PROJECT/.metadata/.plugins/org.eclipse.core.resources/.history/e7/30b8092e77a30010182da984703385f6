@@ -1,0 +1,139 @@
+#include "flashread.h"
+
+/* =================== Tiny delay (for short settling) =================== */
+static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile ("nop"); }
+
+/* =================== EMC register window =================== */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR          (0xFFE08000UL)
+#endif
+#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+/* NOR helpers */
+#define F16(off) (*((volatile uint16_t *)(NOR_BASE_ADDR) + (off)))
+
+/* JEDEC (x16) minimal commands */
+#define NOR_CMD_RESET          (0x00F0u)
+
+/* =================== UART0 (9600, PCLK=12MHz) =================== */
+void UART0_Init9600(void)
+{
+    /* Power UART0 */
+    PCONP |= (1u << 3);
+
+    /* PCLK_UART0 = CCLK/4 (default after reset/your init), assume 12 MHz PCLK */
+    PCLKSEL0 &= ~(3u << 6);  /* bits 7:6 = 00 */
+
+    /* P0.2=TXD0, P0.3=RXD0 */
+    PINSEL0 &= ~((3u<<4) | (3u<<6));
+    PINSEL0 |=  ((1u<<4) | (1u<<6));
+
+    /* 8N1, DLAB=1 */
+    U0LCR = 0x83;
+
+    /* Baud = 9600 with PCLK=12 MHz -> DL≈78.125; use DLL=78, DLM=0, FDR 1:0 */
+    U0DLM = 0;
+    U0DLL = 78;
+    U0FDR = (1u<<4);       /* MULVAL=1, DIVADD=0 */
+
+    /* DLAB=0 */
+    U0LCR = 0x03;
+
+    /* FIFO enable + reset */
+    U0FCR = 0x07;
+}
+
+void UART0_SendChar(char c)
+{
+    while(!(U0LSR & (1u<<5)));  /* THR empty */
+    U0THR = (uint8_t)c;
+}
+
+void UART0_SendString(const char* s)
+{
+    while (*s) {
+        if (*s == '\n') UART0_SendChar('\r');
+        UART0_SendChar(*s++);
+    }
+}
+
+/* hex helpers for dump */
+static void uart_put_hex16(uint16_t v)
+{
+    static const char h[]="0123456789ABCDEF";
+    for (int i=3;i>=0;--i) UART0_SendChar(h[(v>>(i*4))&0xF]);
+}
+static void uart_put_hex32(uint32_t v)
+{
+    static const char h[]="0123456789ABCDEF";
+    for (int i=7;i>=0;--i) UART0_SendChar(h[(v>>(i*4))&0xF]);
+}
+
+/* =================== EMC + NOR =================== */
+void FlashRead_EmcInit(void)
+{
+    /* Power EMC */
+    PCONP |= (1u << 11);   /* PCEMC */
+
+    /* D0..D15 -> P3.0..P3.15 (PINSEL6 func 01) */
+    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+
+    /* A0..A14 -> P4.1..P4.15 (PINSEL8 func 01) */
+    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+
+    /* A15..A22 + OE=P4.24, WE=P4.25, CS0=P4.30 (PINSEL9 func 01) */
+    for (int p=16; p<=22; ++p)
+        PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2)); /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2)); /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2)); /* CS0 */
+
+    /* Enable EMC, little endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static CS0: x16, conservative timings (ok @ ~60–72MHz CCLK) */
+    EMCStaticConfig0   = 0x00000001u | (1u<<7);  /* MW=01 (x16), buffer enable */
+    EMCStaticWaitWen0  = 2;
+    EMCStaticWaitOen0  = 3;
+    EMCStaticWaitRd0   = 7;
+    EMCStaticWaitPage0 = 0;
+    EMCStaticWaitWr0   = 7;
+    EMCStaticWaitTurn0 = 3;
+
+    delay_loops(5000);
+}
+
+void FlashRead_Reset(void)
+{
+    /* Simple F0 reset */
+    F16(0) = NOR_CMD_RESET;
+    delay_loops(200);
+}
+
+/* Read and print nwords starting at base_byte_addr */
+void FlashRead_DumpWords(uint32_t base_byte_addr, uint32_t nwords)
+{
+    volatile const uint16_t* p16 = (const volatile uint16_t*)(NOR_BASE_ADDR + base_byte_addr);
+
+    UART0_SendString("\r\n--- NOR Dump ---\r\n");
+    for (uint32_t i=0; i<nwords; ++i) {
+        uint32_t byte_addr = (NOR_BASE_ADDR + base_byte_addr) + (i<<1);
+        uint16_t data = p16[i];
+
+        UART0_SendString("0x");
+        uart_put_hex32(byte_addr);
+        UART0_SendString(" = 0x");
+        uart_put_hex16(data);
+        UART0_SendString("\r\n");
+    }
+    UART0_SendString("--- End ---\r\n");
+}

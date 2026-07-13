@@ -1,0 +1,184 @@
+/**
+ * @file    ethernet.c
+ * @brief   LPC2478 Ethernet MAC and PHY initialization implementation
+ */
+
+#include "ethernet.h"
+#include "ethernet_tx.h"
+#include "ethernet_rx.h"  /* Assuming you will create this next based on the tree */
+
+/* System Control Registers for Power and Pin Multiplexing */
+#define PCONP           (*((volatile uint32_t *)0xE01FC0C4))
+#define PINSEL2         (*((volatile uint32_t *)0xE002C008))
+#define PINSEL3         (*((volatile uint32_t *)0xE002C00C))
+
+#define PCONP_PCENET    (1 << 30) /* Ethernet Block Power Enable */
+
+/* ============================================================================== */
+/* PRIVATE HELPER FUNCTIONS                                                       */
+/* ============================================================================== */
+
+/**
+ * @brief Configures the LPC2478 pins for RMII mode.
+ */
+static void Eth_InitPins(void)
+{
+    /* Enable power to the Ethernet Block */
+    PCONP |= PCONP_PCENET;
+
+    /* Configure Pins for RMII (P1.0, P1.1, P1.4, P1.8, P1.9, P1.10, P1.14, P1.15) */
+    /* Note: PINSEL2/3 configuration highly depends on your specific board design.
+       This is the standard NXP RMII configuration. */
+    PINSEL2 = (PINSEL2 & ~0x0003030F) | 0x00010105;
+    PINSEL3 = (PINSEL3 & ~0x0000000F) | 0x00000005;
+}
+
+/* ============================================================================== */
+/* PHY MDIO COMMUNICATION                                                         */
+/* ============================================================================== */
+
+void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
+{
+    /* Clear MCMD to ensure write operation */
+    LPC_EMAC->MCMD = 0;
+    /* Set PHY Address and Register Address */
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    /* Write Data */
+    LPC_EMAC->MWTD = Value;
+
+    /* Wait until MII Mgmt Interface completes the write (Busy bit clears) */
+    while ((LPC_EMAC->MIND & 1) != 0) {
+        /* Busy wait */
+    }
+}
+
+uint16_t Eth_ReadPHY(uint32_t PhyReg)
+{
+    /* Set PHY Address and Register Address */
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    /* Trigger Read Command */
+    LPC_EMAC->MCMD = 1;
+
+    /* Wait until MII Mgmt Interface completes the read */
+    while ((LPC_EMAC->MIND & 1) != 0) {
+        /* Busy wait */
+    }
+
+    /* Clear Read Command */
+    LPC_EMAC->MCMD = 0;
+
+    /* Return the lower 16 bits containing the data */
+    return (uint16_t)(LPC_EMAC->MRDD & 0xFFFF);
+}
+
+/* ============================================================================== */
+/* ETHERNET INITIALIZATION                                                        */
+/* ============================================================================== */
+
+bool Eth_Init(void)
+{
+    uint32_t timeout;
+    uint16_t phyStatus;
+
+    /* 1. Hardware Pin and Power Setup */
+    Eth_InitPins();
+
+    /* 2. Reset EMAC Hardware */
+    /* Put MAC in soft reset, reset TX/RX/MCS logic */
+    LPC_EMAC->MAC1    = MAC1_RES_TX | MAC1_RES_MCS_TX | MAC1_RES_RX | MAC1_RES_MCS_RX | MAC1_SIM_RES | MAC1_SOFT_RES;
+    LPC_EMAC->COMMAND = CR_REG_RES | CR_TX_RES | CR_RX_RES | CR_PASS_RUNT_FRM;
+
+    /* Short delay for reset to take effect */
+    for (timeout = 100; timeout; timeout--);
+
+    /* Clear Reset bits */
+    LPC_EMAC->MAC1 = MAC1_PASS_ALL;
+    /* Set RMII Mode (Bit 9). If using MII, clear bit 9 instead. */
+    LPC_EMAC->COMMAND = CR_RMII | CR_PASS_RUNT_FRM;
+
+    /* 3. Initialize EMAC Registers */
+    /* Set MII Clock generation based on peripheral clock (e.g., div by 36 or 44) */
+    LPC_EMAC->MCG = 0x0018; /* Clock divider, adjust based on your PCLK to hit ~2.5MHz MDC */
+
+    LPC_EMAC->MAC2 = MAC2_CRC_EN | MAC2_PAD_EN;
+    LPC_EMAC->MAXF = 1536; /* Maximum Frame Size */
+    LPC_EMAC->CLRT = 0x370F; /* Default Collision window / Retry */
+    LPC_EMAC->IPGR = 0x0C12; /* Non Back-to-Back Inter-Packet-Gap */
+    LPC_EMAC->IPGT = 0x0015; /* Back-to-Back Inter-Packet-Gap */
+
+    /* 4. Reset DP83848 PHY */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_RESET);
+    for (timeout = 0; timeout < PHY_RESET_TOUT; timeout++) {
+        if ((Eth_ReadPHY(DP83848_BMCR) & PHY_BMCR_RESET) == 0) {
+            break; /* Reset completed */
+        }
+    }
+    if (timeout == PHY_RESET_TOUT) return false; /* PHY Reset Timeout */
+
+    /* 5. Check PHY ID (Optional but recommended to ensure connectivity) */
+    uint16_t phyId1 = Eth_ReadPHY(DP83848_PHYID1);
+    uint16_t phyId2 = Eth_ReadPHY(DP83848_PHYID2);
+    if (phyId1 != DP83848_OUI_MSB || (phyId2 & 0xFFF0) != DP83848_OUI_LSB) {
+        /* PHY ID mismatch, but we can continue or halt depending on strictness */
+    }
+
+    /* 6. Configure Auto-Negotiation and Wait for Link */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_AUTONEG_EN | PHY_BMCR_RESTART_AN);
+    for (timeout = 0; timeout < PHY_LINK_TOUT; timeout++) {
+        phyStatus = Eth_ReadPHY(DP83848_BMSR);
+        if (phyStatus & PHY_BMSR_LINK_STAT) {
+            /* Link is up, verify auto-negotiation complete */
+            if (phyStatus & PHY_BMSR_AUTONEG_C) {
+                break;
+            }
+        }
+    }
+    if (timeout == PHY_LINK_TOUT) return false; /* Link Timeout */
+
+    /* 7. Configure MAC based on PHY negotiated Speed and Duplex */
+    /* Read DP83848 specific status register (0x10) to easily get speed/duplex */
+    phyStatus = Eth_ReadPHY(DP83848_PHYSTS);
+
+    if (phyStatus & PHY_STS_DUPLEX) {
+        /* Full Duplex */
+        LPC_EMAC->MAC2    |= MAC2_FULL_DUP;
+        LPC_EMAC->COMMAND |= CR_FULL_DUP;
+        LPC_EMAC->IPGT     = 0x0015; /* Back-to-back IPG for Full Duplex */
+    } else {
+        /* Half Duplex */
+        LPC_EMAC->IPGT     = 0x0012; /* Back-to-back IPG for Half Duplex */
+    }
+
+    if (phyStatus & PHY_STS_SPEED) {
+        /* 10 Mbps */
+        LPC_EMAC->SUPP = 0;
+    } else {
+        /* 100 Mbps */
+        LPC_EMAC->SUPP = (1 << 8);
+    }
+
+    /* 8. Set MAC Address */
+    LPC_EMAC->SA0 = (MAC_ADDR1 << 8) | MAC_ADDR0;
+    LPC_EMAC->SA1 = (MAC_ADDR3 << 8) | MAC_ADDR2;
+    LPC_EMAC->SA2 = (MAC_ADDR5 << 8) | MAC_ADDR4;
+
+    /* 9. Initialize DMA Descriptors in AHB SRAM */
+    Eth_TxInit();
+    Eth_RxInit(); /* Make sure to implement this in ethernet_rx.c */
+
+    /* 10. Configure RX Filter */
+    /* Accept Broadcast and Unicast frames that match our MAC address */
+    LPC_EMAC->RXFILTERCTRL = RXFILT_CTRL_BROADCAST | RXFILT_CTRL_PERFECT;
+
+    /* Clear all EMAC interrupts */
+    LPC_EMAC->INTCLEAR = 0xFFFF;
+    /* Enable desired interrupts (e.g., RX Done, TX Done).
+       You will need an NVIC/VIC handler if using interrupts. */
+    LPC_EMAC->INTENABLE = INT_RX_DONE | INT_TX_DONE;
+
+    /* 11. Enable Transmit and Receive */
+    LPC_EMAC->COMMAND |= (CR_RX_EN | CR_TX_EN);
+    LPC_EMAC->MAC1    |= MAC1_REC_EN;
+
+    return true; /* Initialization successful */
+}

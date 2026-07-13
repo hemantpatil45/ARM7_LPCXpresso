@@ -1,0 +1,120 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+/* src/main.c */
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"   // PLL_Init(), system_Init() if you use them
+#include "glcd.h"          // optional; remove if not linking GLCD
+#include "uart.h"          // UART0_Init(), UART0_SendString()
+
+int main(void)
+{
+    PLL_Init();          /* safe if you already have this in your project */
+    system_Init();       /* safe if available; else remove this line */
+
+    UART0_Init();
+
+    GLCD_Init();
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "UARTTX Demo");
+    GLCD_RowWriteMargin(2, "UART0 sending...");
+    GLCD_RowWriteMargin(4, "Open terminal 9600");
+
+    UART0_SendString("\r\n=== UARTTX ready ===\r\n");
+    UART0_SendString("Type on host to see echo (if echo code added).\r\n");
+
+
+    while (1) {
+        UART0_SendString(".");
+
+        for (volatile uint32_t i = 0; i < 200000; ++i) __asm volatile("nop");
+    }
+
+
+}
+
+void LED_GPIO_Init(void) {
+    SCS |= (1 << 0); // Enable Fast GPIO
+
+    FIO2DIR |= (1 << 15) | (1 << 19) | (1 << 21); // LED1–3
+    FIO1DIR |= (1 << 13);                         // LED4
+    FIO0DIR |= (1 << 10);                         // Relay
+
+    // Turn all OFF initially
+    FIO2SET = (1 << 15) | (1 << 19) | (1 << 21);
+    FIO1SET = (1 << 13);
+    FIO0SET = (1 << 10);
+}
+
+void Display_Status_On_GLCD(const char *message) {
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "AKADEMIKA SYSTEM");
+    GLCD_RowWriteMargin(2, "LED + RELAY CTRL");
+    GLCD_RowWriteMargin(4, message);
+}
+
+void LED_Control(char command) {
+    FIO2SET = (1 << 15) | (1 << 19) | (1 << 21);
+    FIO1SET = (1 << 13);
+
+    switch (command) {
+        case '1':
+            FIO2CLR = (1 << 15);
+            UART0_SendString("LED1 ON\r\n");
+            Display_Status_On_GLCD("LED1 ON");
+            break;
+        case '2':
+            FIO2CLR = (1 << 19);
+            UART0_SendString("LED2 ON\r\n");
+            Display_Status_On_GLCD("LED2 ON");
+            break;
+        case '3':
+            FIO2CLR = (1 << 21);
+            UART0_SendString("LED3 ON\r\n");
+            Display_Status_On_GLCD("LED3 ON");
+            break;
+        case '4':
+            FIO1CLR = (1 << 13);
+            UART0_SendString("LED4 ON\r\n");
+            Display_Status_On_GLCD("LED4 ON");
+            break;
+        case '5':
+            FIO2CLR = (1 << 15) | (1 << 19) | (1 << 21);
+            FIO1CLR = (1 << 13);
+            UART0_SendString("All LEDs ON\r\n");
+            Display_Status_On_GLCD("All LEDs ON");
+            break;
+        case '0':
+            UART0_SendString("All LEDs OFF\r\n");
+            Display_Status_On_GLCD("All LEDs OFF");
+            break;
+        case 'r':
+        case 'R':
+            FIO0CLR = (1 << 10);
+            UART0_SendString("Relay ON\r\n");
+            Display_Status_On_GLCD("Relay ON");
+            break;
+        case 'o':
+        case 'O':
+            FIO0SET = (1 << 10);
+            UART0_SendString("Relay OFF\r\n");
+            Display_Status_On_GLCD("Relay OFF");
+            break;
+        default:
+            UART0_SendString("Invalid Command\r\n");
+            Display_Status_On_GLCD("Invalid Command");
+            break;
+    }
+}

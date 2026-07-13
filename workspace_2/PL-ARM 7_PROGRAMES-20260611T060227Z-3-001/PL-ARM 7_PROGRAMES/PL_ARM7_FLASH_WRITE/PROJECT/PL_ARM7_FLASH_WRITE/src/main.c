@@ -1,0 +1,82 @@
+///*
+//===============================================================================
+// Name        : main.c
+// Author      : $(author)
+// Version     :
+// Copyright   : $(copyright)
+// Description : main definition
+//===============================================================================
+
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashwrite.h"   /* EMC + SST39VF3202C + keypad */
+
+#ifndef NOR_BASE
+#define NOR_BASE   (0x80000000UL)
+#endif
+
+static void hex4(uint16_t v, char out[5]){
+    for (int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; out[i]=(n<10)?('0'+n):('A'+(n-10)); }
+    out[4]='\0';
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* Banners */
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "FLASH EXPT          ");
+
+
+    /* Bus + keypad */
+    EMC_Init_CS0_x16();
+    nor_reset();
+    Keypad_Col1Row12_Init();
+
+    GLCD_RowWriteMargin(6, "PRESS SW2 TO ERASE  ");
+    while (!SW2_Pressed()) { /* wait */ }
+    for (volatile uint32_t d=0; d<600000; ++d) __asm volatile("nop");
+    while (SW2_Pressed()) { /* wait release */ }
+
+    GLCD_RowWriteMargin(6, "FLASH ERASE COMPLETED");
+    flash_sector_erase(0x00000000u);
+    GLCD_RowWriteMargin(6, "FLASH ERASE COMPLETED");
+
+    GLCD_RowWriteMargin(6, "PRESS SW6 TO WRITE   ");
+    while (!SW6_Pressed()) { /* wait */ }
+    for (volatile uint32_t d=0; d<600000; ++d) __asm volatile("nop");
+    while (SW6_Pressed()) { /* wait release */ }
+
+    GLCD_RowWriteMargin(6, "WAIT WRITING FLASH  ");
+    for (uint32_t i=0;i<200u;i++){   // FLASH WRITE VALUE CHANGE HERE IF i CHANGE THEN VALUE WRITTEN TO FLASH CHANGE
+        /* program word i with value (i+1), at byte addr i*2 */
+        flash_program_word(i*2u, (uint16_t)(i+1u));
+    }
+
+    volatile uint16_t *nor = (volatile uint16_t *)NOR_BASE; /* word-mapped view */
+    uint32_t fail = 0xFFFFFFFFu;
+    for (uint32_t i=0;i<200u;i++){ //// FLASH WRITE VALUE CHANGE HERE IF i CHANGE THEN VALUE WRITTEN TO FLASH CHANGE
+        uint16_t v = nor[i];  /* read word offset i */
+        if (v != (uint16_t)(i+1u)){ fail = i; break; }
+    }
+
+    if (fail == 0xFFFFFFFFu){
+        GLCD_RowWriteMargin(6, "FLASH WRITE COMPLETED");
+    } else {
+        char msg[21] = "FLASH WRITE COMPLETED";
+        char h[5]; hex4((uint16_t)fail, h);
+        msg[13]=h[0]; msg[14]=h[1]; msg[15]=h[2]; msg[16]=h[3];
+        GLCD_RowWriteMargin(6, msg);
+    }
+
+    while (1) { /* idle */ }
+}
+

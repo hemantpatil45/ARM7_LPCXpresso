@@ -1,0 +1,111 @@
+/*
+/**
+ * @file    ethernet_tx.c
+ * @brief   Ethernet Transmit (TX) implementation for LPC2478
+ */
+
+#include "ethernet_tx.h"
+#include "ethernet_reg.h"
+#include <string.h>
+
+/* ============================================================================== */
+/* DMA MEMORY ALLOCATION                                                          */
+/* ============================================================================== */
+/* IMPORTANT: The arrays below MUST be placed in the AHB SRAM.
+ * In LPCXpresso/GCC, you typically do this by placing them in a specific section
+ * defined in your linker script. If your linker script names the AHB RAM section
+ * ".ethram" or ".ahbram", use the attribute below. Adjust the section name as needed.
+ */
+
+#define AHB_SRAM_SECTION __attribute__((section(".bss.$RamAHB32"))) // Common MCUXpresso/LPCXpresso naming
+
+static TX_Desc_t TX_Desc[NUM_TX_FRAG] AHB_SRAM_SECTION;
+static TX_Stat_t TX_Stat[NUM_TX_FRAG] AHB_SRAM_SECTION;
+static uint8_t   TX_Buffer[NUM_TX_FRAG][ETH_MAX_FLEN] AHB_SRAM_SECTION;
+
+/* ============================================================================== */
+/* TX FUNCTIONS                                                                   */
+/* ============================================================================== */
+
+void EMAC_TxInit(void)
+{
+    uint32_t i;
+
+    /* 1. Initialize the Descriptor and Status arrays */
+    for (i = 0; i < NUM_TX_FRAG; i++)
+    {
+        /* Link the descriptor to its respective payload buffer */
+        TX_Desc[i].Packet  = (uint32_t)&TX_Buffer[i][0];
+        TX_Desc[i].Control = 0;
+        TX_Stat[i].Info    = 0;
+    }
+
+    /* 2. Point the EMAC registers to the base of our arrays */
+    LPC_EMAC->TXDESCRIPTOR    = (uint32_t)&TX_Desc[0];
+    LPC_EMAC->TXSTATUS        = (uint32_t)&TX_Stat[0];
+
+    /* Note: The hardware expects the max index, which is Number of Fragments - 1 */
+    LPC_EMAC->TXDESCRIPTORNUM = NUM_TX_FRAG - 1;
+
+    /* 3. Reset indices to start of the ring buffer */
+    LPC_EMAC->TXPRODUCEINDEX  = 0;
+}
+
+bool EMAC_SendPacket(uint8_t *pData, uint16_t length)
+{
+    uint32_t produce_idx;
+    uint32_t next_idx;
+
+    /* Validate packet length */
+    if (length == 0 || length > ETH_MAX_FLEN)
+    {
+        return false;
+    }
+
+    /* Get current insertion point in the ring buffer */
+    produce_idx = LPC_EMAC->TXPRODUCEINDEX;
+
+    /* Calculate what the index will be after we queue this packet */
+    next_idx = (produce_idx + 1) % NUM_TX_FRAG;
+
+    /* Check if the queue is full.
+     * If Produce Index wraps around and hits Consume Index, we have no space. */
+    if (next_idx == LPC_EMAC->TXCONSUMEINDEX)
+    {
+        return false; /* Queue is full; drop packet or wait */
+    }
+
+    /* Copy the application data into the DMA-accessible AHB SRAM buffer */
+    memcpy(TX_Buffer[produce_idx], pData, length);
+
+    /* Configure the Control word:
+     * - Hardware requires size to be (length - 1)
+     * - TX_DESC_CTRL_LAST: Tells DMA this is the end of the frame
+     * - TX_DESC_CTRL_PAD:  Hardware will auto-pad frames smaller than 64 bytes
+     * - TX_DESC_CTRL_CRC:  Hardware will calculate and append the FCS/CRC
+     * - TX_DESC_CTRL_INT:  Trigger a hardware interrupt when transmission finishes
+     */
+    TX_Desc[produce_idx].Control = TX_DESC_CTRL_SIZE(length - 1) |
+                                   TX_DESC_CTRL_LAST |
+                                   TX_DESC_CTRL_PAD |
+                                   TX_DESC_CTRL_CRC |
+                                   TX_DESC_CTRL_INT;
+
+    /* Advance the Produce Index.
+     * This signals the hardware DMA that a new packet is ready to be sent. */
+    LPC_EMAC->TXPRODUCEINDEX = next_idx;
+
+    return true;
+}
+
+void EMAC_TxEnable(void)
+{
+    /* Enable the Transmission path in the Command register */
+    LPC_EMAC->COMMAND |= CR_TX_EN;
+} * ethernet_tx.c
+ *
+ *  Created on: Jul 6, 2026
+ *      Author: vboxuser
+ */
+
+

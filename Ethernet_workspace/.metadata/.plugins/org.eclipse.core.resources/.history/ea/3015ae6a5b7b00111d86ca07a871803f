@@ -1,0 +1,15 @@
+#ifndef ETHERNET_TX_H
+#define ETHERNET_TX_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "ethernet_reg.h"
+
+#define NUM_TX_FRAG     4
+#define ETH_MAX_FLEN    1536
+
+void EMAC_TxInit(void);
+bool EMAC_SendPacket(uint8_t *pData, uint16_t length);
+void EMAC_TxEnable(void);
+
+#endif /* ETHERNET_TX_H */

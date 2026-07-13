@@ -1,0 +1,10 @@
+10:24:20 **** Incremental Build of configuration Debug for project Uart ****
+make -r all 
+Building target: Uart.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="Uart.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "Uart_Debug.ld" -o "Uart.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main(3).o ./src/main.o ./src/sys_calls.o ./src/system_init.o ./src/uart.o   
+/bin/sh: 1: Syntax error: "(" unexpected
+make: *** [makefile:32: Uart.axf] Error 2
+
+10:24:20 Build Finished (took 58ms)
+

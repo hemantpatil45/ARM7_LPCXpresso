@@ -1,0 +1,64 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+
+
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+#define DELAY 900000
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+int main(void) {
+    PLL_Init();        // setup PLL & clock
+    system_Init();     // system init
+    GLCD_Init();
+    GLCD_Clear();
+        // motor pins setup
+
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+
+    GLCD_RowWriteMargin(4, "DC MOTOR EXPT       ");
+
+    GLCD_RowWriteMargin(5, "CONNECT J58-J46, J59");
+
+    GLCD_RowWriteMargin(6, "-J45 & DC MOTOR @J19");
+     // system init
+        // motor pins setup
+    M_MOTOR_EN_A_STATE;
+
+    while(1) {
+         //MOTOR ROTATE IN CLOCLWISE DIRRECTION
+        M_MOTOR_EN_A_ON;
+        M_A_PHASEM_PWM01_ON;   // IN1 = HIGH
+        M_B_PHASEM_PWM02_OFF;  // IN2 = LOW
+        delay_cycles(DELAY);
+
+//       //MOTOR ROTATE IN ANTCLOCLWISE DIRRECTION
+//        M_MOTOR_EN_A_ON;
+//        M_A_PHASEM_PWM01_OFF;  // IN1 = LOW
+//        M_B_PHASEM_PWM02_ON;   // IN2 = HIGH
+//        delay_cycles(DELAY);
+
+        M_MOTOR_EN_A_OFF;
+        delay_cycles(DELAY);
+
+
+    }
+}
+

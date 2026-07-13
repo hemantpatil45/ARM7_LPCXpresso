@@ -1,0 +1,80 @@
+/*
+/*
+ * ext_interrupt.c
+ * EINT0 interrupt: falling edge on P2.10 toggles LED on P2.19 (active-LOW)
+ */
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "ext_interrupt.h"
+
+/* -------- LED pin (P2.19) -------- */
+#ifndef LED_P2_19_MASK
+#define LED_P2_19_MASK  (1u << 19)   /* P2.19 */
+#endif
+
+/* Ensure LED pin is GPIO output and OFF (active-LOW LED => drive HIGH = OFF) */
+static void LED_P2_19_Init(void)
+{
+    /* P2.19 lives in PINSEL5 bits [11:10] -> set to 00 for GPIO */
+    PINSEL5 &= ~(3u << 10);
+
+    /* direction = output; set high = LED OFF (active-LOW LED) */
+    FIO2DIR |=  LED_P2_19_MASK;
+    FIO2SET  =  LED_P2_19_MASK;
+}
+
+/* -------- EINT0 ISR --------
+ * GCC attribute form for ARM7 IRQ
+ */
+void EINT0_IRQHandler(void) __attribute__((interrupt("IRQ")));
+void EINT0_IRQHandler(void)
+{
+    /* Toggle LED (active-LOW) */
+    if (FIO2PIN & LED_P2_19_MASK) {
+        FIO2CLR = LED_P2_19_MASK;   /* ON (drive low) */
+    } else {
+        FIO2SET = LED_P2_19_MASK;   /* OFF (drive high) */
+    }
+
+    /* Clear EINT0 flag and end interrupt */
+    EXTINT = (1u << 0);     /* write 1 to clear EINT0 */
+    VICVectAddr = 0x00;     /* Acknowledge to VIC */
+}
+
+/* -------- Public init --------
+ * Route P2.10 to EINT0, falling-edge, enable VIC vector 14
+ */
+void EINT0_Init(void)
+{
+    /* LED ready first (so ISR can touch it immediately) */
+    LED_P2_19_Init();
+
+    /* ---- Pin mux: P2.10 -> EINT0 (PINSEL4 [21:20] = 01) ---- */
+    PINSEL4 &= ~(3u << 20);
+    PINSEL4 |=  (1u << 20);
+
+    /* Edge-sensitive, falling edge on EINT0 */
+    EXTMODE  |=  (1u << 0);   /* 1 = edge */
+    EXTPOLAR &= ~(1u << 0);   /* 0 = falling */
+
+    /* Clear any pending EINT0 before enabling */
+    EXTINT = (1u << 0);
+
+    /* Make sure EINT0 is routed as IRQ, not FIQ */
+    VICIntSelect &= ~(1u << 14);  /* 0 = IRQ */
+
+    /* Vector slot 14 corresponds to EINT0 on LPC24xx */
+    VICVectAddr14 = (unsigned long)EINT0_IRQHandler; /* ISR address */
+    VICVectCntl14 = 0x20 | 14;   /* enable this slot + source #14 */
+
+    /* Unmask/enable EINT0 interrupt */
+    VICIntEnable  = (1u << 14);
+}
+ * ext_interrupt.c
+ *
+ *  Created on: 30-Sep-2025
+ *      Author: ADMIN
+ */
+
+

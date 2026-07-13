@@ -1,0 +1,79 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+#define CCLK_HZ 72000000u
+#define CCLK_MHZ 72u
+#define STEP_US 10u         // Update period for DAC, microseconds (10us)
+
+void dac8512_ssp0_init(void){
+    // SCK, MISO, MOSI setup
+    PINSEL0 |= (2UL << 30);  // P0.15: SSP0 SCK
+    PINSEL1 |= (2UL << 2);   // P0.17: SSP0 MISO
+    PINSEL1 |= (2UL << 4);   // P0.18: SSP0 MOSI
+
+    // Set P0.16 (CS/SSEL) as GPIO
+    PINSEL1 &= ~(3UL << 0);
+    IODIR0 |= (1UL << 16);
+    IOSET0 |= (1UL << 16);   // Default CS HIGH
+
+    PCONP |= (1u << 21);     // Power Control for SSP0
+
+    // Force SSP0 Clock to 72MHz so our SPI speed matches expectations
+    PCLKSEL1 &= ~(3u << 10);
+    PCLKSEL1 |=  (1u << 10);
+
+    // Configured for 16-bit hardware mode (15u << 0)
+    SSP0CR0 = (15u << 0) | (0u << 4) | (0u << 6) | (0u << 7);
+    SSP0CR1 = (1u << 1);     // Enable SSP0
+    SSP0CPSR = 2;            // PCLK/2
+    SSP0CR0 |= (35u << 8);   // 1MHz Bitrate Clock
+}
+
+void dac8512_write(uint16_t code12){
+    // 1. Clamp to 12-bit threshold
+    if(code12 > 4095u) code12 = 4095u;
+
+    // 2. FIX ALIGNMENT: Shift left by 4.
+    // This places your MSB (Bit 11) directly at the front of the 16-bit frame (Bit 15).
+    uint16_t data_to_send = (code12 << 4);
+
+    M_DAC_CS_ON;             // Pull CS Low
+    SSP0DR = data_to_send;   // Transmit 16-bit container
+
+    // 3. FIX RACE CONDITION: Wait for TX FIFO to empty completely (TFE bit = 1, Bit 0)
+    while ((SSP0SR & (1u << 0)) == 0);
+
+    // Then wait for the active shifter to clear out entirely (BSY bit = 0, Bit 4)
+    while (SSP0SR & (1u << 4));
+
+    // Safe delay to ensure the final bit's electrical pulse stabilizes on the pin
+    delay_cycles(10);
+
+    M_DAC_CS_OFF;            // Pull CS High (Locks data into DAC input register)
+
+    // 4. Strobe the DAC Load Latch to change the physical analog voltage
+    M_DAC_LD_ON;
+    delay_cycles(50);
+    M_DAC_LD_OFF;
+}
+
+void timer0_init_us(void){
+    PCONP |= (1u << 1);             /* power TIMER0 */
+    PCLKSEL0 &= ~(3u << 2);
+    PCLKSEL0 |=  (1u << 2);         /* PCLK = CCLK (72MHz) */
+
+    T0PR = (CCLK_HZ / 1000000u) - 1u; // Prescale to 1us tick: 71
+
+    T0MR0 = STEP_US;                 // Match after 10us (10 * 1us ticks)
+    T0MCR = (1u << 0) | (1u << 1);  /* Interrupt + Reset on Match (MR0I, MR0R) */
+    T0TCR = (1u << 1);               /* Reset Counter */
+    T0TCR = (1u << 0);               /* Enable Counter */
+}
+
+void timer0_wait_match0(void){
+    while ((T0IR & 1u) == 0u) { /* wait for MR0 interrupt flag */ }
+    T0IR = 1u; // Clear MR0 interrupt flag
+}

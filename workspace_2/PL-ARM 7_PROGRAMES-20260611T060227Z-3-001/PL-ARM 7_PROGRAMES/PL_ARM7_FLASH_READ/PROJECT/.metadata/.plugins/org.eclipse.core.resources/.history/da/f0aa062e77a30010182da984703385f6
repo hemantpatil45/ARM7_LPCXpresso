@@ -1,0 +1,21 @@
+#ifndef FLASHREAD_H
+#define FLASHREAD_H
+
+#include <stdint.h>
+#include "LPC24xx.h"
+
+/* ===== NOR Flash base (EMC CS0) ===== */
+#define NOR_BASE_ADDR       (0x80000000UL)
+
+/* ===== Public APIs ===== */
+void FlashRead_EmcInit(void);                   /* EMC + pinmux for CS0 x16 */
+void FlashRead_Reset(void);                     /* NOR reset (F0) */
+void FlashRead_DumpWords(uint32_t base_byte_addr,
+                         uint32_t nwords);      /* print N words over UART */
+
+/* ===== Minimal UART0 @ 9600 (PCLK = 12 MHz) ===== */
+void UART0_Init9600(void);
+void UART0_SendChar(char c);
+void UART0_SendString(const char* s);
+
+#endif /* FLASHREAD_H */

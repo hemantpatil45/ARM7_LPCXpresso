@@ -1,0 +1,54 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+#include <stdint.h>
+#include "temp35.h"
+#include "glcd.h"
+#include "SYSTEM_INIT.h"
+
+#ifndef row_wr
+/* Use your GLCD centered-row helper from glcd.h/glcd.c */
+#define row_wr(page, str)  GLCD_RowWriteMargin((uint8_t)(page), (str))
+#endif
+
+static inline void delay_ms(uint32_t ms){
+    while (ms--) { for (volatile uint32_t i=0;i<72000u;i++) __asm__("nop"); }
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* Your requested banner/text */
+    row_wr(0x00,"WELCOME TO AKADEMIKA");
+    row_wr(0x02,"      PL-ARM7       ");
+    row_wr(0x04,"TEMPARATURE SENSOR ");   /* spelling kept as in your example */
+    row_wr(0x05,"CONNECT J41-J53 &  ");
+    row_wr(0x06,"J40-J69            ");
+
+    /* LM35 on ADC0.0 */
+    TEMP35_Init();
+
+    char line[22];
+    while (1) {
+        TEMP35_FormatLine(line, TEMP35_DEFAULT_VREF_MV, TEMP35_DEFAULT_SAMPLES);
+        row_wr(0x07, line);              /* e.g., "TEMP = 28.4*C        " */
+        delay_ms(120);
+    }
+}
+

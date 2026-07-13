@@ -1,0 +1,11 @@
+Flash hex code
+
+
+akademika09@Akademika:~$ cd /home/akademika09/LPCXpresso/workspace/EthernetRx/Debug
+
+akademika09@Akademika:~/LPCXpresso/workspace/EthernetRx/Debug$ lpc21isp -hex .hex /dev/ttyUSB0 115200 12000
+
+
+
+
+Downloads/'PL-ARM 7_PROGRAMES-20260611T055829Z-3-001'/'PL-ARM 7_PROGRAMES'/PL_ARM7_INTERNAL_ADC/PROJECT/

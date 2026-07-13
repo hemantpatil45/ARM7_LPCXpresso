@@ -1,0 +1,53 @@
+#include "LPC24xx.h"
+#include "ethernet_tx.h"
+#include "ethernet_reg.h"  /* Add this line! */
+
+/* TX DMA Memory mapped to start of AHB SRAM */
+#define NUM_TX_FRAG         2
+#define ETH_TX_FRAG_SIZE    1536
+#define TX_DESC_BASE        0x7FE00000
+#define TX_STAT_BASE        (TX_DESC_BASE + (NUM_TX_FRAG * 8))
+#define TX_BUF_BASE         (TX_STAT_BASE + (NUM_TX_FRAG * 4))
+
+static uint32_t *TX_DESC_PACKET_PTRS;
+static uint32_t *TX_DESC_CTRL_PTRS;
+static uint32_t *TX_STAT_INFO_PTRS;
+
+void EMAC_TxInit(void)
+{
+    uint32_t i;
+    TX_DESC_PACKET_PTRS = (uint32_t *)TX_DESC_BASE;
+    TX_DESC_CTRL_PTRS   = (uint32_t *)(TX_DESC_BASE + 4);
+    TX_STAT_INFO_PTRS   = (uint32_t *)TX_STAT_BASE;
+
+    for (i = 0; i < NUM_TX_FRAG; i++) {
+        TX_DESC_PACKET_PTRS[i * 2] = TX_BUF_BASE + (i * ETH_TX_FRAG_SIZE);
+        TX_DESC_CTRL_PTRS[i * 2]   = 0;
+        TX_STAT_INFO_PTRS[i]       = 0;
+    }
+
+    LPC_EMAC->TXDESCRIPTOR    = TX_DESC_BASE;
+    LPC_EMAC->TXSTATUS        = TX_STAT_BASE;
+    LPC_EMAC->TXDESCRIPTORNUM = NUM_TX_FRAG - 1;
+    LPC_EMAC->TXPRODUCEINDEX  = 0;
+}
+
+bool EMAC_SendPacket(uint8_t *tx_buffer, uint32_t length)
+{
+    uint32_t produce_idx = LPC_EMAC->TXPRODUCEINDEX;
+    uint32_t consume_idx = LPC_EMAC->TXCONSUMEINDEX;
+    uint32_t next_produce_idx = (produce_idx + 1) % NUM_TX_FRAG;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    if (next_produce_idx == consume_idx) return false;
+
+    dma_buffer_ptr = (uint8_t *)TX_DESC_PACKET_PTRS[produce_idx * 2];
+    for (i = 0; i < length; i++) {
+        dma_buffer_ptr[i] = tx_buffer[i];
+    }
+
+    TX_DESC_CTRL_PTRS[produce_idx * 2] = (length - 1) | (1UL << 31) | (1UL << 29) | (1UL << 30);
+    LPC_EMAC->TXPRODUCEINDEX = next_produce_idx;
+    return true;
+}

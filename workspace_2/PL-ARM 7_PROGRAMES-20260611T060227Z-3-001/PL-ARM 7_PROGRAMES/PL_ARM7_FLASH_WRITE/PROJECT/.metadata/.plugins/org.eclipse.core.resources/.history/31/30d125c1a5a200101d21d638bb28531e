@@ -1,0 +1,174 @@
+/*
+ * flashwrite.c
+ *
+ *  Created on: 03-Oct-2025
+ *      Author: ADMIN
+ */
+
+#include "flashwrite.h"
+#include "LPC24xx.h"
+
+/* ===================== Small local delays ===================== */
+static inline void dly_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static void dly_ms(uint32_t ms){ while(ms--) dly_loops(72000); } /* ~1ms @72MHz */
+
+/* ===================== Keypad (Col1/Row1/Row2) ===================== */
+/* Wiring:
+   Col1 -> P2.25 (output we drive)
+   Row1 -> P2.0  (input)  => SW2
+   Row2 -> P2.1  (input)  => SW6
+*/
+#define KBD_COL1_BIT   25u
+#define KBD_ROW1_BIT    0u
+#define KBD_ROW2_BIT    1u
+
+#define KBD_COL1_MASK  (1u<<KBD_COL1_BIT)
+#define KBD_ROW1_MASK  (1u<<KBD_ROW1_BIT)
+#define KBD_ROW2_MASK  (1u<<KBD_ROW2_BIT)
+
+void Keypad_Col1Row12_Init(void)
+{
+    /* Make pins GPIO */
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));                 /* P2.0 -> GPIO  */
+    PINSEL4 &= ~(3u << (KBD_ROW2_BIT*2));                 /* P2.1 -> GPIO  */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+
+    /* Directions */
+    FIO2DIR &= ~(KBD_ROW1_MASK | KBD_ROW2_MASK);          /* rows inputs  */
+    FIO2DIR |=  KBD_COL1_MASK;                            /* column output*/
+
+    /* Column idle HIGH */
+    FIO2SET = KBD_COL1_MASK;
+}
+
+static inline uint32_t read_rows_when_col1_low(void)
+{
+    FIO2CLR = KBD_COL1_MASK;          /* drive Col1 LOW (active) */
+    dly_loops(300);
+    uint32_t pins = FIO2PIN;
+    FIO2SET = KBD_COL1_MASK;          /* release Col1 (idle HIGH) */
+    return pins;
+}
+
+/* simple debounce: two consistent samples ~2ms apart */
+static uint8_t debounced_is_low(uint32_t row_mask)
+{
+    uint8_t first  = ((read_rows_when_col1_low() & row_mask) == 0u);
+    dly_ms(2);
+    uint8_t second = ((read_rows_when_col1_low() & row_mask) == 0u);
+    return (first && second) ? 1u : 0u;
+}
+
+uint8_t SW2_Pressed(void){ return debounced_is_low(KBD_ROW1_MASK); }
+uint8_t SW6_Pressed(void){ return debounced_is_low(KBD_ROW2_MASK); }
+
+/* ===================== EMC (CS0, x16) ===================== */
+#ifndef EMC_BASE_ADDR
+#define EMC_BASE_ADDR       (0xFFE08000UL)
+#endif
+#define EMCControl          (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+#define EMCStatus           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x004))
+#define EMCConfig           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+
+/* Static Memory Bank 0 (CS0) */
+#define EMCStaticConfig0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+#define EMCStaticWaitWen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+#define EMCStaticWaitOen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+#define EMCStaticWaitRd0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+#define EMCStaticWaitPage0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+#define EMCStaticWaitWr0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+#define EMCStaticWaitTurn0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+
+void emc_init_cs0_x16(void)
+{
+    /* Power EMC */
+    PCONP |= (1u<<11);           /* PCEMC */
+
+    /* Data bus D0..D15 -> P3.0..P3.15 via PINSEL6, function 01 */
+    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+
+    /* Address A0..A14 -> P4.1..P4.15 via PINSEL8, function 01 */
+    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+
+    /* Address A15..A22 + control OE(P4.24)/WE(P4.25)/CS0(P4.30) via PINSEL9 */
+    for (int p=16; p<=22; ++p) PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2));  /* OE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2));  /* WE  */
+    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2));  /* CS0 */
+
+    /* Enable EMC, little-endian */
+    EMCControl = 1;
+    EMCConfig  = 0;
+
+    /* Static CS0: 16-bit, conservative timings */
+    EMCStaticConfig0   = 0x00000001u      /* 16-bit bus (MW=01) */
+                       | (1u<<7);         /* Page/buffer enable */
+    EMCStaticWaitWen0  = 2;   /* WE# to CS# delay    */
+    EMCStaticWaitOen0  = 3;   /* OE# access delay    */
+    EMCStaticWaitRd0   = 7;   /* read wait states    */
+    EMCStaticWaitPage0 = 0;   /* no page mode        */
+    EMCStaticWaitWr0   = 7;   /* write wait states   */
+    EMCStaticWaitTurn0 = 3;   /* turnaround cycles   */
+
+    dly_loops(5000);
+}
+
+/* ===================== NOR Flash (AMD/SST JEDEC x16) ===================== */
+#define NOR_BASE            (NOR_BASE_ADDR)
+#define F16(off)            (*((volatile uint16_t *)(NOR_BASE) + (off)))
+
+/* unlock word offsets (on x16 bus) */
+#define UNLOCK1             (0x555u)
+#define UNLOCK2             (0x2AAu)
+
+/* commands */
+#define CMD_AA              (0x00AAu)
+#define CMD_55              (0x0055u)
+#define CMD_RESET           (0x00F0u)
+#define CMD_PROGRAM         (0x00A0u)
+#define CMD_ERASE_SETUP     (0x0080u)
+#define CMD_SECTOR_ERASE    (0x0030u)
+
+/* DQ6 toggle polling */
+static int flash_wait_toggle(uint32_t word_off, uint32_t loops)
+{
+    uint16_t a,b;
+    do {
+        a = F16(word_off);
+        b = F16(word_off);
+        if (((a ^ b) & (1u<<6)) == 0) return 0;  /* done */
+    } while (loops--);
+    return -1; /* timeout */
+}
+
+void flash_reset(void)
+{
+    F16(0) = CMD_RESET;
+    dly_loops(100);
+}
+
+int flash_sector_erase(uint32_t byte_addr)
+{
+    uint32_t w = (byte_addr & ~1u) >> 1;           /* word offset */
+    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(UNLOCK1) = CMD_ERASE_SETUP;
+    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(w)       = CMD_SECTOR_ERASE;
+    return flash_wait_toggle(w, 5000000);
+}
+
+static int flash_program_word(uint32_t byte_addr, uint16_t data)
+{
+    uint32_t w = (byte_addr & ~1u) >> 1;           /* word offset */
+    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(UNLOCK1) = CMD_PROGRAM;
+    F16(w) = data;
+    if (flash_wait_toggle(w, 1000000)) return -1;
+    return (F16(w) == data) ? 0 : -2;
+}
+//
+//static int flash_write_buf(uint32_t dst_byte_addr, const void *src, uint32_t nbytes)
+//{
+//    const uint16_t *w = (const uint16_t*)src;
+//    uint32_t words = (nbytes + 1u)>>1;
+//    for (uint32_t i=0;i<words;i++)
+//        if (flash_program_word(dst_byte_addr + (i<<1), w[i])) return -1;
+//    return 0;
+//}

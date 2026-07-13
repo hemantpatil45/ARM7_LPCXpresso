@@ -1,0 +1,113 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+#include <stdint.h>
+#include <string.h>
+#include <stdbool.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+
+/* Include the custom Ethernet headers */
+#include "ethernet.h"
+#include "ethernet_tx.h"
+/* #include "ethernet_rx.h"  // Uncomment when RX is implemented */
+
+/* Ensure PINSEL3 is defined for our hardware patch */
+#ifndef PINSEL3
+#define PINSEL3 (*((volatile uint32_t *)0xE002C00C))
+#endif
+
+/*
+ * Simple blocking delay function.
+ * Note: The limit (12000000) is an approximation for ~1 second
+ * assuming a ~72MHz CPU clock. Adjust this value if your PL-ARM7
+ * board runs at a different core clock frequency.
+ */
+void Delay1Sec(void)
+{
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) {
+        __asm("NOP");
+    }
+}
+
+int main(void)
+{
+    bool link_status;
+    uint32_t tx_counter = 0;
+
+    /* Pre-constructed Raw Ethernet Frame */
+    uint8_t broadcast_frame[64] = {
+        /* 1. Destination MAC Address (Broadcast) */
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+
+        /* 2. Source MAC Address (Matches MAC_ADDR definitions in ethernet.h) */
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
+
+        /* 3. EtherType (0x88B5 = Local Experimental / Custom payload) */
+        0x88, 0xB5,
+
+        /* 4. Payload (Data) */
+        'H', 'e', 'l', 'l', 'o', ' ', 'A', 'k', 'a', 'd', 'e', 'm', 'i', 'k', 'a', '!',
+        '\r', '\n'
+    };
+
+    /* System Initializations */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* Initial GLCD Text */
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"Ethernet Demo       ");
+
+    /* Initialize Ethernet MAC and DP83848 PHY */
+    link_status = Eth_Init();
+
+    /* ==================================================================== */
+    /* OVERRIDE PATCH: Fix hardware clock routing and disable interrupts    */
+    /* ==================================================================== */
+
+    /* 1. Force route the 50MHz ENET_REF_CLK to P1.15 so the MAC can transmit */
+    PINSEL3 = (PINSEL3 & ~0xF000000F) | 0x50000005;
+
+    /* 2. Disable EMAC interrupts so the DMA doesn't lock up waiting for an ISR */
+    LPC_EMAC->INTENABLE = 0;
+    LPC_EMAC->INTCLEAR  = 0xFFFF;
+
+    /* ==================================================================== */
+
+    if (link_status) {
+        GLCD_RowWriteMargin(6, "Link Status: UP   ");
+    } else {
+        GLCD_RowWriteMargin(6, "Link Status: FAIL ");
+    }
+
+    /* Infinite loop sending a broadcast frame every second */
+    while(1) {
+        if (link_status) {
+            /* Send the raw frame */
+            if (Eth_SendFrame(broadcast_frame, sizeof(broadcast_frame))) {
+                tx_counter++;
+            } else {
+                /* If the buffer fills up or locks, show an error on the screen */
+                GLCD_RowWriteMargin(6, "TX Error: FULL    ");
+            }
+        }
+
+        /* Wait for approximately 1 second */
+        Delay1Sec();
+    }
+
+    return 0 ;
+}

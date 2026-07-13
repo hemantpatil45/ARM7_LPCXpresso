@@ -1,0 +1,21 @@
+06:59:09 **** Build of configuration Debug for project PL_ARM7_FLASH_READ ****
+make -r all 
+Building target: PL_ARM7_FLASH_READ.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="PL_ARM7_FLASH_READ.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "PL_ARM7_FLASH_READ_Debug.ld" -o "PL_ARM7_FLASH_READ.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/flashread.o ./src/glcd.o ./src/main.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       10356 B       512 KB      1.98%
+           Ram64:          0 GB        64 KB      0.00%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: PL_ARM7_FLASH_READ.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -v -O ihex "PL_ARM7_FLASH_READ.axf" "PL_ARM7_FLASH_READ.hex" ; # checksum -p LPC2478 -d "PL_ARM7_FLASH_READ.bin"
+copy from `PL_ARM7_FLASH_READ.axf' [elf32-littlearm] to `PL_ARM7_FLASH_READ.hex' [ihex]
+ 
+
+06:59:09 Build Finished (took 99ms)
+

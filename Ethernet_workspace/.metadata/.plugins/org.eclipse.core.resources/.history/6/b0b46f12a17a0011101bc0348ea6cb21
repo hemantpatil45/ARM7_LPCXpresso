@@ -1,0 +1,147 @@
+#include "ethernet.h"
+#include "ethernet_reg.h"
+#include "ethernet_tx.h"
+#include "ethernet_rx.h"
+
+#define PCONP           (*((volatile uint32_t *)0xE01FC0C4))
+#define PINSEL2         (*((volatile uint32_t *)0xE002C008))
+#define PINSEL3         (*((volatile uint32_t *)0xE002C00C))
+
+/* ========================================================================== */
+/* RX DMA MEMORY ALLOCATION                                                   */
+/* ========================================================================== */
+#define NUM_RX_FRAG 4
+#define ETH_FRAG_SIZE 1536
+
+uint8_t  rx_dma_buffer[NUM_RX_FRAG][ETH_FRAG_SIZE];
+uint32_t RX_DESC_PACKET_PTRS[NUM_RX_FRAG];
+uint32_t RX_STAT_INFO_PTRS[NUM_RX_FRAG];
+
+typedef struct {
+    uint32_t Packet;
+    uint32_t Ctrl;
+} RX_Desc;
+
+typedef struct {
+    uint32_t Info;
+    uint32_t HashCRC;
+} RX_Stat;
+
+RX_Desc RX_DescriptorRing[NUM_RX_FRAG];
+RX_Stat RX_StatusRing[NUM_RX_FRAG];
+
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        RX_DescriptorRing[i].Packet = (uint32_t)&rx_dma_buffer[i][0];
+        RX_DescriptorRing[i].Ctrl   = (ETH_FRAG_SIZE - 1) | (1U << 31);
+        RX_StatusRing[i].Info       = 0;
+        RX_StatusRing[i].HashCRC    = 0;
+
+        RX_DESC_PACKET_PTRS[i] = (uint32_t)&rx_dma_buffer[i][0];
+        RX_STAT_INFO_PTRS[i]   = (uint32_t)&RX_StatusRing[i].Info;
+    }
+
+    LPC_EMAC->RxDescriptor       = (uint32_t)&RX_DescriptorRing[0];
+    LPC_EMAC->RxStatus           = (uint32_t)&RX_StatusRing[0];
+    LPC_EMAC->RxDescriptorNumber = NUM_RX_FRAG - 1;
+    LPC_EMAC->RxConsumeIndex     = 0;
+}
+
+/* ========================================================================== */
+/* HARDWARE CONFIGURATION                                                     */
+/* ========================================================================== */
+static void Eth_InitPins(void)
+{
+    PCONP |= (1 << 30);
+    PINSEL2 = (PINSEL2 & ~0xF03F030F) | 0x50150105; /* RMII Pins */
+    PINSEL3 = (PINSEL3 & ~0x0000000F) | 0x00000005; /* MDC/MDIO */
+}
+
+void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
+{
+    LPC_EMAC->MCMD = 0;
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    LPC_EMAC->MWTD = Value;
+    while ((LPC_EMAC->MIND & 1) != 0);
+}
+
+uint16_t Eth_ReadPHY(uint32_t PhyReg)
+{
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    LPC_EMAC->MCMD = 1;
+    while ((LPC_EMAC->MIND & 1) != 0);
+    LPC_EMAC->MCMD = 0;
+    return (uint16_t)(LPC_EMAC->MRDD & 0xFFFF);
+}
+
+bool Eth_Init(void)
+{
+    uint32_t timeout;
+    uint16_t phyStatus;
+
+    Eth_InitPins();
+
+    /* Reset MAC */
+    LPC_EMAC->MAC1    = MAC1_RES_TX | MAC1_RES_MCS_TX | MAC1_RES_RX | MAC1_RES_MCS_RX | MAC1_SIM_RES | MAC1_SOFT_RES;
+    LPC_EMAC->COMMAND = CR_REG_RES | CR_TX_RES | CR_RX_RES | CR_PASS_RUNT_FRM;
+    for (timeout = 100; timeout; timeout--);
+
+    /* Initialize MAC Control Registers */
+    LPC_EMAC->MAC1 = MAC1_PASS_ALL;
+    LPC_EMAC->COMMAND = CR_RMII | CR_PASS_RUNT_FRM;
+    LPC_EMAC->MCFG = 0x0018;
+    LPC_EMAC->MAC2 = MAC2_CRC_EN | MAC2_PAD_EN;
+    LPC_EMAC->MAXF = 1536;
+    LPC_EMAC->CLRT = 0x370F;
+    LPC_EMAC->IPGR = 0x0C12;
+    LPC_EMAC->IPGT = 0x0015;
+
+    /* PHY Soft Reset */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_RESET);
+    for (timeout = 0; timeout < 0xFFFFF; timeout++) {
+        if ((Eth_ReadPHY(DP83848_BMCR) & PHY_BMCR_RESET) == 0) break;
+    }
+
+    /* Auto-Negotiate */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_AUTONEG_EN | PHY_BMCR_RESTART_AN);
+    for (timeout = 0; timeout < 0xFFFFF; timeout++) {
+        phyStatus = Eth_ReadPHY(DP83848_BMSR);
+        if ((phyStatus & PHY_BMSR_LINK_STAT) && (phyStatus & PHY_BMSR_AUTONEG_C)) break;
+    }
+
+    if (timeout == 0xFFFFF) return false;
+
+    /* Configure MAC based on PHY negotiation */
+    phyStatus = Eth_ReadPHY(DP83848_PHYSTS);
+    if (phyStatus & PHY_STS_DUPLEX) {
+        LPC_EMAC->MAC2 |= MAC2_FULL_DUP;
+        LPC_EMAC->COMMAND |= CR_FULL_DUP;
+        LPC_EMAC->IPGT = 0x0015;
+    } else {
+        LPC_EMAC->IPGT = 0x0012;
+    }
+    LPC_EMAC->SUPP = (phyStatus & PHY_STS_SPEED) ? 0 : (1 << 8);
+
+    LPC_EMAC->SA0 = 0x1100;
+    LPC_EMAC->SA1 = 0x3322;
+    LPC_EMAC->SA2 = 0x5544;
+
+    /* Initialize DMA Memory Rings */
+    EMAC_TxInit();
+    EMAC_RxInit();
+
+    /* Accept Broadcast and Perfect Match packets */
+    LPC_EMAC->RXFILTERCTRL = RXFILT_CTRL_BROADCAST | RXFILT_CTRL_PERFECT;
+
+    /* Clear Interrupts (Polling Mode) */
+    LPC_EMAC->INTENABLE = 0;
+    LPC_EMAC->INTCLEAR = 0xFFFF;
+
+    /* Enable TX and RX paths in MAC */
+    LPC_EMAC->COMMAND |= (CR_RX_EN | CR_TX_EN);
+    LPC_EMAC->MAC1    |= MAC1_REC_EN;
+
+    return true;
+}

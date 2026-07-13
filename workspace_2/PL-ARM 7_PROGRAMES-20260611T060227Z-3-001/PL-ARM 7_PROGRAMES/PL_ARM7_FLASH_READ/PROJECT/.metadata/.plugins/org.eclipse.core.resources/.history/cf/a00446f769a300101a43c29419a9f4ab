@@ -1,0 +1,49 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashread.h"
+
+static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile ("nop"); }
+
+int main(void)
+{
+    /* Board / clocks */
+    PLL_Init();
+    system_Init();
+
+    /* GLCD banner like your IAR demo */
+    GLCD_Init();
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "FLASH READ EXPT     ");
+    GLCD_RowWriteMargin(6, "OPEN TERM 9600, HIT KEY");
+
+    /* EMC + NOR + UART */
+    FlashRead_EmcInit();
+    FlashRead_Reset();
+    UART0_Init9600();
+
+    UART0_SendString("\r\nLPC2478 NOR READ demo @9600\r\n");
+    UART0_SendString("Press any key to dump first 64 words...\r\n");
+
+    /* Wait for any RX character from terminal */
+    while(!(U0LSR & (1u<<0))) { /* wait */ }
+    (void)U0RBR; /* clear */
+
+    GLCD_RowWriteMargin(6, "READING...           ");
+    FlashRead_DumpWords(0x00000000u, 64);   /* dump first 64 words (0x8000_0000..) */
+    GLCD_RowWriteMargin(6, "READ DONE            ");
+
+    /* Optional: preview first 20 bytes on the GLCD row 5 */
+    {
+        char rb[21];
+        volatile const uint8_t* p = (const volatile uint8_t*) (NOR_BASE_ADDR);
+        for (int i=0;i<20;i++) rb[i] = (char)p[i];
+        rb[20] = 0;
+        GLCD_RowWriteMargin(5, rb);
+    }
+
+    while (1) { /* idle */ }
+}

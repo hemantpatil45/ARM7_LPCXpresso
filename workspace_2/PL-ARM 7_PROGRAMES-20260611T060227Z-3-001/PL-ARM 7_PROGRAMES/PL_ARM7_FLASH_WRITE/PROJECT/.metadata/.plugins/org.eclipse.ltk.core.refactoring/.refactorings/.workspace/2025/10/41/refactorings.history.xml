@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 9 resources" deleteContents="false" description="Delete 9 resources" element1="/PL_ARM7_FLASH_WRITE/src/flashwrite.c" element2="/PL_ARM7_FLASH_WRITE/src/flashwrite.h" element3="/PL_ARM7_FLASH_WRITE/src/glcd_font5x7.h" element4="/PL_ARM7_FLASH_WRITE/src/glcd.c" element5="/PL_ARM7_FLASH_WRITE/src/glcd.h" element6="/PL_ARM7_FLASH_WRITE/src/LPC24xx.h" element7="/PL_ARM7_FLASH_WRITE/src/main.c" element8="/PL_ARM7_FLASH_WRITE/src/system_init.c" element9="/PL_ARM7_FLASH_WRITE/src/system_init.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="9" stamp="1759923993512"/>
+</session>

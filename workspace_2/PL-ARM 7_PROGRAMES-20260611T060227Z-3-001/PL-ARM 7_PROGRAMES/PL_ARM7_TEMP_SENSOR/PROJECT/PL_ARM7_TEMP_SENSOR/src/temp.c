@@ -1,0 +1,80 @@
+/*
+ * temp.c
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+#include <stdint.h>
+#include "internaladc.h"   /* ADC0_InitCh0, ADC0_ReadCh0, ADC0_ReadCh0_Avg */
+#include "temp.h"
+
+/* ===== Public API ===== */
+
+void TEMP_Init(void) {
+    ADC0_InitCh0();                     /* AD0.0 on P0.23 */
+}
+
+uint16_t TEMP_ReadRaw(void) {
+    return ADC0_ReadCh0();
+}
+
+uint16_t TEMP_ReadRawAvg(uint8_t samples) {
+    if (samples == 0) samples = TEMP_DEFAULT_SAMPLES;
+    return ADC0_ReadCh0_Avg(samples);
+}
+
+/* mV = round(raw * Vref(mV) / 1023) -- keep math 32-bit for accuracy */
+uint32_t TEMP_RawToMilliVolts(uint16_t raw, uint16_t vref_mv) {
+    if (raw > 1023u) raw = 1023u;
+    return ((uint32_t)raw * (uint32_t)vref_mv + 511u) / 1023u;
+}
+
+/* LM35: 10 mV/°C, so deci-°C (°C×10) == millivolts. */
+uint16_t TEMP_Read_C10(uint16_t vref_mv, uint8_t samples) {
+    if (!vref_mv)  vref_mv  = TEMP_DEFAULT_VREF_MV;
+    if (!samples)  samples  = TEMP_DEFAULT_SAMPLES;
+    uint16_t raw = TEMP_ReadRawAvg(samples);
+    uint32_t mV  = TEMP_RawToMilliVolts(raw, vref_mv);   /* rounded, 32-bit */
+    if (mV > 65535u) mV = 65535u;
+    return (uint16_t)mV;                                  /* °C×10 */
+}
+
+/* ===== Tiny helpers (no printf) ===== */
+static char* _u32_to_dec(char *out, uint32_t v){
+    char tmp[11]; int i=0;
+    if (v==0){ *out++='0'; *out='\0'; return out; }
+    while (v){ tmp[i++] = (char)('0' + (v%10u)); v/=10u; }
+    while (i--) *out++ = tmp[i];
+    *out = '\0';
+    return out;
+}
+
+/* Build exactly 21 chars: "TEMP = xx.x*C_________" */
+void TEMP_FormatLine(char *dst21, uint16_t vref_mv, uint8_t samples)
+{
+    if (!vref_mv) vref_mv = TEMP_DEFAULT_VREF_MV;
+    if (!samples) samples = TEMP_DEFAULT_SAMPLES;
+
+    /* deci-°C = mV */
+    uint16_t c10 = TEMP_Read_C10(vref_mv, samples);
+    uint32_t c_int = c10 / 10u;            /* integer °C */
+    uint32_t c_dec = c10 % 10u;            /* one decimal */
+
+    char *p = dst21;
+    const char *pre = "TEMP = ";
+    while (*pre) *p++ = *pre++;
+
+    /* integer part */
+    p = _u32_to_dec(p, c_int);
+
+    /* ".x*C" */
+    *p++ = '.';
+    *p++ = (char)('0' + (char)c_dec);
+    *p++ = '*';
+    *p++ = 'C';
+
+    /* pad to 21 chars total (fits one KS0108 row with 5x7 font) */
+    while ((p - dst21) < 21) *p++ = ' ';
+    *p = '\0';
+}

@@ -1,0 +1,33 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "DAC8512.h"
+
+void test_dac_bits(void)
+{
+    uint16_t test_values[] =
+    {
+        0x001,  // D0
+        0x002,  // D1
+        0x004,  // D2
+        0x008,  // D3
+        0x010,  // D4
+        0x020,  // D5
+        0x040,  // D6
+        0x080,  // D7
+        0x100,  // D8
+        0x200,  // D9
+        0x400,  // D10
+        0x800   // D11
+    };
+
+    while(1)
+    {
+        for(int i = 0; i < 12; i++)
+        {
+            dac8512_write(test_values[i]);
+
+            // Hold for 2 seconds
+            for(volatile uint32_t d = 0; d < 5000000; d++);
+        }
+    }
+}

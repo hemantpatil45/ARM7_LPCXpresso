@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;PL_ARM7_V14.1_RELAY_BUZZER&apos; to &apos;PL_ARM7_RELAY_BUZZER&apos;" description="Rename resource &apos;PL_ARM7_V14.1_RELAY_BUZZER&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/PL_ARM7_V14.1_RELAY_BUZZER" name="PL_ARM7_RELAY_BUZZER" stamp="1759124461549" updateReferences="true"/>
+</session>

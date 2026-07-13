@@ -1,0 +1,165 @@
+///*
+// * main.c — LPC2478 + NOR Flash + UART0 + GLCD + Keypad
+// * Author: AKADEMIKA LAB SOLUTIONS
+// */
+//
+//#include <stdint.h>
+//#include "LPC24xx.h"
+//#include "system_init.h"
+//#include "glcd.h"
+//#include "flashwrite.h"
+//
+//#define NOR_BASE (0x80000000UL)
+//
+///* ===== Tiny delay helpers ===== */
+//static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+//static void delay_ms(uint32_t ms){ while(ms--) delay_loops(72000); } /* ~1ms @72MHz */
+//
+///* ===== UART0 basic (9600 8N1, no stdio) ===== */
+//static void uart0_init_9600(uint32_t cclk_hz)
+//{
+//    PCONP |= (1u<<3);  /* UART0 power */
+//    PCLKSEL0 = (PCLKSEL0 & ~(3u<<6)) | (1u<<6);      /* PCLK = CCLK */
+//    PINSEL0  = (PINSEL0 & ~((3u<<4)|(3u<<6))) | ((1u<<4)|(1u<<6)); /* P0.2 TXD0, P0.3 RXD0 */
+//    U0LCR = 0x83;                                   /* 8N1, DLAB=1 */
+//    uint32_t div = cclk_hz / (16u * 9600u);
+//    U0DLL = (uint8_t)(div & 0xFF);
+//    U0DLM = (uint8_t)((div >> 8) & 0xFF);
+//    U0LCR = 0x03;                                   /* DLAB=0 */
+//}
+//static void uart0_putc(char c){ while(!(U0LSR & (1<<5))); U0THR = c; }
+//static void uart0_puts(const char *s){ while(*s){ if(*s=='\n') uart0_putc('\r'); uart0_putc(*s++);} }
+//static void uart0_put_hex32(uint32_t v){ static const char h[]="0123456789ABCDEF"; for(int i=7;i>=0;i--) uart0_putc(h[(v>>(i*4))&0xF]); }
+//static void uart0_put_hex16(uint16_t v){ static const char h[]="0123456789ABCDEF"; for(int i=3;i>=0;i--) uart0_putc(h[(v>>(i*4))&0xF]); }
+//
+///* UART formatted line */
+//static void print_addr_word(uint32_t addr, uint16_t data)
+//{
+//    uart0_puts("0x"); uart0_put_hex32(addr);
+//    uart0_puts(" = 0x"); uart0_put_hex16(data);
+//    uart0_puts("\r\n");
+//}
+//
+///* ===================================================================================== */
+//int main(void)
+//{
+//    /* ---- Initialize system ---- */
+//    PLL_Init();
+//    system_Init();
+//    GLCD_Init();
+//    GLCD_Clear();
+//
+//    GLCD_RowWriteMargin(0x00,"WELCOME TO AKADEMIKA");
+//    GLCD_RowWriteMargin(0x02,"   PL-ARM7 PROJECT   ");
+//    GLCD_RowWriteMargin(0x04,"FLASH + UART DEMO");
+//    GLCD_RowWriteMargin(0x06,"                    ");
+//
+//    uart0_init_9600(72000000u);
+//    uart0_puts("\r\n=== AKADEMIKA FLASH + UART DEMO ===\r\n");
+//
+//    /* ---- Init keypad, EMC, NOR ---- */
+//    Keypad_Col1Row12_Init();
+//    emc_init_cs0_x16();
+//    flash_reset();
+//
+//    /* ---- Erase ---- */
+//    GLCD_RowWriteMargin(0x06,"PRESS SW2 TO ERASE  ");
+//    uart0_puts("Press SW2 to ERASE sector...\r\n");
+//    while(!SW2_Pressed());
+//    GLCD_RowWriteMargin(0x06,"ERASING...");
+//    uart0_puts("Erasing sector 0...\r\n");
+//    (void)flash_sector_erase(0x00000000);
+//    GLCD_RowWriteMargin(0x06,"ERASE DONE");
+//    uart0_puts("Erase complete.\r\n");
+//    delay_ms(10);
+//
+//    /* ---- Write ---- */
+//    GLCD_RowWriteMargin(0x06,"PRESS SW6 TO WRITE  ");
+//    uart0_puts("Press SW6 to WRITE data...\r\n");
+//    while(!SW6_Pressed());
+//    GLCD_RowWriteMargin(0x06,"WRITING...");
+//
+//    uint16_t pattern[64];
+//    for(unsigned i=0;i<64;i++) pattern[i]=(uint16_t)(i+1);
+//    (void)flash_write_buf(0x00000000, pattern, sizeof(pattern));
+//    GLCD_RowWriteMargin(0x06,"WRITE DONE");
+//    uart0_puts("Write complete.\r\n");
+//
+//    /* ---- Dump ---- */
+//    uart0_puts("\r\nDump (first 64 words):\r\n");
+//    volatile const uint16_t *ptr = (const volatile uint16_t*)(NOR_BASE);
+//    for(unsigned i=0;i<64;i++)
+//        print_addr_word(NOR_BASE + i*2u, ptr[i]);
+//    uart0_puts("DONE.\r\n");
+//
+//    /* ---- Display first 20 chars ---- */
+//    char buf[21];
+//    for(int i=0;i<20;i++) buf[i] = ((volatile const uint8_t*)NOR_BASE)[i];
+//    buf[20]=0;
+//    GLCD_RowWriteMargin(0x05, buf);
+//
+//    while(1); /* idle */
+//}
+
+
+
+
+//************************new code
+
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashwrite.h"
+
+/* small delay */
+static inline void delay_ms(uint32_t ms){ volatile uint32_t n; while(ms--) for(n=0;n<72000;n++) __asm__("nop"); }
+
+/* UART0 basic */
+static void UART0_Init(uint32_t cclk){
+    PCONP |= (1<<3);
+    PCLKSEL0 = (PCLKSEL0 & ~(3<<6)) | (1<<6);     // PCLK = CCLK
+    PINSEL0  = (PINSEL0 & ~((3<<4)|(3<<6))) | ((1<<4)|(1<<6)); // TXD0,RXD0
+    U0LCR = 0x83;
+    uint32_t div = cclk/(16*9600);
+    U0DLL = div & 0xFF;
+    U0DLM = (div>>8)&0xFF;
+    U0LCR = 0x03;
+}
+static void UART0_PutC(char c){ while(!(U0LSR&(1<<5))); U0THR=c; }
+static void UART0_PutS(const char *s){ while(*s){ if(*s=='\n')UART0_PutC('\r'); UART0_PutC(*s++);} }
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"FLASH EXPT          ");
+    UART0_Init(72000000);
+
+    flash_hw_init();
+    UART0_PutS("System Ready.\nPress SW2 to Erase or SW6 to Write.\n");
+
+    while(1)
+    {
+        if(SW2_Pressed()){
+            GLCD_RowWriteMargin(6,"PRESS SW2 TO ERASE  ");
+            flash_erase();
+            GLCD_RowWriteMargin(6,"ERASE DONE");
+            UART0_PutS("Erase done.\n");
+        }
+
+        if(SW6_Pressed()){
+            GLCD_RowWriteMargin(6,"WRITING...");
+            flash_write_demo();
+            GLCD_RowWriteMargin(6,"WRITE DONE");
+            UART0_PutS("Write complete.\n");
+            flash_uart_dump();
+        }
+    }
+}

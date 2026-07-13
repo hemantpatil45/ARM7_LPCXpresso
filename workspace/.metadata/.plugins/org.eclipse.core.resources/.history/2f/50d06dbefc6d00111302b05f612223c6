@@ -1,0 +1,68 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+#define CCLK_HZ 72000000u
+#define CCLK_MHZ 72u
+#define STEP_US 10u         // Update period for DAC, microseconds (10us)
+
+void dac8512_ssp0_init(void){
+    // SCK, MISO, MOSI pin setups...
+    PINSEL0 |= (2UL << 30);
+    PINSEL1 |= (2UL << 2);
+    PINSEL1 |= (2UL << 4);
+
+    PINSEL1 &= ~(3UL << 0);  // CS as GPIO
+    IODIR0 |= (1UL << 16);
+    IOSET0 |= (1UL << 16);
+
+    PCONP |= (1u << 21);     // Power SSP0
+
+    PCLKSEL1 &= ~(3u << 10);
+    PCLKSEL1 |=  (1u << 10); // PCLK = 72MHz
+
+    // Force 16-bit transmission mode (0x0F)
+    SSP0CR0 = (15u << 0) | (0u << 4) | (0u << 6) | (0u << 7);
+
+    SSP0CR1 = (1u << 1);     // Enable SSP0
+    SSP0CPSR = 2;
+    SSP0CR0 |= (35u << 8);   // 1MHz Bitrate
+}
+
+void dac8512_write(uint16_t code12){
+    if(code12 > 4095u) code12 = 4095u;
+
+    // SOLUTION: Left-shift data by 4 bits to perfectly realign the 12th bit (MSB)
+    uint16_t data_to_send = (code12 << 4);
+
+    M_DAC_CS_ON;
+    SSP0DR = data_to_send;
+
+    while (SSP0SR & (1u << 4)); // Wait for transmission to end
+
+    M_DAC_CS_OFF;
+
+    // Update the DAC output latch
+    M_DAC_LD_ON;
+    delay_cycles(100);
+    M_DAC_LD_OFF;
+}
+void timer0_init_us(void){
+    PCONP |= (1u << 1);             /* power TIMER0 */
+    PCLKSEL0 &= ~(3u << 2);
+    PCLKSEL0 |=  (1u << 2);         /* PCLK = CCLK (72MHz) */
+
+    T0PR = (CCLK_HZ / 1000000u) - 1u; // Prescale to 1us tick: 71
+
+    T0MR0 = STEP_US;                 // Match after 10us (10 * 1us ticks)
+    T0MCR = (1u << 0) | (1u << 1);  /* Interrupt + Reset on Match (MR0I, MR0R) */
+    T0TCR = (1u << 1);               /* Reset Counter */
+    T0TCR = (1u << 0);               /* Enable Counter */
+}
+
+void timer0_wait_match0(void){
+    while ((T0IR & 1u) == 0u) { /* wait for MR0 interrupt flag */ }
+    T0IR = 1u; // Clear MR0 interrupt flag
+}

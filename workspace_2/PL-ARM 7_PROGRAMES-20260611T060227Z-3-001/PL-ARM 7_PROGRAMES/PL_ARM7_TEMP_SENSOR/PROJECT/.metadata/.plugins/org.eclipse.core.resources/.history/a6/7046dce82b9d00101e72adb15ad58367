@@ -1,0 +1,40 @@
+/*
+ * temp.c
+ *
+ *  Created on: 29-Sep-2025
+ *      Author: ADMIN
+ */
+
+#include <stdint.h>
+#include "internaladc.h"   /* ADC0_InitCh0, ADC0_ReadCh0, ADC0_ReadCh0_Avg */
+#include "temp.h"
+
+/* ===== Public API ===== */
+
+void TEMP_Init(void) {
+    ADC0_InitCh0();               /* AD0.0 on P0.23 */
+}
+
+uint16_t TEMP_ReadRaw(void) {
+    return ADC0_ReadCh0();
+}
+
+uint16_t TEMP_ReadRawAvg(uint8_t samples) {
+    if (samples == 0) samples = TEMP_DEFAULT_SAMPLES;
+    return ADC0_ReadCh0_Avg(samples);
+}
+
+/* mV = round(raw * Vref(mV) / 1023) */
+uint32_t TEMP_RawToMilliVolts(uint16_t raw, uint16_t vref_mv) {
+    if (raw > 1023u) raw = 1023u;
+    return ( (uint32_t)raw * (uint32_t)vref_mv + 511u ) / 1023u;
+}
+
+/* For LM35, deci-°C (°C×10) equals millivolts (10 mV per °C, 1 mV per 0.1°C). */
+uint16_t TEMP_Read_C10(uint16_t vref_mv, uint8_t samples) {
+    if (!vref_mv)  vref_mv  = TEMP_DEFAULT_VREF_MV;
+    if (!samples)  samples  = TEMP_DEFAULT_SAMPLES;
+    uint16_t raw = TEMP_ReadRawAvg(samples);
+    uint32_t mV  = TEMP_RawToMilliVolts(raw, vref_mv);  /* 32-bit math, rounded */
+    return TEMP_mV_to_c10(mV);                          /* clamp to 16-bit */
+}

@@ -1,0 +1,10 @@
+#ifndef UART0_H
+#define UART0_H
+
+#include <stdint.h>
+
+void UART0_Init_9600(uint32_t pclk_hz);
+void UART0_SendChar(char c);
+void UART0_SendString(const char *s);
+
+#endif

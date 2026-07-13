@@ -1,0 +1,68 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+#include <stdint.h>
+#include "SYSTEM_INIT.h"
+#include "glcd.h"
+#include "i2cread.h"
+
+static const char HX[]="0123456789ABCDEF";
+static void print_line_hex(uint8_t page, uint16_t base, const uint8_t* d16){
+    char buf[6 + 3*16 + 1];
+    char* p = buf;
+    *p++ = HX[(base>>12)&0xF]; *p++ = HX[(base>>8)&0xF];
+    *p++ = HX[(base>>4)&0xF];  *p++ = HX[base&0xF];
+    *p++ = ':'; *p++ = ' ';
+    for(int i=0;i<16;i++){ uint8_t v=d16[i]; *p++=HX[v>>4]; *p++=HX[v&0xF]; *p++=' '; }
+    *p=0;
+    GLCD_PutString(0, page, buf);
+}
+
+int main(void)
+{
+    PLL_Init();            /* from system_init */     /* brings PLL/clock up */
+    system_Init();                                      /* board pinmux, etc. */
+    GLCD_Init();  GLCD_Clear();                         /* your GLCD driver */
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "EEPROM READ EXPT    ");
+    GLCD_RowWriteMargin(5, "PRESS SW2 TO READ   ");
+
+    I2C0_Init_100k();      /* set up I2C */
+    SW2_Keypad_Init();     /* set up keypad lines */
+
+    static uint8_t rx[128];
+    uint8_t armed = 1;
+
+    while (1) {
+        if (armed && SW2_Pressed()) {
+            armed = 0;
+            GLCD_Clear();
+
+
+            AT24C512_Read(0x0000u, rx, sizeof(rx));
+
+            for (uint8_t row=0; row<8; ++row)
+                print_line_hex(row, (uint16_t)(row*16), &rx[row*16]);
+
+
+        } else if (!SW2_Pressed() && !armed) {
+            armed = 1;
+
+            GLCD_PutString(0,7,"                    ");
+        }
+    }
+}
+

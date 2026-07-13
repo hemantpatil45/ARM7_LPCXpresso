@@ -1,0 +1,26 @@
+/*
+ * uart.h
+ *
+ *  Created on: 07-Oct-2025
+ *      Author: ADMIN
+ */
+#ifndef UART_H
+#define UART_H
+
+#include <stdint.h>
+
+/* Initialize UART0 with given PCLK (Hz) and baud (e.g. 12000000, 9600) */
+void UART0_Init(uint32_t pclk_hz, uint32_t baud);
+
+/* Basic TX */
+void UART0_SendChar(char c);
+void UART0_SendString(const char *s);
+
+/* RX helpers (polling) */
+int  UART0_CharAvailable(void);      /* returns nonzero if a byte is ready */
+char UART0_ReadChar(void);           /* blocking read */
+int  UART0_ReadCharNonBlocking(char *out); /* returns 1 if read, 0 if none */
+
+#endif /* UART_H */
+
+

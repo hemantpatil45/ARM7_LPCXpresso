@@ -1,0 +1,114 @@
+/*
+ * uart.c
+ *
+ *  Created on: 07-Oct-2025
+ *      Author: ADMIN
+ */
+
+
+/*
+ * UART0 driver for LPC2478 (polling)
+ * - P0.2 = TXD0, P0.3 = RXD0
+ * - PCLK selectable; baud calculated with fractional divider for best fit
+ */
+
+#include "LPC24xx.h"
+#include "uart.h"
+
+/* --------- low-level helpers ---------- */
+static void uart0_set_baud(uint32_t pclk, uint32_t baud)
+{
+    /* Compute best (DLL/DLM, DIVADDVAL, MULVAL) for given pclk/baud.
+       Search small space of MUL (1..15), DIVADD (0..15) to minimize error. */
+    uint32_t best_err = 0xFFFFFFFF;
+    uint8_t  best_mul = 1, best_divadd = 0;
+    uint16_t best_div = 1;
+
+    for (uint8_t mul = 1; mul <= 15; ++mul) {
+        for (uint8_t divadd = 0; divadd <= 15; ++divadd) {
+            /* Fraction = mul / (mul + divadd).  When divadd==0 => exact integer */
+            uint32_t num   = pclk * mul;
+            uint32_t denom = 16u * baud * (mul + divadd);
+            if (denom == 0) continue;
+
+            /* Ideal divisor = num/denom; round to nearest */
+            uint32_t div = (num + (denom/2)) / denom;
+            if (div == 0 || div > 0xFFFF) continue;
+
+            /* Actual baud we get: pclk / (16 * div * (1 + divadd/mul)) */
+            uint32_t act_num   = pclk * mul;
+            uint32_t act_denom = 16u * div * (mul + divadd);
+            uint32_t act_baud  = (act_num + (act_denom/2)) / act_denom;
+
+            uint32_t err = (act_baud > baud) ? (act_baud - baud) : (baud - act_baud);
+            if (err < best_err) {
+                best_err   = err;
+                best_mul   = mul;
+                best_divadd= divadd;
+                best_div   = (uint16_t)div;
+                if (err == 0) goto done; /* perfect */
+            }
+        }
+    }
+done:
+    /* Program LCR.DLAB=1 then set DLM/DLL/FDR */
+    U0LCR |= 0x80;                  /* DLAB = 1 */
+    U0DLM  = (best_div >> 8) & 0xFF;
+    U0DLL  = (best_div >> 0) & 0xFF;
+    U0FDR  = ((best_mul & 0xF) << 4) | (best_divadd & 0xF);
+    U0LCR &= ~0x80;                 /* DLAB = 0 */
+}
+
+void UART0_Init(uint32_t pclk_hz, uint32_t baud)
+{
+    /* Power UART0 */
+    PCONP |= (1u << 3);
+
+    /* PCLK for UART0: leave default (PCLKSEL0 bits 6..7 = 00 => CCLK/4)
+       If you want exact pclk_hz, pass the effective PCLK you configured elsewhere. */
+    PCLKSEL0 &= ~(3u << 6);
+
+    /* Pinmux: P0.2=TXD0, P0.3=RXD0 (function 01) */
+    PINSEL0  = (PINSEL0 & ~((3u<<4) | (3u<<6))) | ((1u<<4) | (1u<<6));
+
+    /* 8N1, DLAB=0 (we will set DLAB during baud config) */
+    U0LCR = 0x03;
+    /* Enable FIFO, reset RX/TX FIFOs */
+    U0FCR = (1u<<0) | (1u<<1) | (1u<<2);
+
+    /* Set baud */
+    uart0_set_baud(pclk_hz, baud);
+}
+
+void UART0_SendChar(char c)
+{
+    /* Wait for THRE (bit5) then write THR */
+    while ((U0LSR & (1u<<5)) == 0) { /* spin */ }
+    U0THR = (uint8_t)c;
+}
+
+void UART0_SendString(const char *s)
+{
+    while (*s) {
+        if (*s == '\n') UART0_SendChar('\r');
+        UART0_SendChar(*s++);
+    }
+}
+
+int UART0_CharAvailable(void)
+{
+    return (U0LSR & (1u<<0)) ? 1 : 0;   /* RDR bit0 */
+}
+
+char UART0_ReadChar(void)
+{
+    while (!UART0_CharAvailable()) { /* spin */ }
+    return (char)U0RBR;
+}
+
+int UART0_ReadCharNonBlocking(char *out)
+{
+    if (!UART0_CharAvailable()) return 0;
+    *out = (char)U0RBR;
+    return 1;
+}

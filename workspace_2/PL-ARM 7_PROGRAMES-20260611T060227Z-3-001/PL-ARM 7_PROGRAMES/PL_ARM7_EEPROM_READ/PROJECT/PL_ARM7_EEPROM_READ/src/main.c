@@ -1,0 +1,76 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+/*
+ * main.c — I2C AT24C512 dump to GLCD (8x16 bytes)
+ */
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "i2cread.h"
+
+static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+static inline void delay_ms(uint32_t ms){ while(ms--) delay_loops(72000); }
+
+static void hex4(uint16_t v, char *s){
+    for(int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; s[i]=(n<10)?('0'+n):('A'+(n-10)); }
+    s[4]=0;
+}
+static void hex2(uint8_t v, char *s){
+    for(int i=0;i<2;i++){ uint8_t n=(v>>(4*(1-i)))&0xF; s[i]=(n<10)?('0'+n):('A'+(n-10)); }
+    s[2]=0;
+}
+static void make_line(uint16_t a, uint8_t v, char *out20){
+    char ha[5], hv[3]; hex4(a, ha); hex2(v, hv);
+    int p=0;
+    out20[p++]=ha[0]; out20[p++]=ha[1]; out20[p++]=ha[2]; out20[p++]=ha[3];
+    out20[p++]=':'; out20[p++]=' '; out20[p++]=hv[0]; out20[p++]=hv[1];
+    while(p<20) out20[p++]=' ';
+    out20[p]=0;
+}
+
+
+int main(void)
+{
+    PLL_Init();          // Configure PLL & CPU clock
+    system_Init();       // Setup GPIO, EMC, etc.
+    GLCD_Init();         // Initialize GLCD
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "EEPROM READ EXPT    ");
+    GLCD_RowWriteMargin(5, "PRESS SW2 TO READ   ");
+
+    /* Initialize peripherals */
+    I2C0_Init_100k();
+    SW2_Keypad_Init();
+
+    /* Wait for SW2 press before starting */
+    while(!SW2_Pressed()) { /* idle */ }
+
+
+    char line[21];
+    for(uint16_t addr=0; addr<128u; ++addr)
+    {
+        uint8_t data = EE_ReadByte(addr);
+        make_line(addr, data, line);
+        GLCD_RowWriteMargin(7, line);
+        delay_ms(1);
+    }
+
+
+    while(1);
+}

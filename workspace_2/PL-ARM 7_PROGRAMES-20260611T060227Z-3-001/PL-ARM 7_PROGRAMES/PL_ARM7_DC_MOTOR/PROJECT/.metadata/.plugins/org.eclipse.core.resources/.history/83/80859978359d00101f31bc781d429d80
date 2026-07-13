@@ -1,0 +1,48 @@
+/*
+===============================================================================
+ Name        : main.c
+ Author      : $(author)
+ Version     :
+ Copyright   : $(copyright)
+ Description : main definition
+===============================================================================
+*/
+
+// TODO: insert include files here
+
+// TODO: insert other definitions and declarations here
+
+
+
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "stdint.h"
+#include "glcd.h"
+static inline void delay_cycles(uint32_t cycles){ while(cycles--) __asm__("nop"); }
+
+    while(1) {
+    	void Motor_Forward(void);//MOTOR ROTATE IN CLOCLWISE DIRRECTION
+        M_MOTOR_EN_A_ON;
+        M_A_PHASEM_PWM01_ON;   // IN1 = HIGH
+        M_B_PHASEM_PWM02_OFF;  // IN2 = LOW
+        delay_cycles(1000);
+
+//        void Motor_Reverse(void);//MOTOR ROTATE IN ANTCLOCLWISE DIRRECTION
+//        M_MOTOR_EN_A_ON;
+//        M_A_PHASEM_PWM01_OFF;  // IN1 = LOW
+//        M_B_PHASEM_PWM02_ON;   // IN2 = HIGH
+//        delay_cycles(1000);
+
+        void Motor_Stop(void);
+        M_MOTOR_EN_A_OFF;
+        M_MOTOR_EN_B_OFF;
+        delay_cycles(10000);
+
+    }
+
+
+
+
+
+
+

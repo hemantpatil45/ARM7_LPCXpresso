@@ -1,0 +1,23 @@
+#include "system_init.h"
+
+void PLL_Init(void) {
+    SCS |= 0x21;
+    PLLCFG |= 0x001000C0;
+    PLLFEED = 0xAA; PLLFEED = 0x55;
+    PLLCON |= 0x01;
+    PLLFEED = 0xAA; PLLFEED = 0x55;
+    CCLKCFG = 0x03;
+    while((PLLSTAT & 0x400) == 0); // Wait for lock
+    PLLCON |= 0x02;
+    PLLFEED = 0xAA; PLLFEED = 0x55;
+    PCLKSEL0 = 0;
+}
+
+void system_Init(void) {
+    SCS |= (1 << 0);
+    // Set Enable Pins as Outputs
+    FIO0DIR |= (1 << 21) | (1 << 24);
+
+    // NOTE: Ensure PWM pins (P1.2, P1.3) are NOT in FIO1DIR here
+    // ... [Add your other peripheral initializations here] ...
+}

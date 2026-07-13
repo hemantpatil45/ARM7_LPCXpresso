@@ -1,0 +1,89 @@
+#include "LPC24xx.h"
+#include "ethernet_rx.h"
+#include "ethernet_reg.h"  /* Add this line! */
+
+
+
+/* RX DMA Memory mapped safely AFTER TX DMA Memory in AHB SRAM */
+#define NUM_RX_FRAG         4
+#define ETH_RX_FRAG_SIZE    1536
+#define RX_DESC_BASE        0x7FE02000
+#define RX_STAT_BASE        (RX_DESC_BASE + (NUM_RX_FRAG * 8))
+#define RX_BUF_BASE         (RX_STAT_BASE + (NUM_RX_FRAG * 8))
+
+static uint32_t *RX_DESC_PACKET_PTRS;
+static uint32_t *RX_DESC_CTRL_PTRS;
+static uint32_t *RX_STAT_INFO_PTRS;
+
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+    RX_DESC_PACKET_PTRS = (uint32_t *)RX_DESC_BASE;
+    RX_DESC_CTRL_PTRS   = (uint32_t *)(RX_DESC_BASE + 4);
+    RX_STAT_INFO_PTRS   = (uint32_t *)RX_STAT_BASE;
+
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        RX_DESC_PACKET_PTRS[i * 2] = RX_BUF_BASE + (i * ETH_RX_FRAG_SIZE);
+        RX_DESC_CTRL_PTRS[i * 2]   = (ETH_RX_FRAG_SIZE - 1) | (1UL << 31);
+        RX_STAT_INFO_PTRS[i * 2] = 0;
+        RX_STAT_INFO_PTRS[(i * 2) + 1] = 0;
+    }
+
+    LPC_EMAC->RXDESCRIPTOR    = RX_DESC_BASE;
+    LPC_EMAC->RXSTATUS        = RX_STAT_BASE;
+    LPC_EMAC->RXDESCRIPTORNUM = NUM_RX_FRAG - 1;
+    LPC_EMAC->RXCONSUMEINDEX  = 0;
+}
+
+#include <stdio.h> // Ensure this is included for sprintf
+
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t rx_buffer_capacity, uint32_t *rx_length)
+{
+    uint32_t consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    uint32_t produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+    uint32_t status_info, packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    if (consume_idx == produce_idx) return false;
+
+    status_info = RX_STAT_INFO_PTRS[consume_idx * 2];
+
+    /* --- DIAGNOSTIC INJECTION --- */
+    char dbg_msg[64];
+    sprintf(dbg_msg, "DMA_STAT: 0x%08lX | ", status_info);
+    UART0_SendString(dbg_msg);
+    /* ---------------------------- */
+
+    /* HARDCODED ERROR MASK: Check Bit 29 (Master Error), Bit 23 (CRC Error), Bit 22 (Symbol Error) */
+    if (status_info & ((1UL << 29) | (1UL << 23) | (1UL << 22))) {
+
+        UART0_SendString("HARDWARE REJECTED - DROPPING FRAME\r\n");
+
+        if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+        LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+        *rx_length = 0;
+        return false;
+    }
+
+    packet_size = (status_info & 0x7FF) + 1;
+    if (packet_size > 4) packet_size -= 4;
+
+    if (packet_size > rx_buffer_capacity) {
+        packet_size = rx_buffer_capacity;
+    }
+
+    *rx_length = packet_size;
+
+    // Force the pointer to be volatile so the CPU reads directly from SRAM, bypassing any cache
+    volatile uint8_t *vdma_buffer_ptr = (volatile uint8_t *)RX_DESC_PACKET_PTRS[consume_idx * 2];
+
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = vdma_buffer_ptr[i];
+    }
+
+    if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true;
+}

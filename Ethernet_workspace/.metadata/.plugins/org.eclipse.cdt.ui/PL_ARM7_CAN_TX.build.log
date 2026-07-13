@@ -1,0 +1,6 @@
+10:24:19 **** Incremental Build of configuration Debug for project PL_ARM7_CAN_TX ****
+make -r all 
+make: Nothing to be done for 'all'.
+
+10:24:19 Build Finished (took 59ms)
+

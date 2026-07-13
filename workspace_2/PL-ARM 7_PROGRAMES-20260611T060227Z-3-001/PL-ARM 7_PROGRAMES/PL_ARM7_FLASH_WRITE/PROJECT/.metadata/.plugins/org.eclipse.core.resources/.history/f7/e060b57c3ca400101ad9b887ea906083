@@ -1,0 +1,228 @@
+///*
+//===============================================================================
+// Name        : main.c
+// Author      : $(author)
+// Version     :
+// Copyright   : $(copyright)
+// Description : main definition
+//===============================================================================
+//*/
+//
+//// TODO: insert include files here
+//
+//// TODO: insert other definitions and declarations here
+//
+///*
+// * main_flash_write.c — LPC2478 + SST39VF3202C (x16)
+// * - EMC Static CS0 @ 0x8000_0000
+// * - Erase first sector and program 200 words: 0x0001..0x0200 at base
+// * - Verifies and reports result on GLCD
+// */
+//
+//#include <stdint.h>
+//#include "LPC24xx.h"
+//#include "system_init.h"
+//#include "glcd.h"
+//
+///* ===== NOR base / x16 helpers ===== */
+//#define NOR_BASE   (0x80000000UL)
+//#define F16(off)   (*((volatile uint16_t *)(NOR_BASE) + (off)))   /* off in WORDS */
+//#define UNLOCK1    (0x555u)   /* x16 command addresses (word offsets) */
+//#define UNLOCK2    (0x2AAu)
+//
+///* Tiny delays */
+//static inline void delay_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+//
+///* ===== EMC Static CS0, x16 NOR (P3 data, P4 addr/ctrl) ===== */
+////#define EMC_BASE_ADDR          (0xFFE08000UL)
+//#define EMCControl             (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+//#define EMCConfig              (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+//#define EMCStaticConfig0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+//#define EMCStaticWaitWen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+//#define EMCStaticWaitOen0      (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+//#define EMCStaticWaitRd0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+//#define EMCStaticWaitPage0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+//#define EMCStaticWaitWr0       (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+//#define EMCStaticWaitTurn0     (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+//
+//static void EMC_Init_CS0_x16(void)
+//{
+//    /* Power EMC */
+//    PCONP |= (1u << 11); /* PCEMC */
+//
+//    /* Data P3.0..P3.15 -> func 01 */
+//    for (int b = 0; b < 32; b += 2)
+//        PINSEL6 = (PINSEL6 & ~(3u << b)) | (1u << b);
+//
+//    /* Address P4.1..P4.15 -> 01 */
+//    for (int p = 1; p <= 15; ++p)
+//        PINSEL8 = (PINSEL8 & ~(3u << (p*2))) | (1u << (p*2));
+//
+//    /* Address P4.16..P4.22 -> 01 */
+//    for (int p = 16; p <= 22; ++p)
+//        PINSEL9 = (PINSEL9 & ~(3u << ((p-16)*2))) | (1u << ((p-16)*2));
+//
+//    /* Control: OE=P4.24, WE=P4.25, CS0=P4.30 -> 01 */
+//    PINSEL9 = (PINSEL9 & ~(3u << ((24-16)*2))) | (1u << ((24-16)*2));
+//    PINSEL9 = (PINSEL9 & ~(3u << ((25-16)*2))) | (1u << ((25-16)*2));
+//    PINSEL9 = (PINSEL9 & ~(3u << ((30-16)*2))) | (1u << ((30-16)*2));
+//
+//    /* Enable EMC */
+//    EMCControl = 1;
+//    EMCConfig  = 0;
+//
+//    /* Conservative timings for ~70ns NOR */
+//    EMCStaticConfig0   = (1u << 7) | 0x00000001u;  /* PB=1, MW=01 (x16) */
+//    EMCStaticWaitWen0  = 2;
+//    EMCStaticWaitOen0  = 3;
+//    EMCStaticWaitRd0   = 7;
+//    EMCStaticWaitPage0 = 0;
+//    EMCStaticWaitWr0   = 7;
+//    EMCStaticWaitTurn0 = 3;
+//
+//    delay_loops(5000);
+//}
+//
+///* ===== Flash primitives (SST39VF3202C x16) ===== */
+//static void nor_reset(void){ F16(0) = 0x00F0u; delay_loops(100); }
+//
+//static void nor_wait_toggle(uint32_t word_off)
+//{
+//    uint16_t a, b;
+//    do { a = F16(word_off); b = F16(word_off); } while ((a ^ b) & (1u<<6)); /* DQ6 */
+//}
+//
+//static void nor_sector_erase(uint32_t byte_addr)
+//{
+//    uint32_t w = (byte_addr & ~1u) >> 1;
+//    F16(UNLOCK1)=0x00AAu; F16(UNLOCK2)=0x0055u; F16(UNLOCK1)=0x0080u;
+//    F16(UNLOCK1)=0x00AAu; F16(UNLOCK2)=0x0055u; F16(w)=0x0030u;
+//    nor_wait_toggle(w);
+//}
+//
+//static void nor_program_word(uint32_t byte_addr, uint16_t data)
+//{
+//    uint32_t w = (byte_addr & ~1u) >> 1;
+//    F16(UNLOCK1)=0x00AAu; F16(UNLOCK2)=0x0055u; F16(UNLOCK1)=0x00A0u;
+//    F16(w) = data;
+//    nor_wait_toggle(w);
+//}
+//
+///* Small hex (for verify message) */
+//static void hex4(uint16_t v, char out[5]){
+//    for (int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; out[i]=(n<10)?('0'+n):('A'+(n-10)); }
+//    out[4]='\0';
+//}
+//
+//int main(void)
+//{
+//    PLL_Init();
+//    system_Init();
+//    GLCD_Init();
+//    GLCD_Clear();
+//
+//    EMC_Init_CS0_x16();
+//    nor_reset();
+//
+//    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+//    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+//    GLCD_RowWriteMargin(4, "FLASH WRITE (x16)   ");
+//    GLCD_RowWriteMargin(6, "ERASE SECTOR 0...   ");
+//
+//    /* Erase first sector */
+//    nor_sector_erase(0x00000000u);
+//    GLCD_RowWriteMargin(6, "PROGRAM 1..200...   ");
+//
+//    /* Program 200 words: 0x0001..0x0200 at base */
+//    for (uint32_t i=0;i<200u;i++) nor_program_word(i*2u, (uint16_t)(i+1u));// value flash can change here
+//
+//    /* Verify */
+//    uint32_t fail = 0xFFFFFFFFu;
+//    for (uint32_t i=0;i<200u;i++){
+//        if (F16(i) != (uint16_t)(i+1u)){ fail = i; break; }
+//    }
+//    if (fail == 0xFFFFFFFFu){
+//        GLCD_RowWriteMargin(6, "WRITE OK            ");
+//    } else {
+//        char msg[21] = "VERIFY FAIL @0000   ";
+//        char h[5]; hex4((uint16_t)fail, h);
+//        msg[13]=h[0]; msg[14]=h[1]; msg[15]=h[2]; msg[16]=h[3];
+//        GLCD_RowWriteMargin(6, msg);
+//    }
+//
+//    /* Done — load the reader binary next to display them one by one */
+//    while (1) { }
+//}
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "flashwrite.h"   /* EMC + SST39VF3202C + keypad */
+
+#ifndef NOR_BASE
+#define NOR_BASE   (0x80000000UL)
+#endif
+
+static void hex4(uint16_t v, char out[5]){
+    for (int i=0;i<4;i++){ uint8_t n=(v>>(12-4*i))&0xF; out[i]=(n<10)?('0'+n):('A'+(n-10)); }
+    out[4]='\0';
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    /* Banners */
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "FLASH EXPT          ");
+
+
+    /* Bus + keypad */
+    EMC_Init_CS0_x16();
+    nor_reset();
+    Keypad_Col1Row12_Init();
+
+    GLCD_RowWriteMargin(6, "PRESS SW2 TO ERASE  ");
+    while (!SW2_Pressed()) { /* wait */ }
+    for (volatile uint32_t d=0; d<600000; ++d) __asm volatile("nop");
+    while (SW2_Pressed()) { /* wait release */ }
+
+    GLCD_RowWriteMargin(6, "FLASH ERASE COMPLETED");
+    flash_sector_erase(0x00000000u);
+    GLCD_RowWriteMargin(6, "FLASH ERASE COMPLETED");
+
+    GLCD_RowWriteMargin(6, "PRESS SW6 TO WRITE   ");
+    while (!SW6_Pressed()) { /* wait */ }
+    for (volatile uint32_t d=0; d<600000; ++d) __asm volatile("nop");
+    while (SW6_Pressed()) { /* wait release */ }
+
+    GLCD_RowWriteMargin(6, "WAIT WRITING FLASH  ");
+    for (uint32_t i=0;i<1000u;i++){   // FLASH WRITE VALUE CHANGE HERE IF i CHANGE THEN VALUE WRITTEN TO FLASH CHANGE
+        /* program word i with value (i+1), at byte addr i*2 */
+        flash_program_word(i*2u, (uint16_t)(i+1u));
+    }
+
+    volatile uint16_t *nor = (volatile uint16_t *)NOR_BASE; /* word-mapped view */
+    uint32_t fail = 0xFFFFFFFFu;
+    for (uint32_t i=0;i<1000u;i++){ //// FLASH WRITE VALUE CHANGE HERE IF i CHANGE THEN VALUE WRITTEN TO FLASH CHANGE
+        uint16_t v = nor[i];  /* read word offset i */
+        if (v != (uint16_t)(i+1u)){ fail = i; break; }
+    }
+
+    if (fail == 0xFFFFFFFFu){
+        GLCD_RowWriteMargin(6, "FLASH WRITE COMPLETED");
+    } else {
+        char msg[21] = "FLASH WRITE COMPLETED";
+        char h[5]; hex4((uint16_t)fail, h);
+        msg[13]=h[0]; msg[14]=h[1]; msg[15]=h[2]; msg[16]=h[3];
+        GLCD_RowWriteMargin(6, msg);
+    }
+
+    while (1) { /* idle */ }
+}
+

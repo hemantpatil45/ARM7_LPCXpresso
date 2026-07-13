@@ -1,0 +1,52 @@
+#include <stdint.h>
+#include <math.h> // Ensure you link the math library in your compiler settings
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "DAC8512.h"
+
+// Define number of samples per cycle
+#define SAMPLES 256
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    // --- Sine Table Generation ---
+    uint16_t sine_table[SAMPLES];
+    for (int i = 0; i < SAMPLES; i++) {
+        // Calculate sine value:
+        // 2047.0 + 2047.0 * sin(...) maps -1..1 to 0..4094
+        sine_table[i] = (uint16_t)(1500 +1500 * sin(2.0 * 3.14 * i / SAMPLES));
+    }
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, " Generation of Sine ");
+    GLCD_RowWriteMargin(6, "    on DAC8512      ");
+
+    delay_cycles(1000);
+    delay_cycles(1000);
+
+    GLCD_RowWriteMargin(4,"CONNECT DSO PROBE   ");
+    GLCD_RowWriteMargin(6,"TO J70 & J71        ");
+
+    M_DAC_CLR_OFF;
+    dac8512_ssp0_init();
+    timer0_init_us();
+
+    uint16_t index = 0;
+
+    for (;;){
+        timer0_wait_match0();        // Wait for 10us (same as original)
+        dac8512_write(sine_table[index]); // Output the current sine value
+
+        index++;                     // Move to next sample
+        if (index >= SAMPLES) {
+            index = 0;               // Reset to start of sine wave
+        }
+    }
+}

@@ -1,0 +1,157 @@
+/*
+ * i2cread.c
+ *
+ *  Created on: 03-Oct-2025
+ *      Author: ADMIN
+ */
+
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "i2cread.h"
+
+/* ---------------- I2C control bits ---------------- */
+#define I2C_AA    0x04
+#define I2C_SI    0x08
+#define I2C_STO   0x10
+#define I2C_STA   0x20
+#define I2C_I2EN  0x40
+
+/* ---------------- AT24C512 constants ---------------- */
+#define AT24C512_ADDR7   0x50u
+
+/* ---------------- Fallback I2C0 register defines (if header lacks them) -------- */
+#ifndef I2C0CONSET
+  #define I2C0CONSET  (*(volatile uint32_t*)0xE001C000u)
+#endif
+#ifndef I2C0STAT
+  #define I2C0STAT    (*(volatile uint32_t*)0xE001C004u)
+#endif
+#ifndef I2C0DAT
+  #define I2C0DAT     (*(volatile uint32_t*)0xE001C008u)
+#endif
+#ifndef I2C0SCLH
+  #define I2C0SCLH    (*(volatile uint32_t*)0xE001C010u)
+#endif
+#ifndef I2C0SCLL
+  #define I2C0SCLL    (*(volatile uint32_t*)0xE001C014u)
+#endif
+#ifndef I2C0CONCLR
+  #define I2C0CONCLR  (*(volatile uint32_t*)0xE001C018u)
+#endif
+
+/* ---------------- Keypad pins (SW2 Row1/Col1) ----------------
+ * Row1 → P2.0  (input with pull-up on board)
+ * Col1 → P2.25 (we drive this during scan)
+ */
+#define KBD_ROW1_BIT   0u
+#define KBD_COL1_BIT   25u
+#define KBD_ROW1_MASK  (1u<<KBD_ROW1_BIT)
+#define KBD_COL1_MASK  (1u<<KBD_COL1_BIT)
+
+/* ---------------- tiny delay ---------------- */
+static inline void tiny_delay(volatile uint32_t n){ while(n--) __asm__("nop"); }
+
+/* ---------------- I2C helpers ---------------- */
+static inline void i2c0_wait_SI(void){ while((I2C0CONSET & I2C_SI)==0){} }
+
+void I2C0_Init_100k(void)
+{
+    /* Power I2C0 on */
+    PCONP |= (1u<<7);
+
+    /* SDA0 = P0.27, SCL0 = P0.28 -> function 01 */
+    PINSEL1 &= ~((3u<<22)|(3u<<24));
+    PINSEL1 |=  ((1u<<22)|(1u<<24));
+
+    /* Disable internal pulls (external 4.7k present) */
+    PINMODE1 &= ~((3u<<22)|(3u<<24));
+    PINMODE1 |=  ((2u<<22)|(2u<<24));
+
+    /* Enable I2C, clear flags */
+    I2C0CONCLR = I2C_AA | I2C_SI | I2C_STA | I2C_STO;
+    I2C0CONSET = I2C_I2EN;
+
+    /* ~100 kHz for PCLK≈18 MHz (typical CCLK 72 MHz, PCLK = CCLK/4) */
+    I2C0SCLH = 90;
+    I2C0SCLL = 90;
+}
+
+static inline void i2c0_start(void)
+{
+    I2C0CONSET = I2C_STA;
+    i2c0_wait_SI();
+}
+
+static inline void i2c0_stop(void)
+{
+    I2C0CONSET = I2C_STO;
+    I2C0CONCLR = I2C_SI;
+}
+
+static inline void i2c0_write(uint8_t b)
+{
+    I2C0DAT = b;
+    I2C0CONCLR = I2C_STA | I2C_SI;
+    i2c0_wait_SI();
+}
+
+static inline uint8_t i2c0_read_ack(void)
+{
+    I2C0CONSET = I2C_AA;          /* ACK next byte */
+    I2C0CONCLR = I2C_SI;
+    i2c0_wait_SI();
+    return (uint8_t)I2C0DAT;
+}
+
+static inline uint8_t i2c0_read_nack(void)
+{
+    I2C0CONCLR = I2C_AA | I2C_SI; /* NACK last byte */
+    i2c0_wait_SI();
+    return (uint8_t)I2C0DAT;
+}
+
+/* Public: random read sequence (SLA+W to set address, repeated START, SLA+R to read) */
+void AT24C512_Read(uint16_t addr, uint8_t *dst, uint16_t len)
+{
+    if (!len) return;
+
+    /* Address phase (write direction to set internal address pointer) */
+    i2c0_start();
+    i2c0_write((AT24C512_ADDR7<<1) | 0u);   /* SLA+W */
+    i2c0_write((uint8_t)(addr >> 8));       /* address high */
+    i2c0_write((uint8_t)(addr & 0xFF));     /* address low  */
+
+    /* Repeated START -> read direction */
+    I2C0CONSET = I2C_STA; I2C0CONCLR = I2C_SI; i2c0_wait_SI();
+    i2c0_write((AT24C512_ADDR7<<1) | 1u);   /* SLA+R */
+
+    /* Read all but last with ACK, last with NACK */
+    while (len > 1) { *dst++ = i2c0_read_ack(); --len; }
+    *dst++ = i2c0_read_nack();
+    i2c0_stop();
+}
+
+/* ---------------- Keypad SW2 (Row1/Col1) ---------------- */
+void SW2_Keypad_Init(void)
+{
+    /* Ensure P2.0 and P2.25 are GPIOs */
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));                 /* P2.0  -> GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+
+    /* Dir: row input, column output */
+    FIO2DIR &= ~KBD_ROW1_MASK;    /* row input  */
+    FIO2DIR |=  KBD_COL1_MASK;    /* col output */
+
+    /* Column idle HIGH (inactive) */
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+uint32_t SW2_Pressed(void)
+{
+    /* Drive column LOW briefly and read row (active-LOW when pressed) */
+    FIO2CLR = KBD_COL1_MASK;      /* scan: drive low */
+    tiny_delay(200);              /* settle (not debounce) */
+    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      /* release column */
+    return pressed;
+}

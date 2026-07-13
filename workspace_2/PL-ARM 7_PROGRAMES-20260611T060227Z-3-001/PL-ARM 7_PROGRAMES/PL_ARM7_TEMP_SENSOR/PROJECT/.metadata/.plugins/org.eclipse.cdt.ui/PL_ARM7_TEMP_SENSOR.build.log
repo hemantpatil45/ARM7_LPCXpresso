@@ -1,0 +1,6 @@
+17:30:54 **** Incremental Build of configuration Debug for project PL_ARM7_TEMP_SENSOR ****
+make -r all 
+make: Nothing to be done for `all'.
+
+17:30:54 Build Finished (took 117ms)
+

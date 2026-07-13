@@ -1,0 +1,33 @@
+07:02:12 **** Incremental Build of configuration Debug for project DSC_RAMP ****
+make -r all 
+Building file: ../src/main.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+../src/main.c: In function 'init_sine_table':
+../src/main.c:15:20: warning: unused variable 'MIN_CODE' [-Wunused-variable]
+     const uint16_t MIN_CODE = 0;      // 12-bit minimum
+                    ^
+../src/main.c:14:20: warning: unused variable 'MAX_CODE' [-Wunused-variable]
+     const uint16_t MAX_CODE = 2048u;  // 12-bit maximum
+                    ^
+Finished building: ../src/main.c
+ 
+Building target: DSC_RAMP.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="DSC_RAMP.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "DSC_RAMP_Debug.ld" -o "DSC_RAMP.axf" ./src/DAC8512.o ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       12824 B       512 KB      2.45%
+           Ram64:         516 B        64 KB      0.79%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: DSC_RAMP.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -v -O ihex "DSC_RAMP.axf" "DSC_RAMP.hex" ; # checksum -p LPC2478 -d "DSC_RAMP.bin"
+copy from `DSC_RAMP.axf' [elf32-littlearm] to `DSC_RAMP.hex' [ihex]
+ 
+
+07:02:12 Build Finished (took 57ms)
+

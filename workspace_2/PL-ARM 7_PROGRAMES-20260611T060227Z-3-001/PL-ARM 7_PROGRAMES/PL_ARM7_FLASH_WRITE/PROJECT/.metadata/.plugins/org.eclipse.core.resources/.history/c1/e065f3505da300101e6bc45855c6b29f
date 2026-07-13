@@ -1,0 +1,272 @@
+///*
+// * flashwrite.c
+// *
+// *  Created on: 03-Oct-2025
+// *      Author: ADMIN
+// */
+///*
+// * flashwrite.c — LPC2478 + SST39VF3202C (x16) on EMC CS0
+// * Implements keypad scan, EMC CS0 timings, and NOR flash primitives.
+// */
+//
+//#include "flashwrite.h"
+//#include "LPC24xx.h"
+//
+///* ---------- tiny local delays ---------- */
+//static inline void dly_loops(volatile uint32_t n){ while(n--) __asm volatile("nop"); }
+//static void dly_ms(uint32_t ms){ while(ms--) dly_loops(72000); }   /* ~1ms @72MHz */
+//
+///* =======================================================================================
+// *                                     KEYPAD
+// *  Col1 -> P2.25 (output we drive LOW while sampling)
+// *  Row1 -> P2.0  (input)  => SW2
+// *  Row2 -> P2.1  (input)  => SW6
+// * ======================================================================================= */
+//#define KBD_COL1_BIT   25u
+//#define KBD_ROW1_BIT    0u
+//#define KBD_ROW2_BIT    1u
+//
+//#define KBD_COL1_MASK  (1u<<KBD_COL1_BIT)
+//#define KBD_ROW1_MASK  (1u<<KBD_ROW1_BIT)
+//#define KBD_ROW2_MASK  (1u<<KBD_ROW2_BIT)
+//
+//void Keypad_Col1Row12_Init(void)
+//{
+//    /* make pins GPIO */
+//    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));           /* P2.0  GPIO */
+//    PINSEL4 &= ~(3u << (KBD_ROW2_BIT*2));           /* P2.1  GPIO */
+//    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));     /* P2.25 GPIO */
+//
+//    /* dirs */
+//    FIO2DIR &= ~(KBD_ROW1_MASK | KBD_ROW2_MASK);    /* rows inputs */
+//    FIO2DIR |=  KBD_COL1_MASK;                      /* column output */
+//
+//    /* idle HIGH */
+//    FIO2SET = KBD_COL1_MASK;
+//}
+//
+//static inline uint32_t read_rows_when_col1_low(void)
+//{
+//    FIO2CLR = KBD_COL1_MASK;        /* drive LOW */
+//    dly_loops(300);
+//    uint32_t pins = FIO2PIN;
+//    FIO2SET = KBD_COL1_MASK;        /* release HIGH */
+//    return pins;
+//}
+//
+//static uint8_t debounced_is_low(uint32_t row_mask)
+//{
+//    uint8_t a = ((read_rows_when_col1_low() & row_mask) == 0u);
+//    dly_ms(2);
+//    uint8_t b = ((read_rows_when_col1_low() & row_mask) == 0u);
+//    return (a && b) ? 1u : 0u;
+//}
+//
+//uint8_t SW2_Pressed(void){ return debounced_is_low(KBD_ROW1_MASK); }
+//uint8_t SW6_Pressed(void){ return debounced_is_low(KBD_ROW2_MASK); }
+//
+///* =======================================================================================
+// *                                  EMC (CS0, x16)
+// *  D0..D15 on P3.0..P3.15 (PINSEL6 = 01)
+// *  A0..A14 on P4.1..P4.15 (PINSEL8 = 01)
+// *  A15..A22, OE=P4.24, WE=P4.25, CS0=P4.30 (PINSEL9 = 01)
+// * ======================================================================================= */
+//#ifndef EMC_BASE_ADDR
+//#define EMC_BASE_ADDR       (0xFFE08000UL)
+//#endif
+//#define EMCControl          (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x000))
+//#define EMCConfig           (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x008))
+//
+//#define EMCStaticConfig0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x200))
+//#define EMCStaticWaitWen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x204))
+//#define EMCStaticWaitOen0   (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x208))
+//#define EMCStaticWaitRd0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x20C))
+//#define EMCStaticWaitPage0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x210))
+//#define EMCStaticWaitWr0    (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x214))
+//#define EMCStaticWaitTurn0  (*(volatile unsigned long *)(EMC_BASE_ADDR + 0x218))
+//
+//void emc_init_cs0_x16(void)
+//{
+//    /* power EMC */
+//    PCONP |= (1u<<11);                     /* PCEMC */
+//
+//    /* Data bus P3.0..P3.15 -> D0..D15 */
+//    for (int b=0; b<32; b+=2) PINSEL6 = (PINSEL6 & ~(3u<<b)) | (1u<<b);
+//
+//    /* Address A0..A14 -> P4.1..P4.15 */
+//    for (int p=1; p<=15; ++p) PINSEL8 = (PINSEL8 & ~(3u<<(p*2))) | (1u<<(p*2));
+//
+//    /* A15..A22 + OE/WE/CS0 */
+//    for (int p=16; p<=22; ++p) PINSEL9 = (PINSEL9 & ~(3u<<((p-16)*2))) | (1u<<((p-16)*2));
+//    PINSEL9 = (PINSEL9 & ~(3u<<((24-16)*2))) | (1u<<((24-16)*2));  /* OE  */
+//    PINSEL9 = (PINSEL9 & ~(3u<<((25-16)*2))) | (1u<<((25-16)*2));  /* WE  */
+//    PINSEL9 = (PINSEL9 & ~(3u<<((30-16)*2))) | (1u<<((30-16)*2));  /* CS0 */
+//
+//    /* enable EMC, little-endian */
+//    EMCControl = 1;
+//    EMCConfig  = 0;
+//
+//    /* Static timings — conservative @ ~60–72 MHz */
+//    EMCStaticConfig0   = 0x00000001u | (1u<<7);  /* 16-bit, page/buffer enable */
+//    EMCStaticWaitWen0  = 2;
+//    EMCStaticWaitOen0  = 3;
+//    EMCStaticWaitRd0   = 7;
+//    EMCStaticWaitPage0 = 0;
+//    EMCStaticWaitWr0   = 7;
+//    EMCStaticWaitTurn0 = 3;
+//
+//    dly_loops(5000);
+//}
+//
+///* =======================================================================================
+// *                        NOR flash (SST/AMD JEDEC x16)
+// * ======================================================================================= */
+//#define F16(off) (*((volatile uint16_t *)(NOR_BASE) + (off)))
+//
+///* unlock offsets (word offsets for x16) */
+//#define UNLOCK1  (0x555u)
+//#define UNLOCK2  (0x2AAu)
+//
+///* commands */
+//#define CMD_AA           (0x00AAu)
+//#define CMD_55           (0x0055u)
+//#define CMD_RESET        (0x00F0u)
+//#define CMD_PROGRAM      (0x00A0u)
+//#define CMD_ERASE_SETUP  (0x0080u)
+//#define CMD_SECTOR_ERASE (0x0030u)
+//
+///* DQ6 toggle polling */
+//static int flash_wait_toggle_(uint32_t word_off, uint32_t loops)
+//{
+//    uint16_t a,b;
+//    do {
+//        a = F16(word_off);
+//        b = F16(word_off);
+//        if (((a ^ b) & (1u<<6)) == 0) return 0;  /* done */
+//    } while (loops--);
+//    return -1; /* timeout */
+//}
+//
+//void flash_reset(void)
+//{
+//    F16(0) = CMD_RESET;
+//    dly_loops(100);
+//}
+//
+//int flash_sector_erase(uint32_t byte_addr)
+//{
+//    uint32_t w = (byte_addr & ~1u) >> 1;  /* word offset inside device */
+//    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(UNLOCK1) = CMD_ERASE_SETUP;
+//    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(w)       = CMD_SECTOR_ERASE;
+//    return flash_wait_toggle_(w, 5000000);
+//}
+//
+//static int flash_program_word_(uint32_t byte_addr, uint16_t data)
+//{
+//    uint32_t w = (byte_addr & ~1u) >> 1;
+//    F16(UNLOCK1) = CMD_AA;  F16(UNLOCK2) = CMD_55;  F16(UNLOCK1) = CMD_PROGRAM;
+//    F16(w) = data;
+//    if (flash_wait_toggle_(w, 1000000)) return -1;
+//    return (F16(w) == data) ? 0 : -2;
+//}
+//
+//int flash_write_buf(uint32_t dst_byte_addr, const void *src, uint32_t nbytes)
+//{
+//    const uint16_t *pw = (const uint16_t*)src;
+//    uint32_t words = (nbytes + 1u) >> 1;  /* round up to words */
+//    for (uint32_t i=0; i<words; ++i) {
+//        int rc = flash_program_word_(dst_byte_addr + (i<<1), pw[i]);
+//        if (rc) return rc;
+//    }
+//    return 0;
+//}
+//
+//
+//
+
+
+///*********************new code
+
+
+#include "LPC24xx.h"
+#include "flashwrite.h"
+
+/* NOR Flash Base */
+#define NOR_BASE (0x80000000UL)
+#define F16(off) (*((volatile uint16_t*)(NOR_BASE)+(off)))
+#define UNLOCK1  0x555
+#define UNLOCK2  0x2AA
+
+static void delay_loops(volatile uint32_t n){ while(n--) __asm__("nop"); }
+
+/* === Keypad === */
+#define KBD_COL1 (1u<<25)
+#define KBD_ROW1 (1u<<0)
+#define KBD_ROW2 (1u<<1)
+
+static void Keypad_Init(void){
+    PINSEL4 &= ~((3<<(0*2))|(3<<(1*2))); // P2.0,P2.1 GPIO
+    PINSEL5 &= ~(3<<((25-16)*2));        // P2.25 GPIO
+    FIO2DIR &= ~(KBD_ROW1|KBD_ROW2);
+    FIO2DIR |=  KBD_COL1;
+    FIO2SET  =  KBD_COL1;
+}
+static uint8_t read_rows(void){
+    FIO2CLR=KBD_COL1; delay_loops(300);
+    uint32_t r=FIO2PIN; FIO2SET=KBD_COL1;
+    return (r&3);
+}
+int SW2_Pressed(void){ static uint8_t d; uint8_t s=(read_rows()&1)==0; if(s){delay_loops(100000);return 1;} return 0; }
+int SW6_Pressed(void){ static uint8_t d; uint8_t s=(read_rows()&2)==0; if(s){delay_loops(100000);return 1;} return 0; }
+
+/* === Flash EMC Setup === */
+void flash_hw_init(void){
+    PCONP |= (1<<11); // enable EMC
+    PINSEL6 = 0x55555555; // D0-D15
+    PINSEL8 = 0x55555554; // A0-A14
+    PINSEL9 = 0x05555555; // A15-A22, control pins
+    EMCControl=1; EMCConfig=0;
+    EMCStaticConfig0=0x81;
+}
+
+/* === Flash Basic Commands === */
+static void flash_reset(void){ F16(0)=0xF0; delay_loops(100); }
+static int flash_wait(uint32_t w){ uint16_t a,b; do{a=F16(w);b=F16(w);}while((a^b)&0x40); return 0; }
+
+void flash_erase(void){
+    flash_reset();
+    F16(UNLOCK1)=0xAA; F16(UNLOCK2)=0x55; F16(UNLOCK1)=0x80;
+    F16(UNLOCK1)=0xAA; F16(UNLOCK2)=0x55; F16(0)=0x30;
+    flash_wait(0);
+}
+
+static void flash_program(uint32_t addr,uint16_t data){
+    uint32_t w=(addr&~1)>>1;
+    F16(UNLOCK1)=0xAA; F16(UNLOCK2)=0x55; F16(UNLOCK1)=0xA0;
+    F16(w)=data; flash_wait(w);
+}
+
+/* Write sample pattern */
+void flash_write_demo(void){
+    uint16_t pattern[64];
+    for(int i=0;i<64;i++) pattern[i]=i+1;
+    for(int i=0;i<64;i++) flash_program(i*2,pattern[i]);
+}
+
+/* UART dump of flash data */
+static void uart_putc(char c){ while(!(U0LSR&(1<<5))); U0THR=c; }
+static void uart_puts(const char*s){ while(*s){ if(*s=='\n')uart_putc('\r'); uart_putc(*s++);} }
+static void uart_hex(uint32_t v,int n){
+    static const char h[]="0123456789ABCDEF";
+    for(int i=n-1;i>=0;i--) uart_putc(h[(v>>(i*4))&0xF]);
+}
+
+void flash_uart_dump(void){
+    uart_puts("\r\nFLASH DATA:\r\n");
+    volatile const uint16_t* p=(volatile const uint16_t*)NOR_BASE;
+    for(int i=0;i<64;i++){
+        uart_puts("0x"); uart_hex(NOR_BASE+i*2,8);
+        uart_puts(" = 0x"); uart_hex(p[i],4);
+        uart_puts("\r\n");
+    }
+}
