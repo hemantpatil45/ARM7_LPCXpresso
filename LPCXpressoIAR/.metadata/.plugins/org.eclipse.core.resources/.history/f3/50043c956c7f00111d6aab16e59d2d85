@@ -1,0 +1,579 @@
+#include "LPC24xx.h"
+#include "ethernet.h"
+#include "ethernet_reg.h"
+#include "ethernet_rx.h"
+
+#define PCONP   (*((volatile uint32_t *)0xE01FC0C4))
+#define PINSEL2 (*((volatile uint32_t *)0xE002C008))
+#define PINSEL3 (*((volatile uint32_t *)0xE002C00C))
+
+static void Eth_InitPins(void)
+{
+    PCONP |= (1 << 30);
+    /* RMII Pin Configuration (0x50150105) */
+    PINSEL2 = (PINSEL2 & ~0xF03F030F) | 0x50150105;
+    PINSEL3 = (PINSEL3 & ~0x0000000F) | 0x00000005;
+}
+
+void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
+{
+    LPC_EMAC->MCMD = 0;
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    LPC_EMAC->MWTD = Value;
+    while ((LPC_EMAC->MIND & 1) != 0);
+}
+
+uint16_t Eth_ReadPHY(uint32_t PhyReg)
+{
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    LPC_EMAC->MCMD = 1;
+    while ((LPC_EMAC->MIND & 1) != 0);
+    LPC_EMAC->MCMD = 0;
+    return (uint16_t)(LPC_EMAC->MRDD & 0xFFFF);
+}
+
+bool Eth_Init(void)
+{
+    uint32_t timeout;
+    uint16_t phyStatus;
+
+    Eth_InitPins();
+
+    /* Reset MAC */
+    LPC_EMAC->MAC1 = MAC1_RES_TX | MAC1_RES_MCS_TX | MAC1_RES_RX | MAC1_RES_MCS_RX | MAC1_SIM_RES | MAC1_SOFT_RES;
+    LPC_EMAC->COMMAND = CR_REG_RES | CR_TX_RES | CR_RX_RES;
+    for (timeout = 100; timeout; timeout--);
+
+    /* MAC RMII Config - RESTORED MAC1_PASS_ALL */
+    LPC_EMAC->MAC1 = MAC1_PASS_ALL | MAC1_REC_EN;
+    LPC_EMAC->COMMAND = CR_RMII;
+    LPC_EMAC->MCFG = 0x0018;
+    LPC_EMAC->MAC2 = MAC2_CRC_EN | MAC2_PAD_EN;
+    LPC_EMAC->MAXF = 1536;
+    LPC_EMAC->CLRT = 0x370F;
+    LPC_EMAC->IPGR = 0x0C12;
+    LPC_EMAC->IPGT = 0x0015;
+
+    /* PHY Soft Reset */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_RESET);
+    for (timeout = 0; timeout < 0xFFFFF; timeout++) {
+        if ((Eth_ReadPHY(DP83848_BMCR) & PHY_BMCR_RESET) == 0) break;
+    }
+
+    /* Auto-Negotiate */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_AUTONEG_EN | PHY_BMCR_RESTART_AN);
+    for (timeout = 0; timeout < 0xFFFFF; timeout++) {
+        phyStatus = Eth_ReadPHY(DP83848_BMSR);
+        if ((phyStatus & PHY_BMSR_LINK_STAT) && (phyStatus & PHY_BMSR_AUTONEG_C)) break;
+    }
+    if (timeout == 0xFFFFF) return false;
+
+    /* Duplex Config */
+    phyStatus = Eth_ReadPHY(DP83848_PHYSTS);
+    if (phyStatus & PHY_STS_DUPLEX) {
+        LPC_EMAC->MAC2 |= MAC2_FULL_DUP;
+        LPC_EMAC->COMMAND |= CR_FULL_DUP;
+        LPC_EMAC->IPGT = 0x0015;
+    } else {
+        LPC_EMAC->IPGT = 0x0012;
+    }
+    LPC_EMAC->SUPP = (phyStatus & PHY_STS_SPEED) ? 0 : (1 << 8);
+
+    /* Set MAC Address */
+    LPC_EMAC->SA0 = 0x1100;
+    LPC_EMAC->SA1 = 0x3322;
+    LPC_EMAC->SA2 = 0x5544;
+
+    /* Init DMA Memory */
+    EMAC_RxInit();
+
+    /* Enable TX/RX */
+    LPC_EMAC->RXFILTERCTRL = RXFILT_CTRL_BROADCAST | RXFILT_CTRL_PERFECT;
+    LPC_EMAC->INTENABLE = 0;
+    LPC_EMAC->INTCLEAR = 0xFFFF;
+    LPC_EMAC->COMMAND |= (CR_RX_EN | CR_TX_EN);
+    LPC_EMAC->MAC1 |= MAC1_REC_EN;
+
+    return true;
+}
+void Uart_0_init_9600_WITHOUT_PLL()
+{
+
+  //Set the FIFO enable bit in the FCR register. This bit must be set for
+  //proper UART operation.
+  U0FCR_bit.FCRFE = 0x01;
+
+  //Set baudrate
+  U0LCR_bit.DLAB = 0x01;
+  U0DLL = BAUDRATEDIVISOR_9600 & 0x00ff;
+  U0DLM = (BAUDRATEDIVISOR_9600 >> 8) & 0x00ff;
+  U0LCR_bit.DLAB = 0x00;
+
+  //Set mode
+  U0LCR_bit.WLS = 0x3;   //8 bit word length
+  U0LCR_bit.SBS = 0x0;   //1 stop bit
+  U0LCR_bit.PE  = 0x0;   //No parity
+
+  // UART0 interrupts
+  U0IER_bit.RDAIE  = 0;  //Disable byte received interrupt
+}//UART0 INIT END
+
+
+
+void Uart_0_init_9600_WITH_PLL()
+{
+
+  //Set the FIFO enable bit in the FCR register. This bit must be set for
+  //proper UART operation.
+  U0FCR_bit.FCRFE = 0x01;
+
+  //Set baudrate
+  U0LCR_bit.DLAB = 0x01;
+  U0DLL = BAUDRATEDIVISOR_9600_PLL & 0x00ff;
+  U0DLM = (BAUDRATEDIVISOR_9600_PLL >> 8) & 0x00ff;
+  U0LCR_bit.DLAB = 0x00;
+
+  //Set mode
+  U0LCR_bit.WLS = 0x3;   //8 bit word length
+  U0LCR_bit.SBS = 0x0;   //1 stop bit
+  U0LCR_bit.PE  = 0x0;   //No parity
+
+  // UART0 interrupts
+  U0IER_bit.RDAIE  = 0;  //Disable byte received interrupt
+}//UART0 INIT END
+
+void Uart_0_init_115200_WITH_PLL()
+{
+
+  //Set the FIFO enable bit in the FCR register. This bit must be set for
+  //proper UART operation.
+  U0FCR_bit.FCRFE = 0x01;
+
+  //Set baudrate
+  U0LCR_bit.DLAB = 0x01;
+  U0DLL = BAUDRATEDIVISOR_115200_PLL & 0x00ff;
+  U0DLM = (BAUDRATEDIVISOR_115200_PLL >> 8) & 0x00ff;
+  U0LCR_bit.DLAB = 0x00;
+
+  //Set mode
+  U0LCR_bit.WLS = 0x3;   //8 bit word length
+  U0LCR_bit.SBS = 0x0;   //1 stop bit
+  U0LCR_bit.PE  = 0x0;   //No parity
+
+  // UART0 interrupts
+  U0IER_bit.RDAIE  = 0;  //Disable byte received interrupt
+}//UART0 INIT END
+
+
+
+/**************************************************************************
+*   Fuction name  : Init_timer0()
+*   input         : no
+*   Description   :Initilize Timer0.
+***************************************************************************/
+//..........Init_timer0() FUNCTION
+void Init_timer0()
+{
+
+  T0TCR = 0; // Disable timer 0.
+  T0PR = 0x0; // Prescaler is set to no division.
+  T0MR0 = 0x24000;  // Count up to this value. Generate interrupt for 10 ms / 0x9000 @ 3686400 Hz PCLK
+  T0MCR = 0x03; // Reset and interrupt on MR0 (match register 0).
+  T0CCR = 0; // Capture is disabled.
+  T0EMR = 0; // No external match output.
+
+}//TIMER0 END
+void sys_init_without_TFT_32bit_SDRAM()
+{
+    MEMMAP = 0x01;           // Interrupts in User Flash.
+
+    // Configure AHB1 arbitration
+    AHBCFG1_bit.SHDL = 1;
+    AHBCFG1_bit.BB   = 2;
+    AHBCFG1_bit.QT   = 0;
+    AHBCFG1_bit.QS   = 4;
+    AHBCFG1_bit.DM   = 1;
+    AHBCFG1_bit.EP1  = 0;
+    AHBCFG1_bit.EP2  = 0;
+    AHBCFG1_bit.EP3  = 0;
+    AHBCFG1_bit.EP4  = 0;
+    AHBCFG1_bit.EP5  = 0;
+
+    // Configur System Controls and Status register.
+    SCS_bit.GPIOM = 1;        // Ports 0 and 1 in fast access mode.
+    SCS_bit.EMCRD = 0;        // External Memory Controller Reset state.
+    SCS_bit.EMCBC = 0;        // External Memory Controller Burst enable.
+    SCS_bit.MCIPWR = 0;       //
+    SCS_bit.OSCRANGE = 0;     // Main Oscillator frequency range is bet. 1MHz to 20 MHz.
+    SCS_bit.OSCEN = 1;        // Main Oscillator Enabled.
+
+    //  Wait for OSC ready
+   while(!SCS_bit.OSCSTAT);
+
+   CLKSRCSEL_bit.CLKSRC = 1;  // Select Main Oscillator as clock source.
+
+   PLLCFG_bit.MSEL = 192;
+   PLLCFG_bit.NSEL = 16;
+   PLLFEED_bit.FEED = 0xAA;
+   PLLFEED_bit.FEED = 0x55;
+   PLLCON_bit.PLLE = 1;
+   PLLFEED_bit.FEED = 0xAA;
+   PLLFEED_bit.FEED = 0x55;
+   CCLKCFG_bit.CCLKSEL = 3;
+   while(!PLLSTAT_bit.PLOCK);
+
+   PLLCON_bit.PLLC = 1;
+   PLLFEED_bit.FEED = 0xAA;
+   PLLFEED_bit.FEED = 0x55;
+
+    PCLKSEL0 = 0;              // Peripheral clocks = cclk/4.
+    PCLKSEL1 = 0;
+    PCONP_bit.PCUART0 = 1;     // Enable Uart3
+    PCONP_bit.PCTIM0 = 1;
+    PCONP_bit.PCEMC = 1;
+
+//************************* PORT MAP ACCORDING TO FUNCTIONS ***************************
+//********************** UART0 FOR ISP & WIRELESS COMMUNICATION ***********************
+    PINSEL0_bit.P0_2  = 1;    //UART0 TX
+    PINSEL0_bit.P0_3  = 1;    //UART0 RX
+
+//************************************** CAN BUS ***************************************
+    PINSEL0_bit.P0_0  = 1;    //RX line of CAN bus
+    PINSEL0_bit.P0_1  = 1;    //TX line of CAN bus
+
+//****************************** 128X64 GRAPHICS LCD PINS *******************************
+    PINSEL0_bit.P0_4  = 0;    //As a GPIO for LCD_RS
+    PINSEL0_bit.P0_5  = 0;    //As a GPIO for LCD_RW
+    PINSEL0_bit.P0_6  = 0;    //As a GPIO for LCD_E
+    PINSEL3_bit.P1_26 = 0;    //As a GPIO for LCD_CS1
+    PINSEL3_bit.P1_28 = 0;    //As a GPIO for LCD_CS2
+    PINSEL3_bit.P1_29 = 0;    //As a GPIO for LCD_RST
+    PINSEL0_bit.P0_7  = 0;    //As a GPIO for LCD_DB0
+    PINSEL0_bit.P0_8  = 0;    //As a GPIO for LCD_DB1
+    PINSEL0_bit.P0_9  = 0;    //As a GPIO for LCD_DB2
+    PINSEL3_bit.P1_20 = 0;    //As a GPIO for LCD_DB3
+    PINSEL3_bit.P1_21 = 0;    //As a GPIO for LCD_DB4
+    PINSEL3_bit.P1_23 = 0;    //As a GPIO for LCD_DB5
+    PINSEL3_bit.P1_24 = 0;    //As a GPIO for LCD_DB6
+    PINSEL3_bit.P1_25 = 0;    //As a GPIO for LCD_DB7
+
+//*********************************** RELAY & BUZZER ************************************
+    PINSEL0_bit.P0_10 = 0;    //As a GPIO for RELAY & BUZZER
+
+//************************************ HEX KEYBOARD *************************************
+    PINSEL4_bit.P2_0  = 0;    //As a GPIO for KEYBOARD R0
+    PINSEL4_bit.P2_1  = 0;    //As a GPIO for KEYBOARD R1
+    PINSEL5_bit.P2_22 = 0;    //As a GPIO for KEYBOARD R2
+    PINSEL5_bit.P2_23 = 0;    //As a GPIO for KEYBOARD R3
+    PINSEL5_bit.P2_25 = 0;    //As a GPIO for KEYBOARD SCAN0
+    PINSEL5_bit.P2_26 = 0;    //As a GPIO for KEYBOARD SCAN1
+    PINSEL5_bit.P2_27 = 0;    //As a GPIO for KEYBOARD SCAN2
+    PINSEL0_bit.P0_11 = 0;    //As a GPIO for KEYBOARD SCAN3
+
+//************************************ MICRO SD CARD *************************************
+    PINSEL1_bit.P0_19 = 2;    //MICRO SD CLOCK
+    PINSEL1_bit.P0_20 = 2;    //MICRO SD CMD
+    PINSEL1_bit.P0_22 = 2;    //MICRO SD Data0
+    PINSEL4_bit.P2_11 = 2;    //MICRO SD DATA1
+    PINSEL2_bit.P1_11 = 2;    //MICRO SD DATA2
+    PINSEL2_bit.P1_12 = 2;    //MICRO SD DATA3
+
+//********************************** INTERNAL ADC & DAC ************************************
+    PINSEL1_bit.P0_23 = 1;    //Internal ADC channel, AD0
+    PINSEL1_bit.P0_26 = 2;    //Internal DAC channel A_out
+
+//************************************* EXTERNAL DAC ***************************************
+    PINSEL2_bit.P1_7  = 0;    //As a GPIO for DAC clear line
+    PINSEL4_bit.P2_14 = 0;    //As a GPIO for DAC Chip select
+    PINSEL1_bit.P0_25 = 0;    //As a GPIO for DAC LD line
+
+//************************************** SPI LINES ****************************************
+    PINSEL0_bit.P0_15 = 3;    //SPI CLOCK
+    PINSEL1_bit.P0_16 = 3;    //SPI SSEL
+    PINSEL1_bit.P0_17 = 3;    //SPI MISO
+    PINSEL1_bit.P0_18 = 3;    //SPI MOSI
+
+//********************************** I2C & EEPROM LINES ************************************
+    PINSEL1_bit.P0_27 = 1;    //I2C0 SDA line
+    PINSEL1_bit.P0_28 = 1;    //I2C0 SCL line
+
+//********************************* STEPPER MOTOR LINES ************************************
+    PINSEL1_bit.P0_21 = 0;    //As a GPIO for Stepper motor enable A
+    PINSEL1_bit.P0_24 = 0;    //As a GPIO for Stepper motor enable B
+    PINSEL2_bit.P1_2  = 0;    //As a GPIO for Stepper motor phase A
+    PINSEL2_bit.P1_3  = 0;    //As a GPIO for Stepper motor phase B
+    PINSEL2_bit.P1_5  = 0;    //As a GPIO for Stepper motor phase C
+    PINSEL2_bit.P1_6  = 0;    //As a GPIO for Stepper motor phase D
+
+//***************************************** LEDS ********************************************
+    PINSEL5_bit.P2_19 = 0;    //As a GPIO for LED0
+    PINSEL5_bit.P2_21 = 0;    //As a GPIO for LED1
+    PINSEL2_bit.P1_13 = 0;    //As a GPIO for LED2
+    PINSEL4_bit.P2_15 = 0;    //As a GPIO for LED3
+
+//*************************************** SWITCHES *******************************************
+    PINSEL9_bit.P4_23 = 0;    //As a GPIO for SWITCH0
+    PINSEL9_bit.P4_26 = 0;    //As a GPIO for SWITCH1
+    PINSEL9_bit.P4_27 = 0;    //As a GPIO for SWITCH2
+    PINSEL9_bit.P4_31 = 0;    //As a GPIO for SWITCH3
+
+//*********************************** EXTERNAL INTERRUPT **************************************
+    PINSEL4_bit.P2_10 = 0;    //As a GPIO for EXTER INTERRUPT
+
+//************************************* ETHERNET PHY *****************************************
+    PINSEL2_bit.P1_0  = 1;    //Ethernet TXD0 line
+    PINSEL2_bit.P1_1  = 1;    //Ethernet TXD1 line
+    PINSEL2_bit.P1_4  = 1;    //Ethernet TX enable
+    PINSEL2_bit.P1_9  = 1;    //Ethernet RXD0 line
+    PINSEL2_bit.P1_10 = 1;    //Ethernet RXD1 line
+    PINSEL2_bit.P1_14 = 1;    //Ethernet RX ERROR
+    PINSEL2_bit.P1_15 = 1;    //Ethernet RX CLOCK
+    PINSEL2_bit.P1_8  = 1;    //Ethernet CRS line
+    PINSEL3_bit.P1_16 = 1;    //Ethernet MDC
+    PINSEL3_bit.P1_17 = 1;    //Ethernet MDIO
+
+//************************************ USB2 CONNECTIOS ****************************************
+    PINSEL0_bit.P0_12 = 1;    //USB2 POWER
+    PINSEL0_bit.P0_13 = 1;    //USB2 UP LED
+    PINSEL0_bit.P0_14 = 0;    //VBUS AS A GPIO //NEED CONFORMATION
+    PINSEL1_bit.P0_31 = 1;    //USB2 D+
+    PINSEL3_bit.P1_30 = 1;    //USB2 PWRD
+    PINSEL3_bit.P1_31 = 1;    //USB2 OVRCR
+
+//************************************ USB1 CONNECTIOS ****************************************
+    PINSEL1_bit.P0_29 = 1;    //USB1 D+
+    PINSEL1_bit.P0_30 = 1;    //USB1 D-
+    PINSEL3_bit.P1_18 = 1;    //USB1 UP LED
+    PINSEL3_bit.P1_19 = 1;    //USB1 CONNECT
+
+//***************************** EXTERNAL FLASH CONTROL SIGNALS *********************************
+    PINSEL9_bit.P4_24 = 1;    //FLASH OE
+    PINSEL9_bit.P4_30 = 1;    //FLASH CE
+
+//***************************** EXTERNAL SDRAM CONTROL SIGNALS *********************************
+    PINSEL5_bit.P2_20 = 1;    //SDRAM CS0
+    PINSEL5_bit.P2_16 = 1;    //SDRAM CAS
+    PINSEL5_bit.P2_17 = 1;    //SDRAM RAS
+    PINSEL5_bit.P2_18 = 1;    //SDRAM CLOCK
+    PINSEL5_bit.P2_24 = 1;    //SDRAM CLOCK ENABLE
+    PINSEL5_bit.P2_28 = 1;    //SDRAM1 DQML
+    PINSEL5_bit.P2_29 = 1;    //SDRAM1 DQMH
+    PINSEL5_bit.P2_30 = 1;    //SDRAM2 DQML
+    PINSEL5_bit.P2_31 = 1;    //SDRAM2 DQMH
+
+//********************** EXTERNAL SDRAM & FLASH COMMON CONTROL SIGNALS **************************
+    PINSEL9_bit.P4_25 = 1;    //SDRAM & FLASH WRENB
+
+//****************************** EXTERNAL MEMORY ADDRESS LINES **********************************
+    PINSEL8_bit.P4_0  = 1;    //EXTERNAL MEMORY ADDRESS0
+    PINSEL8_bit.P4_1  = 1;    //EXTERNAL MEMORY ADDRESS1
+    PINSEL8_bit.P4_2  = 1;    //EXTERNAL MEMORY ADDRESS2
+    PINSEL8_bit.P4_3  = 1;    //EXTERNAL MEMORY ADDRESS3
+    PINSEL8_bit.P4_4  = 1;    //EXTERNAL MEMORY ADDRESS4
+    PINSEL8_bit.P4_5  = 1;    //EXTERNAL MEMORY ADDRESS5
+    PINSEL8_bit.P4_6  = 1;    //EXTERNAL MEMORY ADDRESS6
+    PINSEL8_bit.P4_7  = 1;    //EXTERNAL MEMORY ADDRESS7
+    PINSEL8_bit.P4_8  = 1;    //EXTERNAL MEMORY ADDRESS8
+    PINSEL8_bit.P4_9  = 1;    //EXTERNAL MEMORY ADDRESS9
+    PINSEL8_bit.P4_10 = 1;    //EXTERNAL MEMORY ADDRESS10
+    PINSEL8_bit.P4_11 = 1;    //EXTERNAL MEMORY ADDRESS11
+    PINSEL8_bit.P4_12 = 1;    //EXTERNAL MEMORY ADDRESS12
+    PINSEL8_bit.P4_13 = 1;    //EXTERNAL MEMORY ADDRESS13
+    PINSEL8_bit.P4_14 = 1;    //EXTERNAL MEMORY ADDRESS14
+    PINSEL8_bit.P4_15 = 1;    //EXTERNAL MEMORY ADDRESS15
+    PINSEL9_bit.P4_16 = 1;    //EXTERNAL MEMORY ADDRESS16
+    PINSEL9_bit.P4_17 = 1;    //EXTERNAL MEMORY ADDRESS17
+    PINSEL9_bit.P4_18 = 1;    //EXTERNAL MEMORY ADDRESS18
+    PINSEL9_bit.P4_19 = 1;    //EXTERNAL MEMORY ADDRESS19
+    PINSEL9_bit.P4_20 = 1;    //EXTERNAL MEMORY ADDRESS20
+    PINSEL9_bit.P4_21 = 1;    //EXTERNAL MEMORY ADDRESS21
+    PINSEL9_bit.P4_22 = 1;    //EXTERNAL MEMORY ADDRESS22
+
+//******************************** EXTERNAL MEMORY DATA LINES ***********************************
+    PINSEL6_bit.P3_0  = 1;    //EXTERNAL MEMORY DATA0
+    PINSEL6_bit.P3_1  = 1;    //EXTERNAL MEMORY DATA1
+    PINSEL6_bit.P3_2  = 1;    //EXTERNAL MEMORY DATA2
+    PINSEL6_bit.P3_3  = 1;    //EXTERNAL MEMORY DATA3
+    PINSEL6_bit.P3_4  = 1;    //EXTERNAL MEMORY DATA4
+    PINSEL6_bit.P3_5  = 1;    //EXTERNAL MEMORY DATA5
+    PINSEL6_bit.P3_6  = 1;    //EXTERNAL MEMORY DATA6
+    PINSEL6_bit.P3_7  = 1;    //EXTERNAL MEMORY DATA7
+    PINSEL6_bit.P3_8  = 1;    //EXTERNAL MEMORY DATA8
+    PINSEL6_bit.P3_9  = 1;    //EXTERNAL MEMORY DATA9
+    PINSEL6_bit.P3_10 = 1;    //EXTERNAL MEMORY DATA10
+    PINSEL6_bit.P3_11 = 1;    //EXTERNAL MEMORY DATA11
+    PINSEL6_bit.P3_12 = 1;    //EXTERNAL MEMORY DATA12
+    PINSEL6_bit.P3_13 = 1;    //EXTERNAL MEMORY DATA13
+    PINSEL6_bit.P3_14 = 1;    //EXTERNAL MEMORY DATA14
+    PINSEL6_bit.P3_15 = 1;    //EXTERNAL MEMORY DATA15
+    PINSEL7_bit.P3_16 = 1;    //EXTERNAL MEMORY DATA16
+    PINSEL7_bit.P3_17 = 1;    //EXTERNAL MEMORY DATA17
+    PINSEL7_bit.P3_18 = 1;    //EXTERNAL MEMORY DATA18
+    PINSEL7_bit.P3_19 = 1;    //EXTERNAL MEMORY DATA19
+    PINSEL7_bit.P3_20 = 1;    //EXTERNAL MEMORY DATA20
+    PINSEL7_bit.P3_21 = 1;    //EXTERNAL MEMORY DATA21
+    PINSEL7_bit.P3_22 = 1;    //EXTERNAL MEMORY DATA22
+    PINSEL7_bit.P3_23 = 1;    //EXTERNAL MEMORY DATA23
+    PINSEL7_bit.P3_24 = 1;    //EXTERNAL MEMORY DATA24
+    PINSEL7_bit.P3_25 = 1;    //EXTERNAL MEMORY DATA25
+    PINSEL7_bit.P3_26 = 1;    //EXTERNAL MEMORY DATA26
+    PINSEL7_bit.P3_27 = 1;    //EXTERNAL MEMORY DATA27
+        PINSEL7_bit.P3_28 = 1;    //EXTERNAL MEMORY DATA28
+    PINSEL7_bit.P3_29 = 1;    //EXTERNAL MEMORY DATA29
+    PINSEL7_bit.P3_30 = 1;    //EXTERNAL MEMORY DATA30
+    PINSEL7_bit.P3_31 = 1;    //EXTERNAL MEMORY DATA31
+
+//**************************** REMAINING LINES USE FOR TFT DISPLAY *******************************
+//**************************** TFT DISPLAY *******************************
+        //RED LINE FOR TFT
+        PINSEL0_bit.P0_4  = 0;    //TFT R0
+    PINSEL0_bit.P0_5  = 0;    //TFT R1
+        PINSEL9_bit.P4_28 = 0;    //TFT R2
+    PINSEL9_bit.P4_29 = 0;    //TFT R3
+        PINSEL4_bit.P2_6  = 0;    //TFT R4
+    PINSEL4_bit.P2_7  = 0;    //TFT R5
+    PINSEL4_bit.P2_8  = 0;    //TFT R6
+    PINSEL4_bit.P2_9  = 0;    //TFT R7
+
+        //GREEN LINE FOR TFT
+    PINSEL0_bit.P0_6  = 0;    //TFT G0
+        PINSEL0_bit.P0_7  = 0;    //TFT G1
+        PINSEL3_bit.P1_20 = 0;    //TFT G2
+    PINSEL3_bit.P1_21 = 0;    //TFT G3
+        PINSEL3_bit.P1_22 = 0;    //TFT G4
+    PINSEL3_bit.P1_23 = 0;    //TFT G5
+    PINSEL3_bit.P1_24 = 0;    //TFT G6
+    PINSEL3_bit.P1_25 = 0;    //TFT G7
+
+    //BLUE LINE FOR TFT
+        PINSEL0_bit.P0_8  = 0;    //TFT B0
+    PINSEL0_bit.P0_9  = 0;    //TFT B1
+        PINSEL4_bit.P2_12 = 0;    //TFT B2
+    PINSEL4_bit.P2_13 = 0;    //TFT B3
+        PINSEL3_bit.P1_26 = 0;    //TFT B4
+        PINSEL3_bit.P1_27 = 0;    //TFT B5
+        PINSEL3_bit.P1_28 = 0;    //TFT B6
+    PINSEL3_bit.P1_29 = 0;    //TFT B7
+
+        //CONTROL LINE FOR TFT
+        PINSEL4_bit.P2_2  = 0;    //TFT DCLK
+    PINSEL4_bit.P2_3  = 0;    //TFT VSYNC
+    PINSEL4_bit.P2_4  = 0;//3;    //TFT LCDENAB/LCDM
+    PINSEL4_bit.P2_5  = 0;    //TFT HSYNC
+
+    PINSEL10 = 0X00000000;
+        PINSEL11 = 0X0000000F;
+
+//*********************** PINMODE (ALL PINS ARE PULL UP REGISTER ENABLED) **************************
+    PINMODE0 = 0x00000000;
+    PINMODE1 = 0x00000000;
+    PINMODE2 = 0x00000000;
+    PINMODE3 = 0x00000000;
+    PINMODE4 = 0x00000000;
+    PINMODE5 = 0x00000000;
+    PINMODE6 = 0XAAAAAAAA;//0XAAAAAAAA;//0x00000000;//0XFFFFFFFF; //0x00000000;
+    PINMODE7 = 0XAAAAAAAA;//0XFFFFFFFF; //0x00000000;
+    PINMODE8 = 0XAAAAAAAA;//0XFFFFFFFF; //0x00000000;
+    PINMODE9 = 0X200A2AAA;//0XFFFFFFFF; //0x00000000;
+
+//********************************** IO PIN DIRECTION REGISTOR *************************************
+    FIO0DIR =  0X03204FF0; //WRITE VALUE
+    FIO1DIR =  0X3FF020EC; //WRITE VALUE
+    FIO2DIR =  0X0E28F3FC; //WRITE VALUE
+    FIO3DIR =  0X70000000; //WRITE VALUE
+    FIO4DIR =  0X30000000;//0X30000000; //WRITE VALUE
+
+//************************************* IO PIN SET REGISTOR ****************************************
+    FIO0SET =  0X02004000; //WRITE VALUE
+    FIO1SET =  0X00002080; //WRITE VALUE
+    FIO2SET =  0X0028C000; //WRITE VALUE
+    FIO3SET =  0X70000000; //WRITE VALUE
+    FIO4SET =  0X00000000; //WRITE VALUE
+
+//************************************* IO PIN CLAR REGISTOR ***************************************
+    FIO0CLR =  0X01200FF0; //WRITE VALUE
+    FIO1CLR =  0X3FF0006C; //WRITE VALUE
+    FIO2CLR =  0X0E0033FC; //WRITE VALUE
+    FIO3CLR =  0X00000000; //WRITE VALUE
+    FIO4CLR =  0X30000000; //WRITE VALUE
+
+//************************************* IO PIN MASK REGISTOR ***************************************
+// NO ANY MASKING IS USED
+    FIO0MASK = 0;
+    FIO1MASK = 0;
+    FIO2MASK = 0;
+    FIO3MASK = 0;
+    FIO4MASK = 0;
+
+}//SYSTEM INIT END
+
+void Init_timer0()
+{
+  T0TCR = 0; // Disable timer 0.
+  T0PR = 0x0; // Prescaler is set to no division.
+  T0MR0 = 0x24000;  // Count up to this value. Generate interrupt for 10 ms / 0x9000 @ 3686400 Hz PCLK
+  T0MCR = 0x03; // Reset and interrupt on MR0 (match register 0).
+  T0CCR = 0; // Capture is disabled.
+  T0EMR = 0; // No external match output.
+}
+
+void SDRAM_init_32BIT()
+{
+  PCONP_bit.PCEMC = 1;
+  EMCCONTROL      = 1;         // enable EMC
+  EMCDINAMICRDCFG = 1;
+  EMCDYNAMICRASCAS0_bit.CAS = 3;
+  EMCDYNAMICRASCAS0_bit.RAS = 3;
+  EMCDYNAMICRP = P2C(SDRAM_TRP);
+  EMCDYNAMICRAS = P2C(SDRAM_TRAS);
+  EMCDYNAMICSREX = P2C(SDRAM_TXSR);
+  EMCDYNAMICAPR = SDRAM_TAPR;
+  EMCDYNAMICDAL = SDRAM_TDAL+P2C(SDRAM_TRP);
+  EMCDYNAMICWR = SDRAM_TWR;
+  EMCDYNAMICRC = P2C(SDRAM_TRC);
+  EMCDYNAMICRFC = P2C(SDRAM_TRFC);
+  EMCDYNAMICXSR = P2C(SDRAM_TXSR);
+  EMCDYNAMICRRD = P2C(SDRAM_TRRD);
+  EMCDYNAMICMRD = SDRAM_TMRD;
+  EMCDYNAMICCFG0 = 0x0004680;        // 13 row, 9 - col, SDRAM
+  // JEDEC General SDRAM Initialization Sequence
+  // DELAY to allow power and clocks to stabilize ~100 us
+  // NOP
+  EMCDINAMICCTRL = 0x0183;
+
+  for(volatile int i = 200*30; i;i--);
+  // PALL
+  EMCDINAMICCTRL_bit.I = 2;
+  EMCDINAMICRFR = 1;
+  for(volatile int i= 128; i; --i); // > 128 clk
+  EMCDINAMICRFR = P2C(SDRAM_REFRESH) >> 4;
+  // COMM
+  EMCDINAMICCTRL_bit.I = 1;
+  // Burst 4, Sequential, CAS-3
+  volatile unsigned long Dummy = *(SDRAM_pointer+0x32);//(0x32 << 13)
+  // NORM
+  EMCDINAMICCTRL = 0x0000;///////////////////////
+  EMCDYNAMICCFG0_bit.B = 1;/////////////////////
+  for(volatile int i = 10000; i;i--);
+}
+
+void Uart_0_init_115200_WITH_PLL()
+{
+  //Set the FIFO enable bit in the FCR register. This bit must be set for
+  //proper UART operation.
+  U0FCR_bit.FCRFE = 0x01;
+
+  //Set baudrate
+  U0LCR_bit.DLAB = 0x01;
+  U0DLL = BAUDRATEDIVISOR_115200_PLL & 0x00ff;
+  U0DLM = (BAUDRATEDIVISOR_115200_PLL >> 8) & 0x00ff;
+  U0LCR_bit.DLAB = 0x00;
+
+  //Set mode
+  U0LCR_bit.WLS = 0x3;   //8 bit word length
+  U0LCR_bit.SBS = 0x0;   //1 stop bit
+  U0LCR_bit.PE  = 0x0;   //No parity
+
+  // UART0 interrupts
+  U0IER_bit.RDAIE  = 0;  //Disable byte received interrupt
+}

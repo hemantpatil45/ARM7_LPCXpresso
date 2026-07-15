@@ -1,0 +1,6 @@
+12:32:19 **** Incremental Build of configuration Debug for project Ethernet_Tx ****
+make -r all 
+make: Nothing to be done for 'all'.
+
+12:32:19 Build Finished (took 59ms)
+

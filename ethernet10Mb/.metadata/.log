@@ -19,3 +19,18 @@ Command-line arguments:  -os linux -ws gtk -arch x86 -data /home/vboxuser/LPCXpr
 
 !ENTRY org.eclipse.cdt.core 1 0 2026-07-13 10:31:20.242
 !MESSAGE Indexed 'Ethernet_Tx' (7 sources, 16 headers) in 0.139 sec: 677 declarations; 1,456 references; 1 unresolved inclusions; 0 syntax errors; 0 unresolved names (0%)
+!SESSION 2026-07-14 04:58:46.199 -----------------------------------------------
+eclipse.buildId=unknown
+java.version=1.8.0_65
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86, WS=gtk, NL=en_US
+Command-line arguments:  -os linux -ws gtk -arch x86 -data /home/vboxuser/LPCXpresso/ethernet10Mb
+
+!ENTRY org.eclipse.ui 4 4 2026-07-14 04:58:48.281
+!MESSAGE Plugin org.eclipse.cdt.ui, extension org.eclipse.ui.decorators, id org.eclipse.cdt.internal.ui.CustomBuildSettingsDecorator: Duplicate id found: org.eclipse.cdt.internal.ui.CustomBuildSettingsDecorator
+
+!ENTRY org.eclipse.ui 4 4 2026-07-14 04:58:48.287
+!MESSAGE Plugin org.eclipse.cdt.ui, extension org.eclipse.ui.decorators, id org.eclipse.cdt.internal.ui.CustomBuildSettingsDecorator: Unknown extension tag found: decorator
+
+!ENTRY org.eclipse.ui.browser 2 0 2026-07-14 04:58:48.400
+!MESSAGE Internal browser is not available: No more handles [Unknown Mozilla path (MOZILLA_FIVE_HOME not set)]

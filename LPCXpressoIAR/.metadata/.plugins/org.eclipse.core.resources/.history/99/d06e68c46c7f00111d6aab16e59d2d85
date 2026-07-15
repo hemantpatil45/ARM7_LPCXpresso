@@ -1,0 +1,114 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "ethernet.h"
+#include "ethernet_rx.h"
+
+
+
+//-------------------------------PL-ARM7 V14.1----------------------------------
+// Date:- 15/03/2015
+// Discription :- It's LPC2478 development board which contains pheripherals
+//                like USB host/device, ethernet, SDRAM, Flash, ADC, DAC,
+//                Wireless modules, sensors, TFT/graphics display, DC motor and
+//                stepper motors etc.
+// Hardware used:- LPC2478
+// Version :- VER 14.1
+//------------------------------------------------------------------------------
+//-------------------------------HEADER FILES---------------------------------//
+#include <intrinsics.h>
+#include <stdio.h>
+
+//---------------------------- SUPPORTED C FILES -----------------------------//
+
+//IRQ exception handler. Calls the interrupt handlers.
+_// Use GCC attributes to define the IRQ handler
+void IRQ_Handler(void) __attribute__ ((interrupt ("IRQ")));
+void IRQ_Handler(void)
+{
+    void (*interrupt_function)();
+    unsigned int vector;
+
+    vector = VICVectAddr;                     // Get interrupt vector[cite: 4].
+    interrupt_function = (void(*)())vector;
+    (*interrupt_function)();                  // Call vectored interrupt function.
+
+    VICVectAddr = 0;                          // Clear interrupt in VIC[cite: 4].
+}
+// Paste these at the top of your file, before your main() function
+
+// GCC equivalent for IAR's __disable_interrupt()
+static inline void __disable_interrupt(void) {
+    __asm volatile ("mrs r0, cpsr \n\t"
+                    "orr r0, r0, #0x80 \n\t"  // Set bit 7 to disable IRQs
+                    "msr cpsr_c, r0");
+}
+
+// GCC equivalent for IAR's __enable_interrupt()
+static inline void __enable_interrupt(void) {
+    __asm volatile ("mrs r0, cpsr \n\t"
+                    "bic r0, r0, #0x80 \n\t"  // Clear bit 7 to enable IRQs
+                    "msr cpsr_c, r0");
+}
+
+void main()
+{
+  //unsigned char ix;
+  __disable_interrupt();                  //First disable interrupts.
+    sys_init_without_TFT_32bit_SDRAM();  		  //call to System init function
+    Init_timer0();                        //Init TIMER 0
+    Init_VIC_Interrupt();
+    GLCD_init();                          //Initialization of Graphics LCD
+    clear_LCD();                          //Clear All garbage data from GLCD
+    SDRAM_init_32BIT();
+    Uart_0_init_115200_WITH_PLL();
+    __enable_interrupt();                 //Enable interrupt.
+    VERIABLE_INIT_FUN((unsigned int)&key, (unsigned int)&INTER_ADC, (unsigned int)&AD7492_DATA);
+    row_wr(0x00,"WELCOME TO AKADEMIKA");  //Display "WELCOME TO AKADEMIKA" on 0th position on GLCD
+    row_wr(0x02,"      PL-ARM7       ");  //Display "      PL-ARM7       " on 2nd position on GLCD
+    row_wr(0x04,"ETHERNET RX         ");  //Display "                    " on 4th position on GLCD
+    row_wr(0x06,"                    ");  //Display "                    " on 6th position on GLCD
+
+    T0TCR = 1;
+
+    row_wr(7,"PRESS SW2 TO RESET  ");
+     while(key != 0x30)
+    {
+    }
+
+     EMAC_init();
+
+    row_wr(5,"                     ");
+    row_wr(6,"                     ");
+    row_wr(7,"    EMAC INIT OK     ");
+
+    delay(10000);
+
+    row_wr(5,"SEND DATA FROM TX   ");
+    row_wr(6,"OPEN HYPERTERMINAL  ");
+    row_wr(7,"THEN PRESS KEY SW10 ");
+
+
+     while(key != 0x32)
+    {
+    }
+
+    transmit_byte(0X0D);
+        transmit_byte(0X0A);
+
+   RXDESBUFFER_1 = (unsigned char*)(RX_BUF_1[0]);//0x40005000;0x7FE01860
+   for(int xyxyx = 0; xyxyx < 14; xyxyx++)
+   RXDESBUFFER_1++;
+  for(int xyxyx = 0; xyxyx <= 57; xyxyx++)
+  {
+    transmit_byte(*RXDESBUFFER_1);
+    RXDESBUFFER_1++;
+    delay(1000);
+   }
+
+
+
+}

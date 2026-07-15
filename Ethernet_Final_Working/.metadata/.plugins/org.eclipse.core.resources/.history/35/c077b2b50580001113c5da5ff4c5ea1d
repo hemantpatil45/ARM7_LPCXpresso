@@ -1,0 +1,251 @@
+#include "LPC24xx.h"
+#include "ethernet.h"
+#include "ethernet_reg.h"
+#include "ethernet_rx.h"
+
+/* --- Hardware & Pin Definitions --- */
+#define PCONP   (*((volatile uint32_t *)0xE01FC0C4))
+#define PINSEL2 (*((volatile uint32_t *)0xE002C008))
+#define PINSEL3 (*((volatile uint32_t *)0xE002C00C))
+
+/* --- RX DMA Definitions --- */
+#define NUM_RX_FRAG         4
+#define ETH_RX_FRAG_SIZE    1536
+#define RX_DESC_BASE        0x7FE02000
+#define RX_STAT_BASE        (RX_DESC_BASE + (NUM_RX_FRAG * 8))
+#define RX_BUF_BASE         (RX_STAT_BASE + (NUM_RX_FRAG * 8))
+
+static uint32_t *RX_DESC_PACKET_PTRS;
+static uint32_t *RX_DESC_CTRL_PTRS;
+static uint32_t *RX_STAT_INFO_PTRS;
+
+
+/* ==============================================================================
+ * PIN CONFIGURATION
+ * ============================================================================== */
+static void Eth_InitPins(void)
+{
+    PCONP |= (1 << 30);
+    /* RMII Pin Configuration (0x50150105) */
+    PINSEL2 = (PINSEL2 & ~0xF03F030F) | 0x50150105;
+    PINSEL3 = (PINSEL3 & ~0x0000000F) | 0x00000005;
+}
+
+
+/* ==============================================================================
+ * PHY MDIO READ/WRITE OPERATIONS (CORRECTED)
+ * ============================================================================== */
+void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
+{
+    /* Set PHY Address and Register offset */
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+
+    /* Write value to MII Write Data register */
+    LPC_EMAC->MWTD = Value;
+
+    /* Wait until MII Management interface is not busy (Bit 0 is BUSY) */
+    while ((LPC_EMAC->MIND & 0x01) != 0);
+}
+
+uint16_t Eth_ReadPHY(uint32_t PhyReg)
+{
+    LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
+    LPC_EMAC->MCMD = 1;
+    while ((LPC_EMAC->MIND & 1) != 0);
+    LPC_EMAC->MCMD = 0;
+    return (uint16_t)(LPC_EMAC->MRDD & 0xFFFF);
+}
+
+
+/* ==============================================================================
+ * RX DESCRIPTOR INITIALIZATION
+ * ============================================================================== */
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+    RX_DESC_PACKET_PTRS = (uint32_t *)RX_DESC_BASE;
+    RX_DESC_CTRL_PTRS   = (uint32_t *)(RX_DESC_BASE + 4);
+    RX_STAT_INFO_PTRS   = (uint32_t *)RX_STAT_BASE;
+
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        RX_DESC_PACKET_PTRS[i * 2] = RX_BUF_BASE + (i * ETH_RX_FRAG_SIZE);
+        RX_DESC_CTRL_PTRS[i * 2]   = (ETH_RX_FRAG_SIZE - 1) | (1UL << 31);
+        RX_STAT_INFO_PTRS[i * 2] = 0;
+        RX_STAT_INFO_PTRS[(i * 2) + 1] = 0;
+    }
+
+    LPC_EMAC->RXDESCRIPTOR    = RX_DESC_BASE;
+    LPC_EMAC->RXSTATUS        = RX_STAT_BASE;
+    LPC_EMAC->RXDESCRIPTORNUM = NUM_RX_FRAG - 1;
+    LPC_EMAC->RXCONSUMEINDEX  = 0;
+
+    UART0_SendString("RXDESC=");
+    UART0_SendHex32(LPC_EMAC->RXDESCRIPTOR);
+
+    UART0_SendString("\r\nRXSTAT=");
+    UART0_SendHex32(LPC_EMAC->RXSTATUS);
+
+    UART0_SendString("\r\nRXDESCNUM=");
+    UART0_SendHex32(LPC_EMAC->RXDESCRIPTORNUM);
+
+    UART0_SendString("\r\n");
+    UART0_SendString("DESC Packet=");
+    UART0_SendHex32(RX_DESC_PACKET_PTRS[0]);
+
+    UART0_SendString("\r\nDESC Ctrl=");
+    UART0_SendHex32(RX_DESC_CTRL_PTRS[0]);
+    UART0_SendString("\r\n");
+}
+
+
+/* ==============================================================================
+ * MAIN ETHERNET INITIALIZATION (FORCED 10 Mbps)
+ * ============================================================================== */
+bool Eth_Init(void)
+{
+    uint32_t timeout;
+    uint16_t phyStatus;
+
+    Eth_InitPins();
+
+    /* Reset MAC */
+    LPC_EMAC->MAC1 = MAC1_RES_TX | MAC1_RES_MCS_TX | MAC1_RES_RX | MAC1_RES_MCS_RX | MAC1_SIM_RES | MAC1_SOFT_RES;
+    LPC_EMAC->COMMAND = CR_REG_RES | CR_TX_RES | CR_RX_RES;
+    for (timeout = 100; timeout; timeout--);
+
+    /* MAC RMII Config */
+    LPC_EMAC->MAC1 = MAC1_PASS_ALL | MAC1_REC_EN;
+    LPC_EMAC->COMMAND = CR_RMII;
+    LPC_EMAC->MCFG = 0x0018;
+    LPC_EMAC->MAC2 = MAC2_CRC_EN | MAC2_PAD_EN;
+    LPC_EMAC->MAXF = 1536;
+    LPC_EMAC->CLRT = 0x370F;
+    LPC_EMAC->IPGR = 0x0C12;
+    LPC_EMAC->IPGT = 0x0015;
+
+    /* PHY Soft Reset */
+    Eth_WritePHY(DP83848_BMCR, PHY_BMCR_RESET);
+    for (timeout = 0; timeout < 0xFFFFF; timeout++) {
+        if ((Eth_ReadPHY(DP83848_BMCR) & PHY_BMCR_RESET) == 0) break;
+    }
+
+    /* -----------------------------------------------------------------
+       FORCE 10 Mbps CONFIGURATION
+       ----------------------------------------------------------------- */
+
+    /* 1. Force the PHY to 10 Mbps, Full Duplex, No Auto-Negotiation */
+    /* 0x0100 -> Bit 13=0 (10 Mbps), Bit 12=0 (Auto-Neg Off), Bit 8=1 (Full Duplex) */
+    Eth_WritePHY(DP83848_BMCR, 0x0100);
+
+    /* Small delay for PHY state to settle */
+    for (timeout = 0; timeout < 100000; timeout++);
+
+    /* 2. Configure MAC SUPP Register for 10 Mbps */
+    /* Clear bit 8 to set MAC internal timing to 10 Mbps */
+    LPC_EMAC->SUPP &= ~(1 << 8);
+
+    /* ----------------------------------------------------------------- */
+
+    /* Duplex Config based on PHY Status */
+    phyStatus = Eth_ReadPHY(DP83848_PHYSTS);
+    if (phyStatus & PHY_STS_DUPLEX) {
+        LPC_EMAC->MAC2 |= MAC2_FULL_DUP;
+        LPC_EMAC->COMMAND |= CR_FULL_DUP;
+        LPC_EMAC->IPGT = 0x0015;
+    } else {
+        LPC_EMAC->IPGT = 0x0012;
+    }
+
+    /* Set MAC Address */
+    LPC_EMAC->SA0 = 0x1100;
+    LPC_EMAC->SA1 = 0x3322;
+    LPC_EMAC->SA2 = 0x5544;
+
+    /* Init DMA Memory */
+    EMAC_RxInit();
+
+    /* Enable TX/RX */
+    LPC_EMAC->RXFILTERCTRL = RXFILT_CTRL_BROADCAST | RXFILT_CTRL_PERFECT;
+    LPC_EMAC->INTENABLE = 0;
+    LPC_EMAC->INTCLEAR = 0xFFFF;
+    LPC_EMAC->COMMAND |= (CR_RX_EN | CR_TX_EN);
+    LPC_EMAC->MAC1 |= MAC1_REC_EN;
+
+    return true;
+}
+
+
+/* ==============================================================================
+ * PACKET RECEPTION
+ * ============================================================================== */
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t rx_buffer_capacity, uint32_t *rx_length)
+{
+    uint32_t consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    uint32_t produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+    uint32_t status_info, packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    if (consume_idx == produce_idx) return false;
+
+    status_info = RX_STAT_INFO_PTRS[consume_idx * 2];
+    UART0_SendString("\r\n==== RX STATUS ====\r\n");
+
+    if (status_info & RXSTAT_CRC_ERROR) UART0_SendString("CRC ERROR\r\n");
+    if (status_info & RXSTAT_SYMBOL_ERROR) UART0_SendString("SYMBOL ERROR\r\n");
+    if (status_info & RXSTAT_ALIGNMENT_ERROR) UART0_SendString("ALIGNMENT ERROR\r\n");
+    if (status_info & RXSTAT_LENGTH_ERROR) UART0_SendString("LENGTH ERROR\r\n");
+    if (status_info & RXSTAT_RANGE_ERROR) UART0_SendString("RANGE ERROR\r\n");
+    if (status_info & RXSTAT_OVERRUN) UART0_SendString("OVERRUN\r\n");
+    if (status_info & RXSTAT_NO_DESCRIPTOR) UART0_SendString("NO DESCRIPTOR\r\n");
+    if (status_info & RXSTAT_BROADCAST) UART0_SendString("BROADCAST\r\n");
+    if (status_info & RXSTAT_MULTICAST) UART0_SendString("MULTICAST\r\n");
+
+    if (status_info & RXSTAT_LAST_FLAG) {
+        UART0_SendString("Info    = ");
+        UART0_SendHex32(RX_STAT_INFO_PTRS[consume_idx * 2]);
+        UART0_SendString("\r\nHashCRC = ");
+        UART0_SendHex32(RX_STAT_INFO_PTRS[(consume_idx * 2) + 1]);
+        UART0_SendString("\r\nLAST FLAG\r\n");
+    }
+
+    UART0_SendString("\r\nSTATUS = 0x");
+    UART0_SendHex32(status_info);
+    UART0_SendString("\r\nRX Produce = ");
+    UART0_SendDec(LPC_EMAC->RXPRODUCEINDEX);
+    UART0_SendString("\r\nRX Consume = ");
+    UART0_SendDec(LPC_EMAC->RXCONSUMEINDEX);
+    UART0_SendString("\r\n");
+
+    /* Calculate Packet Size */
+    packet_size = (status_info & 0x7FF) + 1;
+    if (packet_size > 4) packet_size -= 4; // Strip CRC
+
+    UART0_SendString("\r\nFRAME:\r\n");
+
+    /* Print first 32 bytes of the packet for debugging */
+    dma_buffer_ptr = (uint8_t *)RX_DESC_PACKET_PTRS[consume_idx * 2];
+    for(i = 0; i < 32 && i < packet_size; i++)
+    {
+        UART0_SendHex8(dma_buffer_ptr[i]);
+        UART0_SendChar(' ');
+    }
+    UART0_SendString("\r\n");
+
+    /* Copy to User Buffer */
+    if (packet_size > rx_buffer_capacity) {
+        packet_size = rx_buffer_capacity;
+    }
+
+    *rx_length = packet_size;
+
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = dma_buffer_ptr[i];
+    }
+
+    /* Update Consume Index */
+    if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true;
+}

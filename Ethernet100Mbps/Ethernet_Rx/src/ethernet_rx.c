@@ -1,0 +1,141 @@
+#include "LPC24xx.h"
+#include "ethernet_rx.h"
+#include "ethernet_reg.h"
+
+#define NUM_RX_FRAG         4
+#define ETH_RX_FRAG_SIZE    1536
+#define RX_DESC_BASE        0x7FE02000
+#define RX_STAT_BASE        (RX_DESC_BASE + (NUM_RX_FRAG * 8))
+#define RX_BUF_BASE         (RX_STAT_BASE + (NUM_RX_FRAG * 8))
+
+static uint32_t *RX_DESC_PACKET_PTRS;
+static uint32_t *RX_DESC_CTRL_PTRS;
+static uint32_t *RX_STAT_INFO_PTRS;
+
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+    RX_DESC_PACKET_PTRS = (uint32_t *)RX_DESC_BASE;
+    RX_DESC_CTRL_PTRS   = (uint32_t *)(RX_DESC_BASE + 4);
+    RX_STAT_INFO_PTRS   = (uint32_t *)RX_STAT_BASE;
+
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        RX_DESC_PACKET_PTRS[i * 2] = RX_BUF_BASE + (i * ETH_RX_FRAG_SIZE);
+        RX_DESC_CTRL_PTRS[i * 2]   = (ETH_RX_FRAG_SIZE - 1) | (1UL << 31);
+        RX_STAT_INFO_PTRS[i * 2] = 0;
+        RX_STAT_INFO_PTRS[(i * 2) + 1] = 0;
+    }
+
+    LPC_EMAC->RXDESCRIPTOR    = RX_DESC_BASE;
+    LPC_EMAC->RXSTATUS        = RX_STAT_BASE;
+    LPC_EMAC->RXDESCRIPTORNUM = NUM_RX_FRAG - 1;
+    LPC_EMAC->RXCONSUMEINDEX  = 0;
+    UART0_SendString("RXDESC=");
+    UART0_SendHex32(LPC_EMAC->RXDESCRIPTOR);
+
+    UART0_SendString("\r\nRXSTAT=");
+    UART0_SendHex32(LPC_EMAC->RXSTATUS);
+
+    UART0_SendString("\r\nRXDESCNUM=");
+    UART0_SendHex32(LPC_EMAC->RXDESCRIPTORNUM);
+
+    UART0_SendString("\r\n");
+    UART0_SendString("DESC Packet=");
+    UART0_SendHex32(RX_DESC_PACKET_PTRS[0]);
+
+    UART0_SendString("\r\nDESC Ctrl=");
+    UART0_SendHex32(RX_DESC_CTRL_PTRS[0]);
+
+    UART0_SendString("\r\n");
+}
+
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t rx_buffer_capacity, uint32_t *rx_length)
+{
+    uint32_t consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    uint32_t produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+    uint32_t status_info, packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    if (consume_idx == produce_idx) return false;
+
+    status_info = RX_STAT_INFO_PTRS[consume_idx * 2];
+    UART0_SendString("\r\n==== RX STATUS ====\r\n");
+
+    if (status_info & RXSTAT_CRC_ERROR)
+        UART0_SendString("CRC ERROR\r\n");
+
+    if (status_info & RXSTAT_SYMBOL_ERROR)
+        UART0_SendString("SYMBOL ERROR\r\n");
+
+    if (status_info & RXSTAT_ALIGNMENT_ERROR)
+        UART0_SendString("ALIGNMENT ERROR\r\n");
+
+    if (status_info & RXSTAT_LENGTH_ERROR)
+        UART0_SendString("LENGTH ERROR\r\n");
+
+    if (status_info & RXSTAT_RANGE_ERROR)
+        UART0_SendString("RANGE ERROR\r\n");
+
+    if (status_info & RXSTAT_OVERRUN)
+        UART0_SendString("OVERRUN\r\n");
+
+    if (status_info & RXSTAT_NO_DESCRIPTOR)
+        UART0_SendString("NO DESCRIPTOR\r\n");
+
+    if (status_info & RXSTAT_BROADCAST)
+        UART0_SendString("BROADCAST\r\n");
+
+    if (status_info & RXSTAT_MULTICAST)
+        UART0_SendString("MULTICAST\r\n");
+
+    if (status_info & RXSTAT_LAST_FLAG)
+    	UART0_SendString("Info    = ");
+    	UART0_SendHex32(RX_STAT_INFO_PTRS[consume_idx * 2]);
+
+    	UART0_SendString("\r\nHashCRC = ");
+    	UART0_SendHex32(RX_STAT_INFO_PTRS[(consume_idx * 2) + 1]);
+
+    	UART0_SendString("\r\n");
+        UART0_SendString("LAST FLAG\r\n");
+    UART0_SendString("\r\nSTATUS = 0x");
+    UART0_SendHex32(status_info);
+    UART0_SendString("\r\n");
+    UART0_SendString("RX Produce = ");
+    UART0_SendDec(LPC_EMAC->RXPRODUCEINDEX);
+    UART0_SendString("\r\n");
+
+    UART0_SendString("RX Consume = ");
+    UART0_SendDec(LPC_EMAC->RXCONSUMEINDEX);
+    UART0_SendString("\r\n");
+    /* ERROR CHECKING COMPLETELY REMOVED HERE */
+    /* ALL PACKETS WILL BE PASSED TO THE BUFFER */
+
+    packet_size = (status_info & 0x7FF) + 1;
+    if (packet_size > 4) packet_size -= 4;
+    UART0_SendString("\r\nFRAME:\r\n");
+
+    for(i = 0; i < 32 && i < packet_size; i++)
+    {
+        UART0_SendHex8(rx_buffer[i]);
+        UART0_SendChar(' ');
+    }
+
+    UART0_SendString("\r\n");
+
+    if (packet_size > rx_buffer_capacity) {
+        packet_size = rx_buffer_capacity;
+    }
+
+    *rx_length = packet_size;
+    dma_buffer_ptr = (uint8_t *)RX_DESC_PACKET_PTRS[consume_idx * 2];
+
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = dma_buffer_ptr[i];
+    }
+
+    if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true;
+}

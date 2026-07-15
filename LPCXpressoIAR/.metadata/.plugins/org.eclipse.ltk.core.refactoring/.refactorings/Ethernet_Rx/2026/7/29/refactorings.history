@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Ethernet_Rx/src/ethernet_rx.c&apos; to &apos;ethernet_sys.c&apos;" description="Rename resource &apos;ethernet_rx.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/ethernet_rx.c" name="ethernet_sys.c" stamp="1784023965927" updateReferences="true"/>
+</session>

@@ -1,0 +1,340 @@
+#include "LPC24xx.h"
+#include "ethernet_rx.h"
+#include "ethernet_reg.h"
+
+#define NUM_RX_FRAG         4
+#define ETH_RX_FRAG_SIZE    1536
+#define RX_DESC_BASE        0x7FE02000
+#define RX_STAT_BASE        (RX_DESC_BASE + (NUM_RX_FRAG * 8))
+#define RX_BUF_BASE         (RX_STAT_BASE + (NUM_RX_FRAG * 8))
+
+static uint32_t *RX_DESC_PACKET_PTRS;
+static uint32_t *RX_DESC_CTRL_PTRS;
+static uint32_t *RX_STAT_INFO_PTRS;
+
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+    RX_DESC_PACKET_PTRS = (uint32_t *)RX_DESC_BASE;
+    RX_DESC_CTRL_PTRS   = (uint32_t *)(RX_DESC_BASE + 4);
+    RX_STAT_INFO_PTRS   = (uint32_t *)RX_STAT_BASE;
+
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        RX_DESC_PACKET_PTRS[i * 2] = RX_BUF_BASE + (i * ETH_RX_FRAG_SIZE);
+        RX_DESC_CTRL_PTRS[i * 2]   = (ETH_RX_FRAG_SIZE - 1) | (1UL << 31);
+        RX_STAT_INFO_PTRS[i * 2] = 0;
+        RX_STAT_INFO_PTRS[(i * 2) + 1] = 0;
+    }
+
+    LPC_EMAC->RXDESCRIPTOR    = RX_DESC_BASE;
+    LPC_EMAC->RXSTATUS        = RX_STAT_BASE;
+    LPC_EMAC->RXDESCRIPTORNUM = NUM_RX_FRAG - 1;
+    LPC_EMAC->RXCONSUMEINDEX  = 0;
+}
+
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t rx_buffer_capacity, uint32_t *rx_length)
+{
+    uint32_t consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    uint32_t produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+    uint32_t status_info, packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    if (consume_idx == produce_idx) return false;
+
+    status_info = RX_STAT_INFO_PTRS[consume_idx * 2];
+
+    /* ERROR CHECKING COMPLETELY REMOVED HERE */
+    /* ALL PACKETS WILL BE PASSED TO THE BUFFER */
+
+    packet_size = (status_info & 0x7FF) + 1;
+    if (packet_size > 4) packet_size -= 4;
+
+    if (packet_size > rx_buffer_capacity) {
+        packet_size = rx_buffer_capacity;
+    }
+
+    *rx_length = packet_size;
+    dma_buffer_ptr = (uint8_t *)RX_DESC_PACKET_PTRS[consume_idx * 2];
+
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = dma_buffer_ptr[i];
+    }
+
+    if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true;
+}
+
+extern void kbd_scan(void);
+
+/**************************************************************************
+*   Function name : Init_VIC_Interrupt()
+*   Input         : None
+*   Description   : VIC Initialization adapted for LPCXpresso (GCC)
+***************************************************************************/
+void Init_VIC_Interrupt(void)
+{
+    VICProtection = 0;              // Setup interrupt controller.
+    VICIntEnClr = 0xFFFFFFFF;       // Disable all interrupts. Clear bits in VICIntEnable register.
+    VICVectAddr = 0;                // Clear address[cite: 4].
+
+    // Set the Interrupt Sources as IRQ
+    // Timer 0 corresponds to interrupt channel 4 on the LPC24xx
+    VICIntSelect &= ~(1 << 4);      // IRQ on timer 0 line[cite: 4].
+
+    // Set the address of the ISR.
+    VICVectAddr4 = (unsigned int)&kbd_scan; // Load ISR address[cite: 4]
+
+    // Set the IRQ priority for the interrupt.
+    VICVectPriority4 = 0;           // Priority 0 (highest) for Timer 0[cite: 4]
+
+    // Enable the Interrupts for respective sources.
+    VICIntEnable |= (1 << 4);       // Enable timer 0 interrupt[cite: 4].
+}
+void rx_descr_init (void)
+{
+  unsigned int i;
+
+  Descriptor_pt = (unsigned int*)(0x7FE00000);//+(NUM_RX_FRAG*i));
+  for (i = 0; i < NUM_RX_FRAG; i++)
+  {
+    *Descriptor_pt = RX_BUF[i];
+    Descriptor_pt++;
+    *Descriptor_pt = 0x00000000 | (ETH_FRAG_SIZE-1);
+     Descriptor_pt++;
+   }
+
+  Descriptor_pt = (unsigned int*)(0x7FE00020);//+(NUM_RX_FRAG*i));
+  for (i = 0; i < NUM_RX_FRAG; i++)
+  {
+    *Descriptor_pt = 0;
+    Descriptor_pt++;
+    *Descriptor_pt = 0;
+    Descriptor_pt++;
+   }
+
+  /* Set EMAC Receive Descriptor Registers. */
+  RXDESCRIPTOR  = 0x7FE00000;
+  RXSTATUS      = 0x7FE00020;
+  RXDESCRIPTORNUMBER = NUM_RX_FRAG-1;
+
+  /* Rx Descriptors Point to 0 */
+  RXCONSUMEINDEX  = 0;
+}
+
+void tx_descr_init (void)
+{
+  unsigned int i;
+  Descriptor_pt = (unsigned int*)(0x7FE00040);//+(NUM_TX_FRAG*i));
+  for (i = 0; i < NUM_TX_FRAG; i++)
+  {
+    *Descriptor_pt = TX_BUF[i];
+    Descriptor_pt++;
+    *Descriptor_pt = 0XF000004D;
+    Descriptor_pt++;
+   }
+
+  Descriptor_pt = (unsigned int*)(0x7FE00058);
+  for (i = 0; i < NUM_TX_FRAG; i++)
+  {
+    *Descriptor_pt = 0;
+    Descriptor_pt++;
+  }
+
+  /* Set EMAC Transmit Descriptor Registers. */
+  TXDESCRIPTOR  = 0x7FE00040;
+  TXSTATUS      = 0x7FE00058;
+  TXDESCRIPTORNUMBER = NUM_TX_FRAG-1;
+
+ /* Tx Descriptors Point to 0 */
+  TXPRODUCEINDEX  = 0;
+}
+
+void write_PHY (unsigned char PhyRegW, unsigned short ValueW)
+{
+  MCMD_bit.READ = 0;
+  MCMD_bit.SCAN = 0;
+  MADR_bit.PHY_ADDR = 0x01;
+  MADR_bit.REGADDR  = PhyRegW;
+  MWTD = ValueW;//0x8000;
+  while(MIND_bit.BUSY == 1)
+  {
+  }
+}
+
+unsigned short read_PHY (unsigned char PhyRegR)
+{
+  MCMD_bit.SCAN = 0;
+  MADR_bit.PHY_ADDR = 0x01;
+  MADR_bit.REGADDR  = PhyRegR;
+  MCMD_bit.READ = 1;
+  while(MIND_bit.BUSY == 1)
+  {
+  }
+  MCMD_bit.READ = 0;
+  MCMD_bit.SCAN = 0;
+  return (MRDD_bit.READDATA);
+}
+
+void EMAC_init()
+{
+  unsigned int id1;
+  // clk enable
+  PCONP_bit.PCENET = 1;
+  POWERDOWN_bit.POWERDOWN = 0;
+
+  // Reset entire MAC
+  MAC1_bit.RSTTX = 1;           //TX RESET
+  MAC1_bit.RSTMCSTX = 1;        //MAC sublayer TX RESET
+  MAC1_bit.RSTRX = 1;           //TX RESET
+  MAC1_bit.RSTMCSRX = 1;        //MAC sublayer TX RESET
+  MAC1_bit.SIMRST = 1;          //Simulation RESET
+  MAC1_bit.SOFTRST = 1;         //Soft RESET
+
+  COMMAND_bit.REGRESET = 1;     //Data paths & host register are RESET
+  COMMAND_bit.TXRESET = 1;      //TX RESET datapath RESET
+  COMMAND_bit.RXRESET = 1;      //RX RESET datapath RESET
+
+  MAC1 = 0x00;                     //ALL at default state
+  COMMAND_bit.RMII = 1;         //RMII selected
+  SUPP = 0;                     //10MB speed selected
+  TEST = 0;                     //TEST registor de-selected
+
+  // write the station address registers
+  SA0_bit.STATION_ADDR_2 = MAC_2;
+  SA0_bit.STATION_ADDR_1 = MAC_1;
+  SA1_bit.STATION_ADDR_4 = MAC_4;
+  SA1_bit.STATION_ADDR_3 = MAC_3;
+  SA2_bit.STATION_ADDR_6 = MAC_6;
+  SA2_bit.STATION_ADDR_5 = MAC_5;
+
+  MAXF = 0x600;                 //Maximum frame register
+
+  MCFG_bit.CS = 0x06;           //Clock / 20 = 72MHz/20 = 3.6MHz
+  MCFG_bit.RSTMIIMGMT = 1;      //RESET MIIM
+
+  MCMD = 0;                     //MIIM write & NO scanning mode
+
+  // MIIM init
+  MCFG_bit.RSTMIIMGMT = 0;      //MIIM outoff RESET
+
+  // descriptors init
+  MAC1_bit.RSTMCSTX = 1;        //TX MAC control sublayer RESET
+  COMMAND_bit.TXENABLE = 0;     //TX disable
+  MAC1_bit.RSTTX = 1;           //TX RESET
+  COMMAND_bit.TXRESET = 1;      //TX data path RESET
+  MAC1_bit.RSTMCSTX = 0;        //TX MAC control sublayer outoff RESET
+  MAC1_bit.RSTTX = 0;           //TX outoff RESET
+
+  MAC1_bit.RE = 0;
+  MAC1_bit.RSTMCSRX = 1;        //RX MAC control sublayer RESET
+  COMMAND_bit.RXENABLE = 0;     //RX disable
+  MAC1_bit.RSTRX = 1;           //RX RESET
+  COMMAND_bit.RXRESET = 1;      //RX data path RESET
+  MAC1_bit.RSTMCSRX = 0;        //RX MAC control sublayer outoff RESET
+  MAC1_bit.RSTRX = 0;           //RX outoff RESET
+
+  RXDESCRIPTORNUMBER = 1;//ENET_DMA_DESC_NUMB-1;
+  TXDESCRIPTORNUMBER = 1;//ENET_DMA_DESC_NUMB-1;
+  COMMAND_bit.PASSRUNTFRAME = 1;//Passes Frame smaller than 64byte
+  COMMAND_bit.PASSRXFILTER = 1; //Disable RX filter
+  MAC1_bit.PARF = 1;            //Pass all frames
+
+  MAC2_bit.CRCEN = 1;           //Append CRC enable
+  MAC2_bit.PADCRCEN = 1;        //MAC pads to all short frames
+
+  CLRT_bit.RM    = 0xF;         //No of max retransmission (default)
+  CLRT_bit.CW    = 0x37;        //Collision window (default)
+  IPGR_bit.IPGR2 = 0x12;        //Default
+  IPGR_bit.IPGR1 = 0x0c;        //default
+  IPGT           = 0x12;        //default
+  MAC2_bit.FD = 0;              //MAC in halfduplex mode
+  COMMAND_bit.FULLDUPLEX = 0;   //Halfduplex mode
+  SUPP_bit.SPEED = 0;           //10MB speed selected
+
+  write_PHY (PHY_REG_BMCR, 0x8000);
+  delay(10000);
+  delay(10000);
+  row_wr(0,"WAIT TO RESET PHY   ");
+  delay_sec(1000);
+  delay_sec(1000);
+
+  MCFG_bit.SP = 1;              // PHY support preamble suppression
+
+  write_PHY(PHY_REG_BMCR, 0x1000);
+
+  row_wr(1,"AFTER COMPLETION OF ");
+  row_wr(2,"RESET OF BOTH RX/TX ");
+  row_wr(3,"PRESS SW2 KEY       ");
+  while(*p != 0x30)
+    {
+    }
+
+  while((read_PHY(PHY_REG_BMSR) & 0x0004) != 0x0004)
+  {
+  }
+
+   row_wr(7,"LINK OOOOOOOK        ");
+
+  id1 = read_PHY (PHY_REG_BMCR);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(0,buffer);
+
+  id1 = read_PHY (PHY_REG_BMSR);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(1,buffer);
+
+  id1 = read_PHY (PHY_REG_IDR1);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(2,buffer);
+
+  id1 = read_PHY (PHY_REG_IDR2);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(3,buffer);
+
+  id1 = read_PHY (PHY_REG_ANAR);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(4,buffer);
+
+  id1 = read_PHY (PHY_REG_ANLPAR);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(5,buffer);
+
+  id1 = read_PHY (PHY_REG_ANER);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(6,buffer);
+
+  id1 = read_PHY (PHY_REG_ANNPTR);
+  sprintf(buffer,"0x%x               ",id1);
+  row_wr(7,buffer);
+
+  /* Initialize Tx and Rx DMA Descriptors */
+  rx_descr_init ();
+  tx_descr_init ();
+
+  /* Receive Broadcast and Perfect Match Packets */
+  RXFILTERCTRL_bit.AUE = 1;
+  RXFILTERCTRL_bit.ABE = 1;
+  RXFILTERCTRL_bit.APE = 1;
+
+  /* Enable receive and transmit mode of MAC Ethernet core */
+  COMMAND_bit.RXENABLE = 1;
+  COMMAND_bit.TXENABLE = 1;
+
+  MAC1_bit.RE = 1;
+}
+void transmit_byte(unsigned char bt)
+{
+  char txflag = 0x01;
+
+  while(txflag)
+       {
+      if(U0LSR_bit.TEMT==1)
+         {
+               U0THR = bt;
+               txflag=0;
+         }
+       }
+}

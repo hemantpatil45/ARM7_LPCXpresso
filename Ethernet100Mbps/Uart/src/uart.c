@@ -1,0 +1,30 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "uart.h"
+#include <stdio.h> // Include this for sprintf
+
+int main(void)
+{   PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+    UART0_Init();
+
+    char tx_buffer[50]; // Buffer for formatted strings
+    int counter = 0;
+
+    while(1)
+    {
+        /* 1. Handle incoming commands */
+        UART0_Task();
+
+        /* 2. SEND TX DATA */
+        // Use sprintf to format your data, then send it via UART
+        sprintf(tx_buffer, "System Count: %d\r\n", counter++);
+        UART0_SendString(tx_buffer);
+
+        // Add a small delay (using a busy-loop) so you can read the data
+        for(volatile int i=0; i<1000000; i++);
+    }
+}

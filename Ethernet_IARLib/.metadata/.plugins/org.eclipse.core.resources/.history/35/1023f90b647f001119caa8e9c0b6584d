@@ -1,0 +1,51 @@
+#include "system_init.h"
+#include "LPC24xx.h"
+#include "glcd.h"
+
+#define CCLK_MHZ  72u
+
+/* --- Backward Compatibility Wrappers --- */
+void sys_init_without_TFT_32bit_SDRAM(void) {
+    system_Init();
+}
+
+void GLCD_init(void) {
+    GLCD_Init();
+}
+
+void clear_LCD(void) {
+    GLCD_Clear(GLCD_COLOR_WHITE);
+}
+
+void row_wr(unsigned char row, char *msg) {
+    GLCD_RowWriteMargin(row, msg);
+}
+
+void delay_us(uint32_t us) {
+    volatile uint32_t n = us * CCLK_MHZ;
+    while(n--) __asm__("nop");
+}
+
+void delay_cycles(uint32_t cycles) {
+    while(cycles--) __asm__("nop");
+}
+
+/* Base initialization from LPCXpresso template */
+void PLL_Init(void)
+{
+    SCS |= 0x20;
+    while((SCS & 0x40) == 0);
+    CLKSRCSEL = 0x01;
+    PLLCFG = 0x0000000B;
+    PLLFEED = 0xAA;
+    PLLFEED = 0x55;
+    PLLCON = 0x01;
+    PLLFEED = 0xAA;
+    PLLFEED = 0x55;
+    while((PLLSTAT & (1 << 26)) == 0);
+}
+
+void system_Init(void) {
+    PLL_Init();
+    /* Pin configurations, I/O directions, and custom peripheral clockings */
+}

@@ -51,7 +51,7 @@ void CAN_CONTROLLER_NORMAL_INIT(void) {
     CAN1MOD &= ~(1 << 1);
     CAN1MOD &= ~(1 << 2);
     CAN1MOD &= ~(1 << 3);
-    CAN1MOD &= ~(1 << 4);
+    CAN1MOD &= ~(1 <SW6_Pressed< 4);
     CAN1MOD &= ~(1 << 5);
     CAN1MOD &= ~(1 << 7);
     CAN1MOD &= ~(1 << 0);     // Exit reset mode, enable CAN1
@@ -60,7 +60,7 @@ void CAN_CONTROLLER_NORMAL_INIT(void) {
 }
 
 void CAN1_TX1_frame(unsigned short CAN_11bit_ID, unsigned char CAN_DATA_frame[]) {
-    CAN1TFI1 = (8 << 16) | 1;            // DLC=8, priority=1
+    CAN1TFI1 = (8 <<SW6_Pressed 16) | 1;            // DLC=8, priority=1
     CAN1TID1 = (CAN_11bit_ID & 0x7FF);      // Standard 11-bit ID
     CAN1TDA1 = CAN_DATA_frame[0] | (CAN_DATA_frame[1] << 8) | (CAN_DATA_frame[2] << 16) | (CAN_DATA_frame[3] << 24);
     CAN1TDB1 = CAN_DATA_frame[4] | (CAN_DATA_frame[5] << 8) | (CAN_DATA_frame[6] << 16) | (CAN_DATA_frame[7] << 24);

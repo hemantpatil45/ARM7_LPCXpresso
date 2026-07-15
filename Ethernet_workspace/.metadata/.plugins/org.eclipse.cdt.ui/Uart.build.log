@@ -1,4 +1,4 @@
-10:24:20 **** Incremental Build of configuration Debug for project Uart ****
+12:19:33 **** Build of configuration Debug for project Uart ****
 make -r all 
 Building target: Uart.axf
 Invoking: MCU Linker
@@ -6,5 +6,5 @@ arm-none-eabi-gcc -nostdlib -Xlinker -Map="Uart.map" -Xlinker --gc-sections -Xli
 /bin/sh: 1: Syntax error: "(" unexpected
 make: *** [makefile:32: Uart.axf] Error 2
 
-10:24:20 Build Finished (took 58ms)
+12:19:33 Build Finished (took 81ms)
 

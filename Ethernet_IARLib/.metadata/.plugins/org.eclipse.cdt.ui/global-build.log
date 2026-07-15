@@ -1,0 +1,110 @@
+09:16:06 **** Incremental Build of configuration Debug for project Ethernet_Rx ****
+make -r all 
+Building file: ../src/system_init.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/system_init.d" -MT"src/system_init.o" -MT"src/system_init.d" -o "src/system_init.o" "../src/system_init.c"
+../src/system_init.c:4:0: warning: "EMC_BASE_ADDR" redefined
+ #define EMC_BASE_ADDR   0xFFE0C000
+ ^
+In file included from ../src/system_init.c:2:0:
+../src/LPC24xx.h:451:0: note: this is the location of the previous definition
+ #define EMC_BASE_ADDR  0xFFE08000
+ ^
+../src/system_init.c: In function 'SDRAM_init_32BIT':
+../src/system_init.c:5:27: error: 'LPC_EMC_TypeDef' undeclared (first use in this function)
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                           ^
+../src/system_init.c:92:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->Control = 0x01;
+     ^
+../src/system_init.c:5:27: note: each undeclared identifier is reported only once for each function it appears in
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                           ^
+../src/system_init.c:92:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->Control = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:92:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->Control = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:95:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicReadConfig = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:96:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicRP         = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:97:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicRAS        = 0x02;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:98:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicSREX       = 0x05;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:99:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicAPR        = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:100:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicDAL        = 0x04;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:101:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicWR         = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:102:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicRC         = 0x05;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:103:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicRFC        = 0x05;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:104:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicXSR        = 0x05;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:105:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicRRD        = 0x01;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:106:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicMRD        = 0x02;
+     ^
+../src/system_init.c:5:44: error: expected expression before ')' token
+ #define LPC_EMC         ((LPC_EMC_TypeDef *) EMC_BASE_ADDR)
+                                            ^
+../src/system_init.c:109:5: note: in expansion of macro 'LPC_EMC'
+     LPC_EMC->DynamicConfig0    = 0x00000580;
+     ^
+make: *** [src/subdir.mk:49: src/system_init.o] Error 1

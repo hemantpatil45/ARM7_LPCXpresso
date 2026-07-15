@@ -1,0 +1,603 @@
+Archive member included to satisfy reference by file (symbol)
+
+/usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                              ./src/cr_startup_lpc24.o (__main)
+
+Discarded input sections
+
+ .text          0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .data          0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .bss           0x00000000        0x0 ./src/cr_startup_lpc24.o
+ .group         0x00000000        0x8 ./src/crp.o
+ .group         0x00000000        0x8 ./src/crp.o
+ .text          0x00000000        0x0 ./src/crp.o
+ .data          0x00000000        0x0 ./src/crp.o
+ .bss           0x00000000        0x0 ./src/crp.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/ethernet_sys.o
+ .text          0x00000000        0x0 ./src/ethernet_sys.o
+ .data          0x00000000        0x0 ./src/ethernet_sys.o
+ .bss           0x00000000        0x0 ./src/ethernet_sys.o
+ .bss.data      0x00000000        0x1 ./src/ethernet_sys.o
+ .bss.Flash_Pointer1
+                0x00000000        0x4 ./src/ethernet_sys.o
+ .bss.buffer    0x00000000       0x32 ./src/ethernet_sys.o
+ .text.delay_sec
+                0x00000000       0x48 ./src/ethernet_sys.o
+ .debug_macro   0x00000000      0x826 ./src/ethernet_sys.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .group         0x00000000        0x8 ./src/glcd.o
+ .text          0x00000000        0x0 ./src/glcd.o
+ .data          0x00000000        0x0 ./src/glcd.o
+ .bss           0x00000000        0x0 ./src/glcd.o
+ .text.GLCD_SetXY
+                0x00000000      0x11c ./src/glcd.o
+ .debug_macro   0x00000000      0x826 ./src/glcd.o
+ .debug_macro   0x00000000       0x10 ./src/glcd.o
+ .debug_macro   0x00000000      0x12d ./src/glcd.o
+ .debug_macro   0x00000000      0x5b2 ./src/glcd.o
+ .debug_macro   0x00000000       0x22 ./src/glcd.o
+ .debug_macro   0x00000000     0x19c4 ./src/glcd.o
+ .debug_macro   0x00000000      0x2ab ./src/glcd.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .group         0x00000000        0x8 ./src/main.o
+ .text          0x00000000        0x0 ./src/main.o
+ .data          0x00000000        0x0 ./src/main.o
+ .bss           0x00000000        0x0 ./src/main.o
+ .rodata.font5x7
+                0x00000000      0x240 ./src/main.o
+ .text.IRQ_Handler
+                0x00000000       0x48 ./src/main.o
+ .debug_macro   0x00000000      0x826 ./src/main.o
+ .debug_macro   0x00000000       0x10 ./src/main.o
+ .debug_macro   0x00000000      0x12d ./src/main.o
+ .debug_macro   0x00000000       0xa0 ./src/main.o
+ .debug_macro   0x00000000     0x19c4 ./src/main.o
+ .debug_macro   0x00000000      0x5b2 ./src/main.o
+ .debug_macro   0x00000000       0x22 ./src/main.o
+ .debug_macro   0x00000000      0x2ab ./src/main.o
+ .debug_macro   0x00000000      0x387 ./src/main.o
+ .debug_macro   0x00000000       0x1c ./src/main.o
+ .group         0x00000000        0x8 ./src/sys_calls.o
+ .group         0x00000000        0x8 ./src/sys_calls.o
+ .group         0x00000000        0x8 ./src/sys_calls.o
+ .group         0x00000000        0x8 ./src/sys_calls.o
+ .text          0x00000000        0x0 ./src/sys_calls.o
+ .data          0x00000000        0x0 ./src/sys_calls.o
+ .bss           0x00000000        0x0 ./src/sys_calls.o
+ .text.__sys_istty
+                0x00000000       0x24 ./src/sys_calls.o
+ .text.__sys_flen
+                0x00000000       0x24 ./src/sys_calls.o
+ .text.__sys_seek
+                0x00000000       0x28 ./src/sys_calls.o
+ .text.__sys_write
+                0x00000000       0x2c ./src/sys_calls.o
+ .text.__sys_appexit
+                0x00000000        0xc ./src/sys_calls.o
+ .debug_info    0x00000000      0x157 ./src/sys_calls.o
+ .debug_abbrev  0x00000000       0x88 ./src/sys_calls.o
+ .debug_aranges
+                0x00000000       0x40 ./src/sys_calls.o
+ .debug_ranges  0x00000000       0x30 ./src/sys_calls.o
+ .debug_macro   0x00000000       0x3c ./src/sys_calls.o
+ .debug_macro   0x00000000      0x826 ./src/sys_calls.o
+ .debug_macro   0x00000000       0x10 ./src/sys_calls.o
+ .debug_macro   0x00000000      0x12d ./src/sys_calls.o
+ .debug_macro   0x00000000      0x5b2 ./src/sys_calls.o
+ .debug_line    0x00000000      0x14d ./src/sys_calls.o
+ .debug_str     0x00000000     0x3b1c ./src/sys_calls.o
+ .comment       0x00000000       0x6f ./src/sys_calls.o
+ .debug_frame   0x00000000       0xa8 ./src/sys_calls.o
+ .ARM.attributes
+                0x00000000       0x30 ./src/sys_calls.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .group         0x00000000        0x8 ./src/system_init.o
+ .text          0x00000000        0x0 ./src/system_init.o
+ .data          0x00000000        0x0 ./src/system_init.o
+ .bss           0x00000000        0x0 ./src/system_init.o
+ .text.delay_us
+                0x00000000       0x54 ./src/system_init.o
+ .text.delay_cycles
+                0x00000000       0x3c ./src/system_init.o
+ .text.PLL_Init
+                0x00000000      0x158 ./src/system_init.o
+ .text.system_Init
+                0x00000000      0xf40 ./src/system_init.o
+ .debug_info    0x00000000       0xf5 ./src/system_init.o
+ .debug_abbrev  0x00000000       0xa0 ./src/system_init.o
+ .debug_aranges
+                0x00000000       0x38 ./src/system_init.o
+ .debug_ranges  0x00000000       0x28 ./src/system_init.o
+ .debug_macro   0x00000000       0x54 ./src/system_init.o
+ .debug_macro   0x00000000      0x826 ./src/system_init.o
+ .debug_macro   0x00000000      0x387 ./src/system_init.o
+ .debug_macro   0x00000000     0x19c4 ./src/system_init.o
+ .debug_macro   0x00000000       0x10 ./src/system_init.o
+ .debug_macro   0x00000000      0x12d ./src/system_init.o
+ .debug_macro   0x00000000      0x5b2 ./src/system_init.o
+ .debug_line    0x00000000      0x25d ./src/system_init.o
+ .debug_str     0x00000000    0x1338d ./src/system_init.o
+ .comment       0x00000000       0x6f ./src/system_init.o
+ .debug_frame   0x00000000       0x94 ./src/system_init.o
+ .ARM.attributes
+                0x00000000       0x30 ./src/system_init.o
+ .text          0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+ .data          0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+ .bss           0x00000000        0x0 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+MFlash512        0x00000000         0x00080000         xr
+Ram64            0x40000000         0x00010000         xrw
+RAM_ETH_16       0x7fe00000         0x00004000         xrw
+RAM_USB_16       0x7fd00000         0x00004000         xrw
+RAM_RTC_2        0xe0084000         0x00000800         xrw
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD ./src/cr_startup_lpc24.o
+LOAD ./src/crp.o
+LOAD ./src/ethernet_sys.o
+LOAD ./src/glcd.o
+LOAD ./src/main.o
+LOAD ./src/sys_calls.o
+LOAD ./src/system_init.o
+START GROUP
+LOAD /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a
+LOAD /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a
+END GROUP
+                0x00000000                __base_MFlash512 = 0x0
+                0x00000000                __base_Flash = 0x0
+                0x00080000                __top_MFlash512 = 0x80000
+                0x00080000                __top_Flash = 0x80000
+                0x40000000                __base_Ram64 = 0x40000000
+                0x40000000                __base_RAM = 0x40000000
+                0x40010000                __top_Ram64 = 0x40010000
+                0x40010000                __top_RAM = 0x40010000
+                0x7fe00000                __base_RAM_ETH_16 = 0x7fe00000
+                0x7fe00000                __base_RAM2 = 0x7fe00000
+                0x7fe04000                __top_RAM_ETH_16 = 0x7fe04000
+                0x7fe04000                __top_RAM2 = 0x7fe04000
+                0x7fd00000                __base_RAM_USB_16 = 0x7fd00000
+                0x7fd00000                __base_RAM3 = 0x7fd00000
+                0x7fd04000                __top_RAM_USB_16 = 0x7fd04000
+                0x7fd04000                __top_RAM3 = 0x7fd04000
+                0xe0084000                __base_RAM_RTC_2 = 0xe0084000
+                0xe0084000                __base_RAM4 = 0xe0084000
+                0xe0084800                __top_RAM_RTC_2 = 0xe0084800
+                0xe0084800                __top_RAM4 = 0xe0084800
+
+.text           0x00000000     0x2c90
+ FILL mask 0xff
+                0x00000000                __vectors_start__ = ABSOLUTE (.)
+ *(.isr_vector)
+ .isr_vector    0x00000000      0x17c ./src/cr_startup_lpc24.o
+                0x00000000                _boot
+                0x00000050                _mainCRTStartup
+                0x00000050                _start
+                0x00000050                start
+                0x0000015c                reset
+                0x0000015c                _reset
+                0x0000017c                . = ALIGN (0x4)
+                0x0000017c                __section_table_start = .
+                0x0000017c                __data_section_table = .
+                0x0000017c        0x4 LONG 0x2c90 LOADADDR (.data)
+                0x00000180        0x4 LONG 0x40000000 ADDR (.data)
+                0x00000184        0x4 LONG 0x34 SIZEOF (.data)
+                0x00000188        0x4 LONG 0x2c90 LOADADDR (.data_RAM2)
+                0x0000018c        0x4 LONG 0x7fe00000 ADDR (.data_RAM2)
+                0x00000190        0x4 LONG 0x0 SIZEOF (.data_RAM2)
+                0x00000194        0x4 LONG 0x2c90 LOADADDR (.data_RAM3)
+                0x00000198        0x4 LONG 0x7fd00000 ADDR (.data_RAM3)
+                0x0000019c        0x4 LONG 0x0 SIZEOF (.data_RAM3)
+                0x000001a0        0x4 LONG 0x2c90 LOADADDR (.data_RAM4)
+                0x000001a4        0x4 LONG 0xe0084000 ADDR (.data_RAM4)
+                0x000001a8        0x4 LONG 0x0 SIZEOF (.data_RAM4)
+                0x000001ac                __data_section_table_end = .
+                0x000001ac                __bss_section_table = .
+                0x000001ac        0x4 LONG 0x40000034 ADDR (.bss)
+                0x000001b0        0x4 LONG 0x28 SIZEOF (.bss)
+                0x000001b4        0x4 LONG 0x7fe00000 ADDR (.bss_RAM2)
+                0x000001b8        0x4 LONG 0x0 SIZEOF (.bss_RAM2)
+                0x000001bc        0x4 LONG 0x7fd00000 ADDR (.bss_RAM3)
+                0x000001c0        0x4 LONG 0x0 SIZEOF (.bss_RAM3)
+                0x000001c4        0x4 LONG 0xe0084000 ADDR (.bss_RAM4)
+                0x000001c8        0x4 LONG 0x0 SIZEOF (.bss_RAM4)
+                0x000001cc                __bss_section_table_end = .
+                0x000001cc                __section_table_end = .
+ *(.after_vectors*)
+                0x000001fc                . = 0x1fc
+ *fill*         0x000001cc       0x30 ff
+                0x000001fc                PROVIDE (__CRP_WORD_START__, .)
+ *(.crp)
+ .crp           0x000001fc        0x4 ./src/crp.o
+                0x000001fc                CRP_WORD
+                0x00000200                PROVIDE (__CRP_WORD_END__, .)
+                0x00000001                ASSERT (! ((__CRP_WORD_START__ == __CRP_WORD_END__)), Linker CRP Enabled, but no CRP_WORD provided within application)
+ *(.text*)
+ .text.delay    0x00000200       0x3c ./src/ethernet_sys.o
+                0x00000200                delay
+ .text.VERIABLE_INIT_FUN
+                0x0000023c       0x58 ./src/ethernet_sys.o
+                0x0000023c                VERIABLE_INIT_FUN
+ .text.Eth_InitPins
+                0x00000294       0x78 ./src/ethernet_sys.o
+ .text.Eth_WritePHY
+                0x0000030c       0x6c ./src/ethernet_sys.o
+                0x0000030c                Eth_WritePHY
+ .text.Eth_ReadPHY
+                0x00000378       0x74 ./src/ethernet_sys.o
+                0x00000378                Eth_ReadPHY
+ .text.rx_descr_init
+                0x000003ec      0x15c ./src/ethernet_sys.o
+                0x000003ec                rx_descr_init
+ .text.tx_descr_init
+                0x00000548      0x138 ./src/ethernet_sys.o
+                0x00000548                tx_descr_init
+ .text.Eth_Init
+                0x00000680      0x2c0 ./src/ethernet_sys.o
+                0x00000680                Eth_Init
+ .text.Uart_0_init_115200_WITH_PLL
+                0x00000940       0x70 ./src/ethernet_sys.o
+                0x00000940                Uart_0_init_115200_WITH_PLL
+ .text.Init_timer0
+                0x000009b0       0x78 ./src/ethernet_sys.o
+                0x000009b0                Init_timer0
+ .text.SDRAM_init_32BIT
+                0x00000a28      0x228 ./src/ethernet_sys.o
+                0x00000a28                SDRAM_init_32BIT
+ .text.sys_init_without_TFT_32bit_SDRAM
+                0x00000c50      0xc44 ./src/ethernet_sys.o
+                0x00000c50                sys_init_without_TFT_32bit_SDRAM
+ .text.ret_asign
+                0x00001894      0x108 ./src/ethernet_sys.o
+                0x00001894                ret_asign
+ .text.kbd_chk_scn0
+                0x0000199c       0xac ./src/ethernet_sys.o
+                0x0000199c                kbd_chk_scn0
+ .text.kbd_chk_scn1
+                0x00001a48       0xac ./src/ethernet_sys.o
+                0x00001a48                kbd_chk_scn1
+ .text.kbd_chk_scn2
+                0x00001af4       0xac ./src/ethernet_sys.o
+                0x00001af4                kbd_chk_scn2
+ .text.kbd_chk_scn3
+                0x00001ba0       0xac ./src/ethernet_sys.o
+                0x00001ba0                kbd_chk_scn3
+ .text.kbd_scan
+                0x00001c4c      0x138 ./src/ethernet_sys.o
+                0x00001c4c                kbd_scan
+ .text.Init_VIC_Interrupt
+                0x00001d84       0x98 ./src/ethernet_sys.o
+                0x00001d84                Init_VIC_Interrupt
+ .text.transmit_byte
+                0x00001e1c       0x50 ./src/ethernet_sys.o
+                0x00001e1c                transmit_byte
+ .text.cs_none  0x00001e6c       0x48 ./src/glcd.o
+ .text.cs_left  0x00001eb4       0x48 ./src/glcd.o
+ .text.cs_right
+                0x00001efc       0x48 ./src/glcd.o
+ .text.cs_both  0x00001f44       0x48 ./src/glcd.o
+ .text.glcd_set_data
+                0x00001f8c      0x128 ./src/glcd.o
+ .text.glcd_enable_pulse
+                0x000020b4       0x58 ./src/glcd.o
+ .text.glcd_write
+                0x0000210c       0xd8 ./src/glcd.o
+ .text.GLCD_Init
+                0x000021e4       0xb0 ./src/glcd.o
+                0x000021e4                GLCD_Init
+ .text.GLCD_Clear
+                0x00002294      0x148 ./src/glcd.o
+                0x00002294                GLCD_Clear
+ .text.GLCD_PutChar
+                0x000023dc      0x1f0 ./src/glcd.o
+                0x000023dc                GLCD_PutChar
+ .text.GLCD_PutString
+                0x000025cc       0x8c ./src/glcd.o
+                0x000025cc                GLCD_PutString
+ .text.row_wr   0x00002658       0xb0 ./src/glcd.o
+                0x00002658                row_wr
+ .text.__disable_interrupt
+                0x00002708       0x24 ./src/main.o
+ .text.__enable_interrupt
+                0x0000272c       0x24 ./src/main.o
+ .text.main     0x00002750      0x200 ./src/main.o
+                0x00002750                main
+ .text.__weak_main
+                0x00002950       0x10 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                0x00002950                __main
+                0x00002950                __weak_main
+ *(.rodata .rodata.* .constdata .constdata.*)
+ .rodata.font5x7
+                0x00002960      0x240 ./src/glcd.o
+ .rodata        0x00002ba0       0xed ./src/main.o
+                0x00002c90                . = ALIGN (0x4)
+ *fill*         0x00002c8d        0x3 ff
+
+.glue_7         0x00002c90        0x0
+ .glue_7        0x00002c90        0x0 linker stubs
+
+.glue_7t        0x00002c90        0x0
+ .glue_7t       0x00002c90        0x0 linker stubs
+
+.vfp11_veneer   0x00002c90        0x0
+ .vfp11_veneer  0x00002c90        0x0 linker stubs
+
+.v4_bx          0x00002c90        0x0
+ .v4_bx         0x00002c90        0x0 linker stubs
+
+.iplt           0x00002c90        0x0
+ .iplt          0x00002c90        0x0 ./src/cr_startup_lpc24.o
+
+.rel.dyn        0x00002c90        0x0
+ .rel.iplt      0x00002c90        0x0 ./src/cr_startup_lpc24.o
+
+.ARM.extab
+ *(.ARM.extab* .gnu.linkonce.armextab.*)
+                0x00002c90                __exidx_start = .
+
+.ARM.exidx
+ *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+                0x00002c90                __exidx_end = .
+                0x00002c90                _etext = .
+
+.data_RAM2      0x7fe00000        0x0 load address 0x00002c90
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM2, .)
+ *(.ramfunc.$RAM2)
+ *(.ramfunc.$RAM_ETH_16)
+ *(.data.$RAM2*)
+ *(.data.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM2, .)
+
+.data_RAM3      0x7fd00000        0x0 load address 0x00002c90
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM3, .)
+ *(.ramfunc.$RAM3)
+ *(.ramfunc.$RAM_USB_16)
+ *(.data.$RAM3*)
+ *(.data.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM3, .)
+
+.data_RAM4      0xe0084000        0x0 load address 0x00002c90
+ FILL mask 0xff
+                [!provide]                PROVIDE (__start_data_RAM4, .)
+ *(.ramfunc.$RAM4)
+ *(.ramfunc.$RAM_RTC_2)
+ *(.data.$RAM4*)
+ *(.data.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN (0x4)
+                [!provide]                PROVIDE (__end_data_RAM4, .)
+
+.uninit_RESERVED
+                0x40000000        0x0
+ *(.bss.$RESERVED*)
+                0x40000000                . = ALIGN (0x4)
+                0x40000000                _end_uninit_RESERVED = .
+
+.data           0x40000000       0x34 load address 0x00002c90
+ FILL mask 0xff
+                0x40000000                _data = .
+ *(vtable)
+ *(.ramfunc*)
+ *(.data*)
+ .data.RX_BUF   0x40000000       0x10 ./src/ethernet_sys.o
+                0x40000000                RX_BUF
+ .data.TX_BUF   0x40000010       0x10 ./src/ethernet_sys.o
+                0x40000010                TX_BUF
+ .data.RX_BUF_1
+                0x40000020       0x10 ./src/ethernet_sys.o
+                0x40000020                RX_BUF_1
+ .data.key      0x40000030        0x1 ./src/ethernet_sys.o
+                0x40000030                key
+                0x40000034                . = ALIGN (0x4)
+ *fill*         0x40000031        0x3 ff
+                0x40000034                _edata = .
+
+.igot.plt       0x40000034        0x0 load address 0x00002cc4
+ .igot.plt      0x40000034        0x0 ./src/cr_startup_lpc24.o
+
+.bss_RAM2       0x7fe00000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM2, .)
+ *(.bss.$RAM2*)
+ *(.bss.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM2, .)
+
+.bss_RAM3       0x7fd00000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM3, .)
+ *(.bss.$RAM3*)
+ *(.bss.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM3, .)
+
+.bss_RAM4       0xe0084000        0x0
+                [!provide]                PROVIDE (__start_bss_RAM4, .)
+ *(.bss.$RAM4*)
+ *(.bss.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN ((. != 0x0)?0x4:0x1)
+                [!provide]                PROVIDE (__end_bss_RAM4, .)
+
+.bss            0x40000034       0x28
+                0x40000034                _bss = .
+ *(.bss*)
+ .bss.ret_bus   0x40000034        0x1 ./src/ethernet_sys.o
+                0x40000034                ret_bus
+ *fill*         0x40000035        0x3 
+ .bss.SDRAM_pointer
+                0x40000038        0x4 ./src/ethernet_sys.o
+                0x40000038                SDRAM_pointer
+ .bss.p         0x4000003c        0x4 ./src/ethernet_sys.o
+                0x4000003c                p
+ .bss.ADC_DATA_RECIEVED
+                0x40000040        0x4 ./src/ethernet_sys.o
+                0x40000040                ADC_DATA_RECIEVED
+ .bss.Descriptor_pt
+                0x40000044        0x4 ./src/ethernet_sys.o
+                0x40000044                Descriptor_pt
+ .bss.RXDESBUFFER_1
+                0x40000048        0x4 ./src/ethernet_sys.o
+                0x40000048                RXDESBUFFER_1
+ .bss.smpl_tmr  0x4000004c        0x4 ./src/ethernet_sys.o
+                0x4000004c                smpl_tmr
+ .bss.adc_val   0x40000050        0x4 ./src/ethernet_sys.o
+                0x40000050                adc_val
+ .bss.INTER_ADC
+                0x40000054        0x4 ./src/ethernet_sys.o
+                0x40000054                INTER_ADC
+ .bss.AD7492_DATA
+                0x40000058        0x4 ./src/ethernet_sys.o
+                0x40000058                AD7492_DATA
+ *(COMMON)
+                0x4000005c                . = ALIGN (0x4)
+                0x4000005c                _ebss = .
+                [!provide]                PROVIDE (end, .)
+
+.noinit_RAM2    0x7fe00000        0x0
+ *(.noinit.$RAM2*)
+ *(.noinit.$RAM_ETH_16*)
+                0x7fe00000                . = ALIGN (0x4)
+
+.noinit_RAM3    0x7fd00000        0x0
+ *(.noinit.$RAM3*)
+ *(.noinit.$RAM_USB_16*)
+                0x7fd00000                . = ALIGN (0x4)
+
+.noinit_RAM4    0xe0084000        0x0
+ *(.noinit.$RAM4*)
+ *(.noinit.$RAM_RTC_2*)
+                0xe0084000                . = ALIGN (0x4)
+
+.noinit         0x4000005c        0x0
+                0x4000005c                _noinit = .
+ *(.noinit*)
+                0x4000005c                . = ALIGN (0x4)
+                0x4000005c                _end_noinit = .
+                [!provide]                PROVIDE (_pvHeapStart, DEFINED (__user_heap_base)?__user_heap_base:.)
+                0x40010000                PROVIDE (_vStackTop, DEFINED (__user_stack_top)?__user_stack_top:(__top_Ram64 - 0x0))
+OUTPUT(Ethernet_Rx.axf elf32-littlearm)
+
+.ARM.attributes
+                0x00000000       0x2c
+ .ARM.attributes
+                0x00000000       0x20 ./src/cr_startup_lpc24.o
+ .ARM.attributes
+                0x00000020       0x30 ./src/crp.o
+ .ARM.attributes
+                0x00000050       0x30 ./src/ethernet_sys.o
+ .ARM.attributes
+                0x00000080       0x30 ./src/glcd.o
+ .ARM.attributes
+                0x000000b0       0x30 ./src/main.o
+ .ARM.attributes
+                0x000000e0       0x30 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+
+.comment        0x00000000       0xdc
+ .comment       0x00000000       0x6e ./src/crp.o
+                                 0x6f (size before relaxing)
+ .comment       0x0000006e       0x6f ./src/ethernet_sys.o
+ .comment       0x0000006e       0x6f ./src/glcd.o
+ .comment       0x0000006e       0x6f ./src/main.o
+ .comment       0x0000006e       0x6e /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                                 0x6f (size before relaxing)
+
+.debug_line     0x00000000      0xbaa
+ .debug_line    0x00000000       0xb2 ./src/cr_startup_lpc24.o
+ .debug_line    0x000000b2       0x7c ./src/crp.o
+ .debug_line    0x0000012e      0x551 ./src/ethernet_sys.o
+ .debug_line    0x0000067f      0x330 ./src/glcd.o
+ .debug_line    0x000009af      0x1fb ./src/main.o
+
+.debug_info     0x00000000      0xfaf
+ .debug_info    0x00000000       0x7c ./src/cr_startup_lpc24.o
+ .debug_info    0x0000007c       0x3f ./src/crp.o
+ .debug_info    0x000000bb      0x946 ./src/ethernet_sys.o
+ .debug_info    0x00000a01      0x3a2 ./src/glcd.o
+ .debug_info    0x00000da3      0x20c ./src/main.o
+
+.debug_abbrev   0x00000000      0x4e5
+ .debug_abbrev  0x00000000       0x14 ./src/cr_startup_lpc24.o
+ .debug_abbrev  0x00000014       0x36 ./src/crp.o
+ .debug_abbrev  0x0000004a      0x26d ./src/ethernet_sys.o
+ .debug_abbrev  0x000002b7      0x122 ./src/glcd.o
+ .debug_abbrev  0x000003d9      0x10c ./src/main.o
+
+.debug_aranges  0x00000000      0x1b0
+ .debug_aranges
+                0x00000000       0x20 ./src/cr_startup_lpc24.o
+ .debug_aranges
+                0x00000020       0x18 ./src/crp.o
+ .debug_aranges
+                0x00000038       0xc0 ./src/ethernet_sys.o
+ .debug_aranges
+                0x000000f8       0x80 ./src/glcd.o
+ .debug_aranges
+                0x00000178       0x38 ./src/main.o
+
+.debug_macro    0x00000000     0x31dc
+ .debug_macro   0x00000000       0x1a ./src/crp.o
+ .debug_macro   0x0000001a      0x826 ./src/crp.o
+ .debug_macro   0x00000840       0x34 ./src/crp.o
+ .debug_macro   0x00000874       0x63 ./src/ethernet_sys.o
+ .debug_macro   0x000008d7       0x10 ./src/ethernet_sys.o
+ .debug_macro   0x000008e7      0x12d ./src/ethernet_sys.o
+ .debug_macro   0x00000a14      0x5b2 ./src/ethernet_sys.o
+ .debug_macro   0x00000fc6       0x22 ./src/ethernet_sys.o
+ .debug_macro   0x00000fe8     0x19c4 ./src/ethernet_sys.o
+ .debug_macro   0x000029ac      0x2ab ./src/ethernet_sys.o
+ .debug_macro   0x00002c57       0xb6 ./src/glcd.o
+ .debug_macro   0x00002d0d       0xa0 ./src/glcd.o
+ .debug_macro   0x00002dad      0x387 ./src/glcd.o
+ .debug_macro   0x00003134       0x1c ./src/glcd.o
+ .debug_macro   0x00003150       0x8c ./src/main.o
+
+.debug_str      0x00000000    0x14745
+ .debug_str     0x00000000     0x242c ./src/crp.o
+                               0x2439 (size before relaxing)
+ .debug_str     0x0000242c    0x10b64 ./src/ethernet_sys.o
+                              0x12f44 (size before relaxing)
+ .debug_str     0x00012f90     0x174f ./src/glcd.o
+                              0x141fd (size before relaxing)
+ .debug_str     0x000146df       0x66 ./src/main.o
+                              0x1412f (size before relaxing)
+
+.debug_ranges   0x00000000      0x148
+ .debug_ranges  0x00000000       0xb0 ./src/ethernet_sys.o
+ .debug_ranges  0x000000b0       0x70 ./src/glcd.o
+ .debug_ranges  0x00000120       0x28 ./src/main.o
+
+.debug_frame    0x00000000      0x564
+ .debug_frame   0x00000000      0x2e4 ./src/ethernet_sys.o
+ .debug_frame   0x000002e4      0x1e8 ./src/glcd.o
+ .debug_frame   0x000004cc       0x98 ./src/main.o

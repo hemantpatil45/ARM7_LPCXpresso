@@ -5,7 +5,7 @@
  * Generated linker script file for LPC2478
  * Created from library.ldt by FMCreateLinkLibraries
  * Using Freemarker v2.3.23
- * LPCXpresso v8.2.2 [Build 650] [2016-09-09]  on Jul 13, 2026 11:26:21 AM
+ * LPCXpresso v8.2.2 [Build 650] [2016-09-09]  on Jul 14, 2026 4:51:25 AM
  */
 
 GROUP (

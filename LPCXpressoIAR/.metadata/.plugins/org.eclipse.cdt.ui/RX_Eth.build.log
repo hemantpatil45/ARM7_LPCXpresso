@@ -1,0 +1,35 @@
+09:45:06 **** Build of configuration Debug for project RX_Eth ****
+make -r all 
+Building file: ../src/PL_ARM_7_FUN.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/PL_ARM_7_FUN.d" -MT"src/PL_ARM_7_FUN.o" -MT"src/PL_ARM_7_FUN.d" -o "src/PL_ARM_7_FUN.o" "../src/PL_ARM_7_FUN.c"
+../src/PL_ARM_7_FUN.c: In function 'Init_VIC_Interrupt':
+../src/PL_ARM_7_FUN.c:3:3: error: 'VICProtection' undeclared (first use in this function)
+   VICProtection = 0;              // Setup interrupt controller.
+   ^
+../src/PL_ARM_7_FUN.c:3:3: note: each undeclared identifier is reported only once for each function it appears in
+../src/PL_ARM_7_FUN.c:4:3: error: 'VICIntEnClr' undeclared (first use in this function)
+   VICIntEnClr = 0xffffffff;       // Disable all interrupts. Clear bits in VICIntEnable.
+   ^
+../src/PL_ARM_7_FUN.c:5:3: error: 'VICVectAddr' undeclared (first use in this function)
+   VICVectAddr = 0;                // Clear address.
+   ^
+../src/PL_ARM_7_FUN.c:8:3: error: 'VICIntSelect' undeclared (first use in this function)
+   VICIntSelect &= ~(1 << 4);      // IRQ on timer 0 line.
+   ^
+../src/PL_ARM_7_FUN.c:11:3: error: 'VICVectAddr4' undeclared (first use in this function)
+   VICVectAddr4 = (unsigned int)&kbd_scan;
+   ^
+../src/PL_ARM_7_FUN.c:11:33: error: 'kbd_scan' undeclared (first use in this function)
+   VICVectAddr4 = (unsigned int)&kbd_scan;
+                                 ^
+../src/PL_ARM_7_FUN.c:14:3: error: 'VICVectPriority4' undeclared (first use in this function)
+   VICVectPriority4 = 0;           // Timer 0 Priority
+   ^
+../src/PL_ARM_7_FUN.c:17:3: error: 'VICIntEnable' undeclared (first use in this function)
+   VICIntEnable |= (1 << 4);       // Enable timer 0 interrupt.
+   ^
+make: *** [src/subdir.mk:33: src/PL_ARM_7_FUN.o] Error 1
+
+09:45:06 Build Finished (took 60ms)
+
