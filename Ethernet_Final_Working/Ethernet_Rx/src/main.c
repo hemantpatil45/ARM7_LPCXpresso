@@ -66,7 +66,15 @@ void UART0_SendString(const char *str) {
         UART0_SendChar(*str++);
     }
 }
+void UART0_SendBuffer(const uint8_t *buf, uint32_t len) {
+    for (uint32_t k = 0; k < len; k++) {
+        // 1. Wait for Transmitter Holding Register (THR) to become empty
+        while (!(U0LSR & 0x20));
 
+        // 2. Transmit the current byte
+        U0THR = buf[k];
+    }
+}
 int main(void) {
     bool link_status;
     uint8_t rx_buffer[1536];    // Sized to match ETH_RX_FRAG_SIZE - was 64,
@@ -144,6 +152,7 @@ int main(void) {
                                                 while(SW6_Pressed() == 0);   // Wait for press
 
                                                 UART0_SendString(display_str);
+                                                UART0_SendBuffer(&rx_buffer[14], rx_length - 14);
                                                 GLCD_RowWriteMargin(7,display_str);
 
                                                 // Wait until user releases switch

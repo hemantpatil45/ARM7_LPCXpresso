@@ -1,6 +1,6 @@
-06:58:25 **** Incremental Build of configuration Debug for project Ethernet_Rx ****
+10:25:01 **** Incremental Build of configuration Debug for project Ethernet_Rx ****
 make -r all 
 make: Nothing to be done for 'all'.
 
-06:58:25 Build Finished (took 58ms)
+10:25:01 Build Finished (took 68ms)
 
