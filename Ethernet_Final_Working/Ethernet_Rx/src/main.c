@@ -6,17 +6,22 @@
 #include "system_init.h"
 #include "ethernet.h"
 #include "ethernet_rx.h"
+
+// Define communication parameters
 #define UART0_BAUD 115200
 #define CCLK_FREQ  72000000
 #define PCLK_DIV   4
-#define Fpclk      (CCLK_FREQ / PCLK_DIV)  // Results in 18,000,000 (18 MHz)
+#define Fpclk      (CCLK_FREQ / PCLK_DIV)  // Peripheral clock is 18 MHz
 
-   //
+// Maximum characters allowed on the display
 #define MAX_GLCD_CHARS 20
+
+// Simple software delay loops using NOP instructions
 void Delay1Sec(void) {
     volatile uint32_t i;
     for(i = 0; i < 12000000; i++) { __asm("NOP"); }
 }
+
 void Delay2Sec(void)
 {
     volatile uint32_t i;
@@ -25,90 +30,99 @@ void Delay2Sec(void)
     }
 }
 
+// Initialize UART0 for serial communication
 void UART0_Init(uint32_t baudrate) {
     uint32_t Fdiv;
 
-    // 1. Enable power to UART0
+    // 1. Enable power to UART0 peripheral
     PCONP |= (1 << 3);
 
-    // 2. Guarantee PCLK for UART0 is CCLK/4 (18 MHz)
+    // 2. Set peripheral clock for UART0
     PCLKSEL0 &= ~(3 << 6);
 
-    // 3. Configure P0.2 as TXD0 and P0.3 as RXD0
+    // 3. Set pins P0.2 (TX) and P0.3 (RX) for UART function
     PINSEL0 &= ~0x000000F0;
     PINSEL0 |=  0x00000050;
 
-    // 4. Configure 8-bit character length, 1 stop bit, enable DLAB
+    // 4. Set 8-bit mode, 1 stop bit, and enable access to divisor latches (DLAB)
     U0LCR = 0x83;
 
-    // 5. Calculate Baud Rate generator values dynamically
+    // 5. Calculate and set baud rate divisor
     Fdiv = (Fpclk / 16) / baudrate;
     U0DLM = (Fdiv >> 8) & 0xFF;
     U0DLL = Fdiv & 0xFF;
 
-    // 6. Disable Fractional Divider to ensure absolute timing stability
+    // 6. Disable fractional divider for standard baud rate stability
     U0FDR = 0x10;
 
-    // 7. Disable DLAB
+    // 7. Disable DLAB to access data registers
     U0LCR = 0x03;
 
-    // 8. Enable and reset FIFOs
+    // 8. Enable and clear UART transmit/receive FIFOs
     U0FCR = 0x07;
 }
 
+// Send a single character over UART
 void UART0_SendChar(char ch) {
-    // Wait for Transmitter Holding Register (THR) to become empty
+    // Wait until the Transmit HoldinTestingg Register is empty
     while (!(U0LSR & 0x20));
     U0THR = ch;
 }
+
+// Send a null-terminated string over UART
 void UART0_SendString(const char *str) {
     while (*str) {
         UART0_SendChar(*str++);
     }
 }
+
+// Send a raw buffer of bytes over UART
 void UART0_SendBuffer(const uint8_t *buf, uint32_t len) {
     for (uint32_t k = 0; k < len; k++) {
-        // 1. Wait for Transmitter Holding Register (THR) to become empty
+        // Wait for buffer availability
         while (!(U0LSR & 0x20));
-
-        // 2. Transmit the current byte
         U0THR = buf[k];
     }
 }
+
 int main(void) {
     bool link_status;
-    uint8_t rx_buffer[1536];    // Sized to match ETH_RX_FRAG_SIZE - was 64,
-                                // which overflowed on any real-size frame
+    uint8_t rx_buffer[1536];    // Standard Ethernet MTU size
     uint32_t rx_length = 0;
     uint32_t j;
     volatile uint32_t i;
 
-    /* UART/Debugger safety delay */
+    // Short delay to let hardware stabilize
     for(i = 0; i < 50000; i++) { __asm("NOP"); }
 
+    // Initialize system clocks and peripherals
     PLL_Init();
     system_Init();
 
+    // Setup display and UART
     GLCD_Init();
     GLCD_Clear();
     UART0_Init(UART0_BAUD);
+
+    // Welcome screen on LCD
     GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
-    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(2,"       PL-ARM7      ");
     GLCD_RowWriteMargin(4,"ETHERNET RX         ");
     GLCD_RowWriteMargin(6," PRESS SW2 TO RESET ");
 
-    while(SW2_Pressed()==0){
-          }
+    // Wait for the user to initiate the system with SW2
+    while(SW2_Pressed()==0){ }
 
-    GLCD_RowWriteMargin(6,"WAIT 05             ");
+    // Countdown animation
+    GLCD_RowWriteMargin(6,"WAIT.               ");
     Delay2Sec();
-    GLCD_RowWriteMargin(6,"WAIT 04             ");
+    GLCD_RowWriteMargin(6,"WAIT..              ");
     Delay2Sec();
-    GLCD_RowWriteMargin(6,"WAIT 03             ");
+    GLCD_RowWriteMargin(6,"WAIT...             ");
     Delay2Sec();
-    GLCD_RowWriteMargin(6,"WAIT 02             ");
+    GLCD_RowWriteMargin(6,"WAIT....            ");
     Delay2Sec();
-    GLCD_RowWriteMargin(6,"WAIT 01             ");
+    GLCD_RowWriteMargin(6,"WAIT.....           ");
     Delay2Sec();
     GLCD_RowWriteMargin(6,"WAIT 00             ");
     Delay2Sec();
@@ -116,48 +130,47 @@ int main(void) {
     GLCD_RowWriteMargin(5,"SEND DATA FROM TX   ");
     GLCD_RowWriteMargin(6,"OPEN HYPERTERMINAL  ");
 
+    // Initialize Ethernet/EMAC
     link_status = Eth_Init();
 
-    if (link_status) {
-      //  GLCD_RowWriteMargin(2, "Link Status: UP   ");
-    } else {
-       // GLCD_RowWriteMargin(2, "Link Status: FAIL ");
-    }
 
+    while(1) {
+        if (link_status) {
+            // Check if a packet has arrived
+        	 // Clear the entire receive buffer
+            if (EMAC_ReceivePacket(rx_buffer, sizeof(rx_buffer), &rx_length)) {
 
-        while(1) {
-            if (link_status) {
-                /* Pass the correct number of arguments to your EMAC function */
-                if (EMAC_ReceivePacket(rx_buffer, sizeof(rx_buffer), &rx_length)) {
+                char display_str[MAX_GLCD_CHARS + 1];
 
-                        char display_str[MAX_GLCD_CHARS + 1];
-
-                        /* 2. Process: Copy data (now safely outside the loop) */
-                        for(j = 0; j < MAX_GLCD_CHARS; j++) {
-                            if ((14 + j) < rx_length && (rx_buffer[14 + j] >= 32 && rx_buffer[14 + j] <= 126)) {
-                                display_str[j] = (char)rx_buffer[14 + j];
-                            } else {
-                                display_str[j] = ' ';
-                            }
-
-                        /* 3. Finalize: Null-terminate once per packet */
-                        display_str[MAX_GLCD_CHARS] = '\0';
-
-                        /* 4. Display: Write to GLCD once per packet */
-
+                // Process the packet: Extract payload and filter for printable text
+                // Offset 14 skips the standard Ethernet header (MAC addresses + Type)
+                for(j = 0; j < MAX_GLCD_CHARS; j++) {
+                    if ((14 + j) < rx_length && (rx_buffer[14 + j] >= 32 && rx_buffer[14 + j] <= 126)) {
+                        display_str[j] = (char)rx_buffer[14 + j];
+                    } else {
+                        display_str[j] = ' ';
                     }
-
-                                                GLCD_RowWriteMargin(7,"PRESS SW6 TO SEND   ");
-
-                                                while(SW6_Pressed() == 0);   // Wait for press
-
-                                                UART0_SendString(display_str);
-                                                UART0_SendBuffer(&rx_buffer[14], rx_length - 14);
-                                                GLCD_RowWriteMargin(7,display_str);
-
-                                                // Wait until user releases switch
-                                                while(SW6_Pressed() == 1);
                 }
+
+                // Ensure string is null-terminated
+                display_str[MAX_GLCD_CHARS] = '\0';
+
+                // Prompt user to trigger the transmission/display update via SW6
+                GLCD_RowWriteMargin(7,"PRESS SW6 TO SEND   ");
+
+                // Blocking wait for switch press
+                while(SW6_Pressed() == 0);
+
+                // Send the raw data buffer
+                UART0_SendBuffer(&rx_buffer[14], rx_length - 14);
+
+
+                // Update the LCD with the received content
+                GLCD_RowWriteMargin(7,display_str);
+
+                // Wait for switch release to avoid debouncing issues
+                while(SW6_Pressed() == 1);
             }
         }
+    }
 }

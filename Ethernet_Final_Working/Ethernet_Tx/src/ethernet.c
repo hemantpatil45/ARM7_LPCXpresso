@@ -1,7 +1,7 @@
 #include "LPC24xx.h"
 #include "ethernet.h"
 #include "ethernet_reg.h"
-#include "ethernet_tx.h" // Uncomment if using TX
+#include "ethernet_tx.h"
 //#include "ethernet_rx.h"
 
 #define PCONP   (*((volatile uint32_t *)0xE01FC0C4))
@@ -65,14 +65,12 @@ bool Eth_Init(void)
         if ((Eth_ReadPHY(DP83848_BMCR) & PHY_BMCR_RESET) == 0) break;
     }
 
-    /* =========================================================
-     * 4. FORCE PHY TO 10 Mbps / FULL DUPLEX
-     * ========================================================= */
-    /* 0x0100 translates to:
-     * Bit 13 = 0 (10 Mbps)
-     * Bit 12 = 0 (Auto-Negotiation Disabled)
-     * Bit 8  = 1 (Full Duplex)
-     */
+
+   //  0x0100 translates to:
+   //  Bit 13 = 0 (10 Mbps)
+   //  Bit 12 = 0 (Auto-Negotiation Disabled)
+   //  Bit 8  = 1 (Full Duplex)
+
     Eth_WritePHY(DP83848_BMCR, 0x0100);
 
     /* Small delay to allow the PHY configuration to settle */

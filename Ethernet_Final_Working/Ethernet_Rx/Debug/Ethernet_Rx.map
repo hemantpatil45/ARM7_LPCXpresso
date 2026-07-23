@@ -93,6 +93,10 @@ Discarded input sections
                 0x00000000      0x240 ./src/main.o
  .text.Delay1Sec
                 0x00000000       0x4c ./src/main.o
+ .text.UART0_SendChar
+                0x00000000       0x50 ./src/main.o
+ .text.UART0_SendString
+                0x00000000       0x4c ./src/main.o
  .debug_macro   0x00000000      0x826 ./src/main.o
  .debug_macro   0x00000000       0x10 ./src/main.o
  .debug_macro   0x00000000      0x12d ./src/main.o
@@ -248,7 +252,7 @@ END GROUP
                 0xe0084800                __top_RAM_RTC_2 = 0xe0084800
                 0xe0084800                __top_RAM4 = 0xe0084800
 
-.text           0x00000000     0x2e78
+.text           0x00000000     0x2dc8
  FILL mask 0xff
                 0x00000000                __vectors_start__ = ABSOLUTE (.)
  *(.isr_vector)
@@ -262,16 +266,16 @@ END GROUP
                 0x0000017c                . = ALIGN (0x4)
                 0x0000017c                __section_table_start = .
                 0x0000017c                __data_section_table = .
-                0x0000017c        0x4 LONG 0x2e78 LOADADDR (.data)
+                0x0000017c        0x4 LONG 0x2dc8 LOADADDR (.data)
                 0x00000180        0x4 LONG 0x40000000 ADDR (.data)
                 0x00000184        0x4 LONG 0x0 SIZEOF (.data)
-                0x00000188        0x4 LONG 0x2e78 LOADADDR (.data_RAM2)
+                0x00000188        0x4 LONG 0x2dc8 LOADADDR (.data_RAM2)
                 0x0000018c        0x4 LONG 0x7fe00000 ADDR (.data_RAM2)
                 0x00000190        0x4 LONG 0x0 SIZEOF (.data_RAM2)
-                0x00000194        0x4 LONG 0x2e78 LOADADDR (.data_RAM3)
+                0x00000194        0x4 LONG 0x2dc8 LOADADDR (.data_RAM3)
                 0x00000198        0x4 LONG 0x7fd00000 ADDR (.data_RAM3)
                 0x0000019c        0x4 LONG 0x0 SIZEOF (.data_RAM3)
-                0x000001a0        0x4 LONG 0x2e78 LOADADDR (.data_RAM4)
+                0x000001a0        0x4 LONG 0x2dc8 LOADADDR (.data_RAM4)
                 0x000001a4        0x4 LONG 0xe0084000 ADDR (.data_RAM4)
                 0x000001a8        0x4 LONG 0x0 SIZEOF (.data_RAM4)
                 0x000001ac                __data_section_table_end = .
@@ -351,77 +355,71 @@ END GROUP
  .text.UART0_Init
                 0x000013f8       0xfc ./src/main.o
                 0x000013f8                UART0_Init
- .text.UART0_SendChar
-                0x000014f4       0x50 ./src/main.o
-                0x000014f4                UART0_SendChar
- .text.UART0_SendString
-                0x00001544       0x4c ./src/main.o
-                0x00001544                UART0_SendString
  .text.UART0_SendBuffer
-                0x00001590       0x84 ./src/main.o
-                0x00001590                UART0_SendBuffer
- .text.main     0x00001614      0x2fc ./src/main.o
-                0x00001614                main
+                0x000014f4       0x84 ./src/main.o
+                0x000014f4                UART0_SendBuffer
+ .text.main     0x00001578      0x2e8 ./src/main.o
+                0x00001578                main
  .text.delay_us
-                0x00001910       0x54 ./src/system_init.o
-                0x00001910                delay_us
+                0x00001860       0x54 ./src/system_init.o
+                0x00001860                delay_us
  .text.delay_cycles
-                0x00001964       0x3c ./src/system_init.o
-                0x00001964                delay_cycles
+                0x000018b4       0x3c ./src/system_init.o
+                0x000018b4                delay_cycles
  .text.PLL_Init
-                0x000019a0      0x124 ./src/system_init.o
-                0x000019a0                PLL_Init
+                0x000018f0      0x124 ./src/system_init.o
+                0x000018f0                PLL_Init
  .text.system_Init
-                0x00001ac4      0xf50 ./src/system_init.o
-                0x00001ac4                system_Init
+                0x00001a14      0xf50 ./src/system_init.o
+                0x00001a14                system_Init
  .text.__weak_main
-                0x00002a14       0x10 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
-                0x00002a14                __main
-                0x00002a14                __weak_main
+                0x00002964       0x10 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/../../../../arm-none-eabi/lib/libcr_c.a(__weak__main.o)
+                0x00002964                __main
+                0x00002964                __weak_main
  .text.__aeabi_idiv0
-                0x00002a24        0x4 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
-                0x00002a24                __aeabi_idiv0
+                0x00002974        0x4 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
+                0x00002974                __aeabi_idiv0
  .text.__bhs_uidivmod
-                0x00002a28       0x9c /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
-                0x00002a28                __bhs_uidivmod
+                0x00002978       0x9c /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
+                0x00002978                __bhs_uidivmod
  .text.__aeabi_uidiv
-                0x00002ac4       0x24 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
-                0x00002ac4                __aeabi_uidiv
+                0x00002a14       0x24 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
+                0x00002a14                __aeabi_uidiv
  *(.rodata .rodata.* .constdata .constdata.*)
  .rodata.font5x7
-                0x00002ae8      0x240 ./src/glcd.o
- .rodata        0x00002d28      0x14d ./src/main.o
-                0x00002e78                . = ALIGN (0x4)
- *fill*         0x00002e75        0x3 ff
+                0x00002a38      0x240 ./src/glcd.o
+ .rodata        0x00002c78      0x14d ./src/main.o
+                0x00002dc8                . = ALIGN (0x4)
+ *fill*         0x00002dc5        0x3 ff
 
-.glue_7         0x00002e78        0x0
- .glue_7        0x00002e78        0x0 linker stubs
+.glue_7         0x00002dc8        0x0
+ .glue_7        0x00002dc8        0x0 linker stubs
 
-.glue_7t        0x00002e78        0x0
- .glue_7t       0x00002e78        0x0 linker stubs
+.glue_7t        0x00002dc8        0x0
+ .glue_7t       0x00002dc8        0x0 linker stubs
 
-.vfp11_veneer   0x00002e78        0x0
- .vfp11_veneer  0x00002e78        0x0 linker stubs
+.vfp11_veneer   0x00002dc8        0x0
+ .vfp11_veneer  0x00002dc8        0x0 linker stubs
 
-.v4_bx          0x00002e78        0x0
- .v4_bx         0x00002e78        0x0 linker stubs
+.v4_bx          0x00002dc8        0x0
+ .v4_bx         0x00002dc8        0x0 linker stubs
 
-.iplt           0x00002e78        0x0
- .iplt          0x00002e78        0x0 ./src/cr_startup_lpc24.o
+.iplt           0x00002dc8        0x0
+ .iplt          0x00002dc8        0x0 ./src/cr_startup_lpc24.o
 
-.rel.dyn        0x00002e78        0x0
- .rel.iplt      0x00002e78        0x0 ./src/cr_startup_lpc24.o
+.rel.dyn        0x00002dc8        0x0
+ .rel.iplt      0x00002dc8        0x0 ./src/cr_startup_lpc24.o
 
 .ARM.extab
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x00002e78                __exidx_start = .
+                0x00002dc8                __exidx_start = .
 
 .ARM.exidx
  *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-                0x00002e78                __exidx_end = .
-                0x00002e78                _etext = .
+                0x00002dc8                __exidx_end = .
+                0x00002dc8                _etext = .
 
-.data_RAM2      0x7fe00000        0x0 load address 0x00002e78
+.data_RAM2      0x7fe00000        0x0 load address 0x00002dc8
  FILL mask 0xff
                 [!provide]                PROVIDE (__start_data_RAM2, .)
  *(.ramfunc.$RAM2)
@@ -431,7 +429,7 @@ END GROUP
                 0x7fe00000                . = ALIGN (0x4)
                 [!provide]                PROVIDE (__end_data_RAM2, .)
 
-.data_RAM3      0x7fd00000        0x0 load address 0x00002e78
+.data_RAM3      0x7fd00000        0x0 load address 0x00002dc8
  FILL mask 0xff
                 [!provide]                PROVIDE (__start_data_RAM3, .)
  *(.ramfunc.$RAM3)
@@ -441,7 +439,7 @@ END GROUP
                 0x7fd00000                . = ALIGN (0x4)
                 [!provide]                PROVIDE (__end_data_RAM3, .)
 
-.data_RAM4      0xe0084000        0x0 load address 0x00002e78
+.data_RAM4      0xe0084000        0x0 load address 0x00002dc8
  FILL mask 0xff
                 [!provide]                PROVIDE (__start_data_RAM4, .)
  *(.ramfunc.$RAM4)
@@ -457,7 +455,7 @@ END GROUP
                 0x40000000                . = ALIGN (0x4)
                 0x40000000                _end_uninit_RESERVED = .
 
-.data           0x40000000        0x0 load address 0x00002e78
+.data           0x40000000        0x0 load address 0x00002dc8
  FILL mask 0xff
                 0x40000000                _data = .
  *(vtable)
@@ -466,7 +464,7 @@ END GROUP
                 0x40000000                . = ALIGN (0x4)
                 0x40000000                _edata = .
 
-.igot.plt       0x40000000        0x0 load address 0x00002e78
+.igot.plt       0x40000000        0x0 load address 0x00002dc8
  .igot.plt      0x40000000        0x0 ./src/cr_startup_lpc24.o
 
 .bss_RAM2       0x7fe00000        0x0
@@ -561,14 +559,14 @@ OUTPUT(Ethernet_Rx.axf elf32-littlearm)
                                  0x6f (size before relaxing)
  .comment       0x000000dc       0x6f /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
 
-.debug_line     0x00000000      0xdd6
+.debug_line     0x00000000      0xdd3
  .debug_line    0x00000000       0xb2 ./src/cr_startup_lpc24.o
  .debug_line    0x000000b2       0x7c ./src/crp.o
  .debug_line    0x0000012e      0x231 ./src/ethernet.o
- .debug_line    0x0000035f      0x262 ./src/ethernet_rx.o
- .debug_line    0x000005c1      0x322 ./src/glcd.o
- .debug_line    0x000008e3      0x2a6 ./src/main.o
- .debug_line    0x00000b89      0x24d ./src/system_init.o
+ .debug_line    0x0000035f      0x266 ./src/ethernet_rx.o
+ .debug_line    0x000005c5      0x322 ./src/glcd.o
+ .debug_line    0x000008e7      0x29f ./src/main.o
+ .debug_line    0x00000b86      0x24d ./src/system_init.o
 
 .debug_info     0x00000000     0x1254
  .debug_info    0x00000000       0x81 ./src/cr_startup_lpc24.o

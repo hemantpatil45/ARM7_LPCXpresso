@@ -8,9 +8,12 @@
 #define KBD_COL1_BIT   25u
 #define KBD_ROW1_MASK  (1u << KBD_ROW1_BIT)
 #define KBD_COL1_MASK  (1u << KBD_COL1_BIT)
-
 #define KBD_ROW2_BIT    1u
 #define KBD_ROW2_MASK  (1u << KBD_ROW2_BIT)
+#define KBD_ROW3_BIT   22u
+#define KBD_ROW3_MASK (1u << KBD_ROW3_BIT)
+#define KBD_ROW4_BIT  23u
+#define KBD_ROW4_MASK (1u << KBD_ROW4_BIT)
 
 void SW2_Keypad_Init(void);
 
