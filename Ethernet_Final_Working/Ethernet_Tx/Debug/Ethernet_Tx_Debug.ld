@@ -5,7 +5,7 @@
  * Generated linker script file for LPC2478
  * Created from linkscript.ldt by FMCreateLinkLibraries
  * Using Freemarker v2.3.23
- * LPCXpresso v8.2.2 [Build 650] [2016-09-09]  on Jul 18, 2026 7:26:58 AM
+ * LPCXpresso v8.2.2 [Build 650] [2016-09-09]  on Jul 31, 2026 9:07:18 AM
  */
 
 INCLUDE "Ethernet_Tx_Debug_library.ld"

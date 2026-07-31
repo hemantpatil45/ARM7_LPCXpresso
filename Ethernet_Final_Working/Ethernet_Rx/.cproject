@@ -154,10 +154,7 @@
 		<projectStorage>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;TargetConfig&gt;
 &lt;Properties property_0="" property_3="NXP" property_4="LPC2478" property_count="5" version="70200"/&gt;
-&lt;infoList vendor="NXP"&gt;
-&lt;info chip="LPC2478" match_id="0x1701FF35" name="LPC2478"&gt;
-&lt;chip&gt;
-&lt;name&gt;LPC2478&lt;/name&gt;
+&lt;infoList vendor="NXP"&gt;&lt;info chip="LPC2478" match_id="0x1701FF35" name="LPC2478"&gt;&lt;chip&gt;&lt;name&gt;LPC2478&lt;/name&gt;
 &lt;family&gt;LPC24xx&lt;/family&gt;
 &lt;vendor&gt;NXP (formerly Philips)&lt;/vendor&gt;
 &lt;reset board="None" core="Fake" sys="Fake"/&gt;
@@ -199,8 +196,7 @@
 &lt;peripheralInstance derived_from="I2S" determined="infoFile" id="I2S" location="0xE0088000"/&gt;
 &lt;peripheralInstance derived_from="ENET" determined="infoFile" id="ENET" location="0xFFE00000"/&gt;
 &lt;/chip&gt;
-&lt;processor&gt;
-&lt;name gcc_name="arm7tdmi"&gt;ARM7TDMI&lt;/name&gt;
+&lt;processor&gt;&lt;name gcc_name="arm7tdmi"&gt;ARM7TDMI&lt;/name&gt;
 &lt;family&gt;ARM7&lt;/family&gt;
 &lt;/processor&gt;
 &lt;link href="nxp_lpcxxxx_peripheral.xme" show="embed" type="simple"/&gt;

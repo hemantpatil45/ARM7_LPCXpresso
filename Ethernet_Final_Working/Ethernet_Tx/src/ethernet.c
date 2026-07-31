@@ -16,6 +16,7 @@ static void Eth_InitPins(void)
     PINSEL3 = (PINSEL3 & ~0x0000000F) | 0x00000005;
 }
 
+//Write data into PHY registers using RMII
 void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
 {
     LPC_EMAC->MCMD = 0;
@@ -24,6 +25,7 @@ void Eth_WritePHY(uint32_t PhyReg, uint16_t Value)
     while ((LPC_EMAC->MIND & 1) != 0);
 }
 
+//Read data into PHY registers using RMII
 uint16_t Eth_ReadPHY(uint32_t PhyReg)
 {
     LPC_EMAC->MADR = DP83848_DEF_ADR | PhyReg;
@@ -33,6 +35,7 @@ uint16_t Eth_ReadPHY(uint32_t PhyReg)
     return (uint16_t)(LPC_EMAC->MRDD & 0xFFFF);
 }
 
+//initialize the ethernet
 bool Eth_Init(void)
 {
     uint32_t timeout;

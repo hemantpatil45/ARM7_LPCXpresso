@@ -17,7 +17,7 @@ static uint8_t   *const TX_Buffer = (uint8_t *)(EMAC_AHB_RAM_BASE + (NUM_TX_FRAG
 /* ============================================================================== */
 /* TX FUNCTIONS                                                                   */
 /* ============================================================================== */
-
+//initialize ethernet tx
 void EMAC_TxInit(void)
 {
     uint32_t i;
@@ -42,6 +42,7 @@ void EMAC_TxInit(void)
     LPC_EMAC->TXPRODUCEINDEX  = 0;
 }
 
+//send packet
 bool EMAC_SendPacket(uint8_t *pData, uint16_t length)
 {
     uint32_t produce_idx;
