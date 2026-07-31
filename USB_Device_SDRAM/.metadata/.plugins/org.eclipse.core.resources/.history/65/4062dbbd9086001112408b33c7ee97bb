@@ -1,0 +1,195 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include <string.h>
+#include "usb_sdram_disk.h"
+
+/* USB Mass Storage Class - Bulk-Only Transport (BOT) and SCSI Protocol Handler */
+
+// SCSI Command Opcodes
+#define SCSI_TEST_UNIT_READY      0x00
+#define SCSI_REQUEST_SENSE        0x03
+#define SCSI_FORMAT_UNIT          0x04
+#define SCSI_INQUIRY              0x12
+#define SCSI_MODE_SELECT_6        0x15
+#define SCSI_MODE_SENSE_6         0x1A
+#define SCSI_START_STOP_UNIT      0x1B
+#define SCSI_READ_CAPACITY        0x25
+#define SCSI_READ_10              0x28
+#define SCSI_WRITE_10             0x2A
+#define SCSI_VERIFY               0x2F
+#define SCSI_MODE_SELECT_10       0x55
+#define SCSI_MODE_SENSE_10        0x5A
+
+// Command Block Wrapper (CBW) Structure
+typedef struct {
+    uint32_t Signature;
+    uint32_t Tag;
+    uint32_t DataTransferLength;
+    uint8_t  Flags;
+    uint8_t  Lun;
+    uint8_t  CBLength;
+    uint8_t  CB[16];
+} __attribute__((packed)) MSC_CBW;
+
+// Command Status Wrapper (CSW) Structure
+typedef struct {
+    uint32_t Signature;
+    uint32_t Tag;
+    uint32_t DataResidue;
+    uint8_t  Status;
+} __attribute__((packed)) MSC_CSW;
+
+static MSC_CBW  DevCBW;
+static MSC_CSW  DevCSW;
+
+// Endpoint buffer for bulk data exchanges
+static uint8_t BulkBuf[64];
+
+/* External USB Endpoint function prototypes */
+extern void USB_WriteEP(uint8_t EPNum, uint8_t *pData, uint32_t cnt);
+extern void USB_ReadEP(uint8_t EPNum, uint8_t *pData);
+
+/*
+ * Process incoming CBW packets from the USB Bulk OUT endpoint
+ */
+void Process_Bulk_OUT(uint8_t *pData, uint32_t length)
+{
+    if (length == sizeof(MSC_CBW)) {
+        memcpy(&DevCBW, pData, sizeof(MSC_CBW));
+
+        // Validate Command Block Wrapper Signature ('USBC')
+        if (DevCBW.Signature == 0x43425355) {
+            DevCSW.Signature = 0x53534255; // 'USBS'
+            DevCSW.Tag = DevCBW.Tag;
+            DevCSW.DataResidue = DevCBW.DataTransferLength;
+            DevCSW.Status = 0x00; // Assume success by default
+
+            uint8_t cmd = DevCBW.CB[0];
+
+            switch (cmd)
+            {
+                case SCSI_TEST_UNIT_READY:
+                    DevCSW.Status = 0x00;
+                    break;
+
+                case SCSI_REQUEST_SENSE:
+                {
+                    uint8_t senseData[18] = {
+                        0x70, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x0A,
+                        0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00
+                    };
+                    uint32_t transferLen = (DevCBW.DataTransferLength < 18) ? DevCBW.DataTransferLength : 18;
+                    USB_WriteEP(0x81, senseData, transferLen);
+                    DevCSW.DataResidue -= transferLen;
+                    break;
+                }
+
+                case SCSI_INQUIRY:
+                {
+                    uint8_t inquiryData[36] = {
+                        0x00,          // Direct Access Device
+                        0x80,          // Removable Disk Flag
+                        0x02,          // ANSI SPC-2 standard
+                        0x02,          // Response data format
+                        0x1F,          // Additional length
+                        0x00, 0x00, 0x00,
+                        'N', 'X', 'P', ' ', ' ', ' ', ' ', ' ',                     // Vendor ID
+                        'L', 'P', 'C', '2', '4', '7', '8', ' ', 'S', 'D', 'R', 'A', 'M', ' ', ' ', ' ', // Product ID
+                        '1', '.', '0', '0'                                           // Revision
+                    };
+                    uint32_t transferLen = (DevCBW.DataTransferLength < 36) ? DevCBW.DataTransferLength : 36;
+                    USB_WriteEP(0x81, inquiryData, transferLen);
+                    DevCSW.DataResidue -= transferLen;
+                    break;
+                }
+
+                case SCSI_READ_CAPACITY:
+                {
+                    uint8_t capacityData[8];
+
+                    // Total Logical Blocks (16384 - 1 = 16383 = 0x00003FFF for 8MB SDRAM)
+                    uint32_t lastLba = MSC_BLOCK_COUNT - 1;
+                    capacityData[0] = (lastLba >> 24) & 0xFF;
+                    capacityData[1] = (lastLba >> 16) & 0xFF;
+                    capacityData[2] = (lastLba >> 8) & 0xFF;
+                    capacityData[3] = lastLba & 0xFF;
+
+                    // Block Size (512 bytes = 0x00000200)
+                    uint32_t blockSize = MSC_BLOCK_SIZE;
+                    capacityData[4] = (blockSize >> 24) & 0xFF;
+                    capacityData[5] = (blockSize >> 16) & 0xFF;
+                    capacityData[6] = (blockSize >> 8) & 0xFF;
+                    capacityData[7] = blockSize & 0xFF;
+
+                    uint32_t transferLen = (DevCBW.DataTransferLength < 8) ? DevCBW.DataTransferLength : 8;
+                    USB_WriteEP(0x81, capacityData, transferLen);
+                    DevCSW.DataResidue -= transferLen;
+                    break;
+                }
+
+                case SCSI_READ_10:
+                {
+                    // Parse LBA and block count from CBW command block
+                    uint32_t lba = ((uint32_t)DevCBW.CB[2] << 24) |
+                                   ((uint32_t)DevCBW.CB[3] << 16) |
+                                   ((uint32_t)DevCBW.CB[4] << 8)  |
+                                   (uint32_t)DevCBW.CB[5];
+
+                    uint32_t blocks = ((uint16_t)DevCBW.CB[7] << 8) | (uint16_t)DevCBW.CB[8];
+                    uint32_t byteOffset = lba * MSC_BLOCK_SIZE;
+                    uint32_t totalBytes = blocks * MSC_BLOCK_SIZE;
+
+                    // Stream data from External SDRAM to USB Bulk IN endpoint in chunks
+                    uint32_t remaining = totalBytes;
+                    uint32_t currentOffset = byteOffset;
+
+                    while (remaining > 0) {
+                        uint32_t chunk = (remaining > 64) ? 64 : remaining;
+                        MSC_MemoryRead(currentOffset, BulkBuf, chunk);
+                        USB_WriteEP(0x81, BulkBuf, chunk);
+                        currentOffset += chunk;
+                        remaining -= chunk;
+                    }
+
+                    DevCSW.DataResidue -= totalBytes;
+                    break;
+                }
+
+                case SCSI_WRITE_10:
+                {
+                    // Parse LBA and block count for writing data to SDRAM
+                    uint32_t lba = ((uint32_t)DevCBW.CB[2] << 24) |
+                                   ((uint32_t)DevCBW.CB[3] << 16) |
+                                   ((uint32_t)DevCBW.CB[4] << 8)  |
+                                   (uint32_t)DevCBW.CB[5];
+
+                    uint32_t blocks = ((uint16_t)DevCBW.CB[7] << 8) | (uint16_t)DevCBW.CB[8];
+                    uint32_t byteOffset = lba * MSC_BLOCK_SIZE;
+                    uint32_t totalBytes = blocks * MSC_BLOCK_SIZE;
+
+                    // Receive incoming packets from host over Bulk OUT and flush to SDRAM
+                    uint32_t remaining = totalBytes;
+                    uint32_t currentOffset = byteOffset;
+
+                    while (remaining > 0) {
+                        uint32_t chunk = (remaining > 64) ? 64 : remaining;
+                        USB_ReadEP(0x02, BulkBuf);
+                        MSC_MemoryWrite(currentOffset, BulkBuf, chunk);
+                        currentOffset += chunk;
+                        remaining -= chunk;
+                    }
+
+                    DevCSW.DataResidue -= totalBytes;
+                    break;
+                }
+
+                default:
+                    DevCSW.Status = 0x01; // Command Failed / Unsupported
+                    break;
+            }
+
+            // Transmit Command Status Wrapper (CSW) on Endpoint 1 IN
+            USB_WriteEP(0x81, (uint8_t *)&DevCSW, sizeof(MSC_CSW));
+        }
+    }
+}

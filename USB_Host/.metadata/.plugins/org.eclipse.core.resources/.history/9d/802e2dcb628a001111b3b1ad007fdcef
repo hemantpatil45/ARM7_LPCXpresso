@@ -1,0 +1,141 @@
+#include "ff.h"
+#include "diskio.h"
+#include "usbhost_ms.h"  /* Your NXP Mass Storage Header */
+
+/* Define the drive number for the USB flash drive */
+#define DEV_USB 0
+
+/*-----------------------------------------------------------------------*/
+/* Get Drive Status                                                      */
+/*-----------------------------------------------------------------------*/
+DSTATUS disk_status (BYTE pdrv)
+{
+    if (pdrv != DEV_USB) {
+        return STA_NOINIT;
+    }
+
+    /* If your USB state machine says the device is connected and enumerated,
+       return 0 (Ready). Otherwise, return STA_NOINIT.
+       Assuming a generic check here; you may need to map this to your specific global state variable. */
+    return 0;
+}
+
+/*-----------------------------------------------------------------------*/
+/* Initialize a Drive                                                    */
+/*-----------------------------------------------------------------------*/
+DSTATUS disk_initialize (BYTE pdrv)
+{
+    if (pdrv != DEV_USB) {
+        return STA_NOINIT;
+    }
+
+    /* By the time FatFs calls this, your main() loop should have already
+       called Host_Init() and enumerated the device.
+       We return 0 (Ready) to tell FatFs it can proceed. */
+    return 0;
+}
+
+/*-----------------------------------------------------------------------*/
+/* Read Sector(s)                                                        */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_read (
+    BYTE pdrv,     /* Physical drive number to identify the drive */
+    BYTE *buff,    /* Data buffer to store read data */
+    LBA_t sector,  /* Start sector in LBA */
+    UINT count     /* Number of sectors to read */
+)
+{
+    if (pdrv != DEV_USB) {
+        return RES_PARERR;
+    }
+
+    /* Map to the NXP SCSI Read function.
+       NOTE: Check your usbhost_ms.h to confirm if the function is named
+       MS_BulkRecv, MS_ReadSector, or MS_SectorRead. */
+    if (MS_BulkRecv(sector, count, buff) == 0) {
+        return RES_OK;
+    }
+
+    return RES_ERROR;
+}
+
+/*-----------------------------------------------------------------------*/
+/* Write Sector(s)                                                       */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_write (
+    BYTE pdrv,         /* Physical drive number to identify the drive */
+    const BYTE *buff,  /* Data to be written */
+    LBA_t sector,      /* Start sector in LBA */
+    UINT count         /* Number of sectors to write */
+)
+{
+    if (pdrv != DEV_USB) {
+        return RES_PARERR;
+    }
+
+    /* Map to the NXP SCSI Write function.
+       NOTE: Check your usbhost_ms.h to confirm if the function is named
+       MS_BulkSend, MS_WriteSector, or MS_SectorWrite. */
+    if (MS_BulkSend(sector, count, (BYTE*)buff) == 0) {
+        return RES_OK;
+    }
+
+    return RES_ERROR;
+}
+
+/*-----------------------------------------------------------------------*/
+/* Miscellaneous Functions                                               */
+/*-----------------------------------------------------------------------*/
+DRESULT disk_ioctl (
+    BYTE pdrv,     /* Physical drive number (0..) */
+    BYTE cmd,      /* Control code */
+    void *buff     /* Buffer to send/receive control data */
+)
+{
+    if (pdrv != DEV_USB) {
+        return RES_PARERR;
+    }
+
+    switch (cmd) {
+        case CTRL_SYNC:
+            /* Make sure pending write processes are finished.
+               For basic blocking USB transfers, this is immediate. */
+            return RES_OK;
+
+        case GET_SECTOR_SIZE:
+            /* Standard USB flash drives use 512-byte sectors */
+            *(WORD*)buff = 512;
+            return RES_OK;
+
+        case GET_BLOCK_SIZE:
+            /* Erase block size in units of sector size. Unknown for USB, return 1 */
+            *(DWORD*)buff = 1;
+            return RES_OK;
+
+        case GET_SECTOR_COUNT:
+            /* Optional: FatFs uses this for f_mkfs (formatting).
+               You can return RES_OK if you don't plan to format the drive. */
+            return RES_OK;
+    }
+
+    return RES_PARERR;
+}
+
+/*-----------------------------------------------------------------------*/
+/* Provide a Timer Tick for FatFs (Required for file timestamps)         */
+/*-----------------------------------------------------------------------*/
+DWORD get_fattime (void)
+{
+    /* FatFs requires this function to stamp files with a creation date.
+       Since you do not have an RTC (Real Time Clock) configured yet,
+       we return a fixed dummy date: Jan 1, 2024, 00:00:00.
+       Bit fields:
+       31:25 Year starting from 1980 (2024 - 1980 = 44)
+       24:21 Month (1..12)
+       20:16 Day (1..31)
+       15:11 Hour (0..23)
+       10:5  Minute (0..59)
+       4:0   Second / 2 (0..29)
+    */
+    return ((DWORD)(44) << 25) | ((DWORD)1 << 21) | ((DWORD)1 << 16);
+}

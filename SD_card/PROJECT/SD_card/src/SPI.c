@@ -1,0 +1,339 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "SPI.h"
+#include "system_init.h"
+uint8_t sd_init(void);
+uint8_t sd_read_sector(uint32_t sector, uint8_t *buffer);
+uint8_t sd_write_sector(uint32_t sector, const uint8_t *buffer);
+/* ==================== SSP0 (SPI) low level ==================== */
+
+void spi_init(void)
+{
+    /* 1. Configure Pin Multiplexing for SSP0 (SCK, MISO, MOSI) */
+    PINSEL0 |= (2UL << 30);    // P0.15 -> SCK0
+    PINSEL1 |= (2UL << 2);     // P0.17 -> MISO0
+    PINSEL1 |= (2UL << 4);     // P0.18 -> MOSI0
+
+    /* 2. Configure P1.12 as Chip Select (GPIO Output) */
+    PINSEL2 &= ~(3UL << 24);   // Clear bits to force P1.12 to GPIO
+    FIO1DIR |= (1u << 12);     // Set P1.12 as GPIO output
+    FIO1SET = (1u << 12);      // Idle state = HIGH (deselected)
+
+    /* 3. Power up the SSP0 peripheral */
+    PCONP |= (1u << 21);
+
+    /* 4. Configure SSP0 Control Registers */
+    SSP0CR0  = (7u << 0);      // DSS = 8-bit, FRF = SPI, CPOL=0, CPHA=0 (SPI Mode 0)
+    SSP0CR1  = (1u << 1);      // SSE = 1 (SSP Enable), master mode
+
+    /* 5. Set SPI Clock Speed */
+    SSP0CPSR = 8;              // SCK = PCLK_SSP0 / 8
+}
+
+
+/* ==================== SD Card Block Read/Write ==================== */
+
+/* Reads a 512-byte sector from the SD card */
+uint8_t sd_read_sector(uint32_t sector, uint8_t *buffer)
+{
+    uint8_t response;
+    uint16_t i;
+    uint16_t retry = 0;
+
+    FIO1CLR = (1u << 12);    // CS LOW
+
+    // 1. Send CMD17 (Read Single Block)
+    response = sd_send_command(17, sector, 0xFF); // CRC is ignored after init
+    if (response != 0x00) {
+        FIO1SET = (1u << 12);
+        return response;     // Command rejected
+    }
+
+    // 2. Wait for the Data Token (0xFE)
+    do {
+        response = spi_xfer(0xFF);
+        retry++;
+    } while ((response != 0xFE) && (retry < 10000));
+
+    if (response != 0xFE) {
+        FIO1SET = (1u << 12);
+        return 0xFF;         // Timeout waiting for data
+    }
+
+    // 3. Read the 512 bytes of data into the buffer
+    for (i = 0; i < 512; i++) {
+        buffer[i] = spi_xfer(0xFF);
+    }
+
+    // 4. Read the 2-byte CRC (we discard this)
+    spi_xfer(0xFF);
+    spi_xfer(0xFF);
+
+    FIO1SET = (1u << 12);    // CS HIGH
+    spi_xfer(0xFF);          // Flush clock
+
+    return 0; // Success
+}
+
+/* Writes a 512-byte sector to the SD card */
+uint8_t sd_write_sector(uint32_t sector, const uint8_t *buffer)
+{
+    uint8_t response;
+    uint16_t i;
+    uint32_t retry = 0;
+
+    FIO1CLR = (1u << 12);    // CS LOW
+
+    // 1. Send CMD24 (Write Single Block)
+    response = sd_send_command(24, sector, 0xFF);
+    if (response != 0x00) {
+        FIO1SET = (1u << 12);
+        return response;     // Command rejected
+    }
+
+    // 2. Send dummy byte to give the card a moment
+    spi_xfer(0xFF);
+
+    // 3. Send the Data Token (0xFE) to signal the start of data
+    spi_xfer(0xFE);
+
+    // 4. Write the 512 bytes of data from the buffer
+    for (i = 0; i < 512; i++) {
+        spi_xfer(buffer[i]);
+    }
+
+    // 5. Send dummy 2-byte CRC
+    spi_xfer(0xFF);
+    spi_xfer(0xFF);
+
+    // 6. Read Data Response token
+    response = spi_xfer(0xFF);
+    if ((response & 0x1F) != 0x05) {
+        FIO1SET = (1u << 12);
+        return response;     // Write was rejected by the card
+    }
+
+    // 7. Wait while the card is busy programming the flash memory
+    // The card holds the MISO line LOW (0x00) while busy
+    do {
+        response = spi_xfer(0xFF);
+        retry++;
+    } while ((response == 0x00) && (retry < 600000));
+
+    FIO1SET = (1u << 12);    // CS HIGH
+    spi_xfer(0xFF);          // Flush clock
+
+    return 0; // Success
+}
+/* Add this inside your SPI.c file */
+
+uint8_t sd_init(void)
+{
+    uint8_t response;
+    uint32_t retry = 0;
+    int i;
+
+    /* 1. Dummy Clocks */
+    FIO1SET = (1u << 12);    // CS HIGH
+    for (i = 0; i < 10; i++) spi_xfer(0xFF);
+
+    /* 2. CMD0 (GO_IDLE_STATE) */
+    FIO1CLR = (1u << 12);    // CS LOW
+    response = sd_send_command(0, 0x00000000, 0x95);
+    FIO1SET = (1u << 12);    // CS HIGH
+    spi_xfer(0xFF);          // MANDATORY: Extra clock to flush the card
+
+    if (response != 0x01) return response;
+
+    /* 3. CMD8 (SEND_IF_COND) */
+    FIO1CLR = (1u << 12);
+    response = sd_send_command(8, 0x000001AA, 0x87);
+    if (response == 0x01) {
+        spi_xfer(0xFF); spi_xfer(0xFF); spi_xfer(0xFF); spi_xfer(0xFF); // Read R7 payload
+    }
+    FIO1SET = (1u << 12);
+    spi_xfer(0xFF);          // MANDATORY: Extra clock to flush the card
+
+    /* 4. ACMD41 (SD_SEND_OP_COND) */
+    do {
+        // CMD55
+        FIO1CLR = (1u << 12);
+        sd_send_command(55, 0x00000000, 0x65);
+        FIO1SET = (1u << 12);
+        spi_xfer(0xFF);      // MANDATORY: Extra clock to flush the card
+
+        // ACMD41
+        FIO1CLR = (1u << 12);
+        response = sd_send_command(41, 0x40000000, 0x77);
+        FIO1SET = (1u << 12);
+        spi_xfer(0xFF);      // MANDATORY: Extra clock to flush the card
+
+        retry++;
+    } while ((response != 0x00) && (retry < 1000));
+
+    return response;
+}
+uint8_t spi_xfer(uint8_t out)
+{
+    while (SSP0SR & (1u << 4)) { /* Wait while BSY (Busy) flag is set */ }
+
+    SSP0DR = out;                /* Write byte to Data Register */
+
+    while ((SSP0SR & (1u << 2)) == 0) { /* Wait for RNE (Receive Not Empty) flag */ }
+
+    return (uint8_t)SSP0DR;      /* Read and return the received byte */
+}
+
+/* ==================== SD Card Commands ==================== */
+
+uint8_t sd_send_command(uint8_t cmd, uint32_t arg, uint8_t crc)
+{
+    uint8_t response;
+    uint8_t retry = 0;
+
+    /* 1. Send the command byte (SD commands always start with bit 6 set to 1) */
+    spi_xfer(cmd | 0x40);
+
+    /* 2. Send the 32-bit argument (Most Significant Byte first) */
+    spi_xfer((uint8_t)(arg >> 24));
+    spi_xfer((uint8_t)(arg >> 16));
+    spi_xfer((uint8_t)(arg >> 8));
+    spi_xfer((uint8_t)(arg));
+
+    /* 3. Send the CRC byte */
+    spi_xfer(crc);
+
+    /* 4. Wait for the SD card to respond. */
+    do {
+        response = spi_xfer(0xFF);
+        retry++;
+    } while ((response & 0x80) && (retry < 10)); // Response always has MSB = 0.
+
+    return response;
+}
+// Initialize GPIOs for SW2 (Row P2.0, Col P2.25)
+void SW2_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));             // Set Row pin to GPIO
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));       // Set Col pin to GPIO
+    FIO2DIR &= ~KBD_ROW1_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
+    FIO2SET  =  KBD_COL1_MASK;    // Set Col to High (idle)
+}
+
+// Poll SW2: Drive column low, read row, then restore column
+uint32_t SW2_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      // Drive scan column low
+    delay_us(200);                // Wait for signal to settle
+    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u); // Check if Row was pulled low
+    FIO2SET = KBD_COL1_MASK;      // Return column to high
+    return pressed;
+}
+
+// Initialize GPIOs for SW6
+void SW6_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
+
+    FIO2DIR &= ~KBD_ROW2_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+// Poll SW6: Same logic as SW2 but checks a different Row bit
+uint32_t SW6_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;
+    delay_us(200);
+    uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;
+    return pressed;
+}
+
+// Timer Interrupt Service Routine
+void Timer0_irq(void) __attribute__((interrupt("IRQ")));
+volatile unsigned int timer_cnt = 0;
+
+void Timer0_irq(void)
+{
+    T0IR = 0x01;    // Clear match interrupt flag
+    timer_cnt++;    // Increment timer tick count
+}
+
+// Setup Timer 0 to trigger interrupts at a specific interval
+void Timer0_init()
+{
+    T0TCR = 0;                  // Disable timer
+    T0PR = 0x0;                 // No prescaler
+    T0MR0 = 6000;               // Match value (Interval)
+    T0MCR = 0x03;               // Interrupt and reset on Match 0
+    T0CCR = 0;                  // No capture
+    T0EMR = 0;                  // No external output
+
+    // Configure VIC (Vectored Interrupt Controller) to link Timer0 to our ISR
+    VICVectAddr4 = (unsigned long)Timer0_irq;
+    VICVectCntl4 = 0x20 | 4;                  // Enable slot and map to Timer0
+    VICIntEnable = (1 << 4);                  // Unmask Timer0 interrupt
+
+    T0TCR=0x00;                               // Keep off until needed
+    T0IR = 0x01;                              // Clear interrupts
+}
+
+// Simple blocking delay using the Timer
+void timer_delay(unsigned int time)
+{
+    T0IR = 0x01;
+    T0TCR = 0x01;     // Start Timer
+    timer_cnt = 0x00; // Reset tick counter
+    while(timer_cnt != time)
+    {
+        timer_cnt++;  // Wait for counter to reach target
+    }
+    T0TCR=0x00;       // Stop Timer
+}
+
+
+void SW10_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW3_MASK*2));
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
+
+    FIO2DIR &= ~KBD_ROW3_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+// Poll SW10: Same logic as SW2 but checks a different Row bit
+uint32_t SW10_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;
+    delay_us(200);
+    uint32_t pressed = ((FIO2PIN & KBD_ROW3_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;
+    return pressed;
+}
+
+void SW14_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW4_MASK*2));
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
+
+    FIO2DIR &= ~KBD_ROW4_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+// Poll SW10: Same logic as SW2 but checks a different Row bit
+uint32_t SW14_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;
+    delay_us(200);
+    uint32_t pressed = ((FIO2PIN & KBD_ROW4_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;
+    return pressed;
+}

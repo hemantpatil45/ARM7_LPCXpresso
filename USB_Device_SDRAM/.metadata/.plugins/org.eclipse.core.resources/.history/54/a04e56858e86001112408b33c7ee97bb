@@ -1,0 +1,56 @@
+#ifndef SDRAM_H_
+#define SDRAM_H_
+
+#include <stdint.h>
+
+// Updated to 48 MHz (48,000,000 Hz) to match the 48 MHz CCLK system clock
+#define EMC_CLK_FREQ        48000000UL
+
+// Converts nanoseconds (ns) to EMC clock cycles (rounds UP to guarantee timing compliance)
+#define P2C(ns)             (((uint32_t)(ns) * (EMC_CLK_FREQ / 1000000UL) + 999UL) / 1000UL)
+
+// SDRAM Timing Parameters (in nanoseconds / cycles)
+#define SDRAM_TRP           20
+#define SDRAM_TRAS          45
+#define SDRAM_TXSR          70
+#define SDRAM_TAPR          5
+#define SDRAM_TDAL          7
+#define SDRAM_TWR           2
+#define SDRAM_TRC           65
+#define SDRAM_TRFC          70
+#define SDRAM_TRRD          15
+#define SDRAM_TMRD          2
+#define SDRAM_REFRESH       64000000UL
+
+#define MAX_SDRAM_DATA      5
+
+#define EMC_BUSY_TIMEOUT    1000000UL
+#define EMCSTATUS_BIT_0     (1U << 0)
+
+// Keypad Pin Bit Definitions
+#define KBD_ROW1_BIT        0u
+#define KBD_COL1_BIT        25u
+#define KBD_ROW1_MASK       (1u << KBD_ROW1_BIT)
+#define KBD_COL1_MASK       (1u << KBD_COL1_BIT)
+#define KBD_ROW2_BIT        1u
+#define KBD_ROW2_MASK       (1u << KBD_ROW2_BIT)
+
+// External Variables
+extern unsigned int SDRAM_data[MAX_SDRAM_DATA];
+extern unsigned int test1234[MAX_SDRAM_DATA];
+extern char buffer[64];
+extern volatile unsigned int *SDRAM_pointer;
+
+// Function Prototypes
+void SW2_Keypad_Init(void);
+void SW6_Keypad_Init(void);
+uint32_t SW2_Pressed(void);
+uint32_t SW6_Pressed(void);
+void Timer0_irq(void);
+void Timer0_init(void);
+void timer_delay(unsigned int time);
+void SDRAM_init_32BIT(void);
+void SDRAM_write(void);
+void SDRAM_read(void);
+
+#endif /* SDRAM_H_ */

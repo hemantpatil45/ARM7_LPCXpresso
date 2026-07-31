@@ -1,0 +1,65 @@
+#include <stdint.h>
+#include "usbdesc.h"
+
+// --- Device Descriptor (Exactly 18 bytes) ---
+// This is your device's main "ID Card".
+// This is what the PC requests when wLength is 64 but we only send 18!
+const uint8_t USB_DeviceDescriptor[] = {
+    18,                 // bLength: Size of this descriptor
+    0x01,               // bDescriptorType: DEVICE (0x01)
+    0x00, 0x02,         // bcdUSB: USB 2.00 specification
+    0x00,               // bDeviceClass: (Defined in the Interface Descriptor)
+    0x00,               // bDeviceSubClass: 0
+    0x00,               // bDeviceProtocol: 0
+    64,                 // bMaxPacketSize0: 64 bytes for Endpoint 0
+    0xC9, 0x1F,         // idVendor: NXP VID (0x1FC9)
+    0x03, 0x00,         // idProduct: Generic Mass Storage PID (0x0003)
+    0x00, 0x01,         // bcdDevice: Device release number (1.00)
+    0x00,               // iManufacturer: 0 (No string descriptor)
+    0x00,               // iProduct: 0 (No string descriptor)
+    0x00,               // iSerialNumber: 0 (No string descriptor)
+    0x01                // bNumConfigurations: 1 possible configuration
+};
+
+// --- Configuration Descriptor Block (Exactly 32 bytes) ---
+// When the PC asks for the Configuration, it expects the Interface
+// and Endpoint descriptors to be attached to it in one continuous stream.
+const uint8_t USB_ConfigDescriptor[] = {
+
+    // 1. Configuration Descriptor (9 bytes)
+    9,                  // bLength
+    0x02,               // bDescriptorType: CONFIGURATION (0x02)
+    32, 0x00,           // wTotalLength: 32 total bytes in this block
+    0x01,               // bNumInterfaces: 1 Interface (Mass Storage)
+    0x01,               // bConfigurationValue: 1
+    0x00,               // iConfiguration: 0
+    0xC0,               // bmAttributes: Self-powered
+    0x32,               // bMaxPower: 100mA (50 * 2mA)
+
+    // 2. Mass Storage Interface Descriptor (9 bytes)
+    9,                  // bLength
+    0x04,               // bDescriptorType: INTERFACE (0x04)
+    0x00,               // bInterfaceNumber: 0
+    0x00,               // bAlternateSetting: 0
+    0x02,               // bNumEndpoints: 2 (Bulk IN and Bulk OUT)
+    0x08,               // bInterfaceClass: 0x08 (Mass Storage)
+    0x06,               // bInterfaceSubClass: 0x06 (SCSI Transparent Command Set)
+    0x50,               // bInterfaceProtocol: 0x50 (Bulk-Only Transport)
+    0x00,               // iInterface: 0
+
+    // 3. Bulk IN Endpoint Descriptor (7 bytes)
+    7,                  // bLength
+    0x05,               // bDescriptorType: ENDPOINT (0x05)
+    0x81,               // bEndpointAddress: Endpoint 1 IN (0x80 | 0x01)
+    0x02,               // bmAttributes: Bulk
+    64, 0x00,           // wMaxPacketSize: 64 bytes
+    0x00,               // bInterval: Ignored for Bulk
+
+    // 4. Bulk OUT Endpoint Descriptor (7 bytes)
+    7,                  // bLength
+    0x05,               // bDescriptorType: ENDPOINT (0x05)
+    0x02,               // bEndpointAddress: Endpoint 2 OUT (0x00 | 0x02)
+    0x02,               // bmAttributes: Bulk
+    64, 0x00,           // wMaxPacketSize: 64 bytes
+    0x00                // bInterval: Ignored for Bulk
+};

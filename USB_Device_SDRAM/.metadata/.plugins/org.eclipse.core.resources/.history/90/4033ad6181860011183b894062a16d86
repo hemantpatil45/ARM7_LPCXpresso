@@ -1,0 +1,51 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "SDRAM.h"
+#include "usbcore.h"
+#include "usbhw.h"
+
+extern volatile bool usb_event_detected;
+
+void Enable_Global_Interrupts(void) {
+    __asm("mrs r0, cpsr");
+    __asm("bic r0, r0, #0x80");
+    __asm("msr cpsr_c, r0");
+}
+
+int main(void)
+{
+    // 1. System & GLCD Initialization
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+    GLCD_RowWriteMargin(0, "SYSTEM BOOTING...   ");
+
+    // 2. SDRAM Initialization
+    SDRAM_init_32BIT();
+    GLCD_RowWriteMargin(1, "SDRAM INITIALIZED   ");
+
+    // 3. Format SDRAM for USB Mass Storage
+    Init_SDRAM_Disk();
+    GLCD_RowWriteMargin(2, "SDRAM DISK FORMATTED");
+
+    // 4. USB Initialization
+    Enable_Global_Interrupts();
+    USB_Init();
+    USB_Connect(true);
+
+    GLCD_RowWriteMargin(4, "USB MSC CONNECTED   ");
+    GLCD_RowWriteMargin(5, "READY FOR HOST PC   ");
+
+    // 5. Main USB Polling Loop
+    while (1)
+    {
+        if (usb_event_detected) {
+            usb_event_detected = false;
+        }
+    }
+}

@@ -1,0 +1,171 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+
+// --- LPC2478 USB Protocol Engine Command Codes ---
+#define CMD_SET_ADDR        0xD0
+#define CMD_CFG_DEV         0xD8
+#define CMD_SET_DEV_STAT    0xFE
+#define CMD_CLR_BUF         0xF2
+#define CMD_VALID_BUF       0xFA
+#define CMD_SEL_EP          0x00
+#define CMD_SET_EP_STAT     0x40
+
+// --- Protocol Engine Helper Functions ---
+
+// Send a basic command to the protocol engine
+void USB_WriteCmd(uint32_t cmd) {
+    DEV_INT_CLR = 0x10;                        // Clear 'Command Code Empty' flag
+    CMD_CODE = (cmd << 16) | 0x0500;           // Shift command and append "Command Phase" bits
+    while ((DEV_INT_STAT & 0x10) == 0);        // Wait for engine to process
+    DEV_INT_CLR = 0x10;
+}
+
+// Send a command followed by a single byte of data
+void USB_WriteCmdData(uint32_t cmd, uint32_t data) {
+    USB_WriteCmd(cmd);                         // Send the command phase
+    CMD_CODE = (data << 16) | 0x0100;          // Shift data and append "Write Phase" bits
+    while ((DEV_INT_STAT & 0x10) == 0);        // Wait for engine to process
+    DEV_INT_CLR = 0x10;
+}
+
+// Convert standard USB Endpoint Address (e.g., 0x81) to LPC Hardware Index (0-31)
+uint32_t EPAdrToPhys(uint32_t EPNum) {
+    uint32_t dir = (EPNum & 0x80) ? 1 : 0;     // Direction: OUT = 0, IN = 1
+    return ((EPNum & 0x0F) * 2) + dir;         // Physical index math
+}
+
+
+// --- Setup & Connection ---
+
+void USB_Init(void) {
+    // 1. Power up the USB block
+    PCONP |= (1 << 31);
+
+    // 2. Set the 48MHz clock divider (System PLL is 288MHz. 288/6 = 48)
+    USBCLKCFG = 5;
+
+    // 3. Route the pins via PINSEL
+    PINSEL1 &= ~((3 << 26) | (3 << 28)); // P0.29 (D+) and P0.30 (D-)
+    PINSEL1 |=  ((1 << 26) | (1 << 28));
+
+    PINSEL3 &= ~(3 << 28);               // P1.30 (VBUS)
+    PINSEL3 |=  (2 << 28);
+
+    PINSEL4 &= ~(3 << 18);               // P2.9 (USB_CONNECT1)
+    PINSEL4 |=  (1 << 18);
+
+    PINMODE3 &= ~(3 << 28);              // VBUS pull-up/down termination
+
+    // 4. Clear stale interrupts
+    DEV_INT_CLR = 0x3FFF;
+    EP_INT_CLR  = 0xFFFFFFFF;
+
+    // 5. Realize the default Control Endpoints (EP0 OUT and EP0 IN)
+    USB_ConfigEP(0x00, 64);
+    USB_ConfigEP(0x80, 64);
+
+    // 6. Enable Interrupts
+    EP_INT_EN = 0x00000003;             // Enable EP0 OUT and IN interrupts
+    DEV_INT_EN = (1 << 0) | (1 << 1);   // Enable Device Status and Slow endpoint events
+    VICIntEnable |= (1 << 22);          // Unmask USB channel in the VIC
+}
+
+void USB_Connect(bool connect) {
+    USB_WriteCmdData(CMD_SET_DEV_STAT, connect ? 1 : 0);
+}
+
+
+// --- Hardware Engine Control ---
+
+void USB_SetAddress(uint32_t adr) {
+    // Bit 7 (0x80) tells the hardware to enable the address
+    USB_WriteCmdData(CMD_SET_ADDR, adr | 0x80);
+}
+
+void USB_Configure(bool configure) {
+    USB_WriteCmdData(CMD_CFG_DEV, configure ? 1 : 0);
+}
+
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+
+    REALIZE_EP |= (1 << phys_ep);
+    EP_INDEX = phys_ep;
+    MAXPACKET_SIZE = MaxPacketSize;
+
+    while ((DEV_INT_STAT & (1 << 4)) == 0); // Wait for EP_RLZED flag
+    DEV_INT_CLR = (1 << 4);
+}
+
+void USB_EnableEP(uint32_t EPNum) {
+    EP_INT_EN |= (1 << EPAdrToPhys(EPNum)); // Enable interrupts for this endpoint
+}
+
+void USB_DisableEP(uint32_t EPNum) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+    EP_INT_EN &= ~(1 << phys_ep);           // Disable interrupts
+    REALIZE_EP &= ~(1 << phys_ep);          // De-allocate buffer RAM
+}
+
+void USB_ResetEP(uint32_t EPNum) {
+    // Endpoints are reset automatically by the engine during a bus reset
+}
+
+void USB_SetStallEP(uint32_t EPNum) {
+    USB_WriteCmdData(CMD_SET_EP_STAT + EPAdrToPhys(EPNum), 1); // 1 = STALL
+}
+
+void USB_ClrStallEP(uint32_t EPNum) {
+    USB_WriteCmdData(CMD_SET_EP_STAT + EPAdrToPhys(EPNum), 0); // 0 = Clear STALL
+}
+
+
+// --- Data Transfer Functions ---
+
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);             // Tell engine which EP to read
+
+    uint32_t numBytes = RX_PLENGTH & 0x3FF;         // Read packet length
+    uint32_t *pDst = (uint32_t *)pData;             // Hardware requires 32-bit aligned reads
+
+    // Read words out of the hardware FIFO
+    for (uint32_t i = 0; i < (numBytes + 3) / 4; i++) {
+        *pDst++ = RX_DATA;
+    }
+
+    // Clear buffer so hardware can receive the next packet
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+    USB_WriteCmd(CMD_CLR_BUF);
+
+    return numBytes;
+}
+
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);             // Tell engine which EP to write
+
+    TX_PLENGTH = cnt;                               // MUST specify length first!
+    uint32_t *pSrc = (uint32_t *)pData;
+
+    // Write words into the hardware FIFO
+    for (uint32_t i = 0; i < (cnt + 3) / 4; i++) {
+        TX_DATA = *pSrc++;
+    }
+
+    // Validate buffer to tell hardware to send it to the PC
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+    USB_WriteCmd(CMD_VALID_BUF);
+
+    return cnt;
+}
+
+
+// --- Interrupt Service Routine ---
+
+void USB_ISR(void) {
+    // To be built...
+
+    // Acknowledge the VIC at the end of every ISR
+    VICAddress = 0;
+}

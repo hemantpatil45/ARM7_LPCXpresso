@@ -1,0 +1,52 @@
+#include "LPC24xx.h"
+#include "ff.h"            /* FatFs Library */
+#include "usbhost.h"       /* OHCI Hardware Layer */
+#include "usbhost_ms.h"    /* Mass Storage/SCSI Layer */
+
+extern void PLL_Init(void);
+extern void system_Init(void);
+extern void UART0_Init(uint32_t baudrate);
+extern void UART0_Print(const char *str);
+
+FATFS fs; /* File system object */
+
+int main(void) {
+    /* 1. Stabilize the system and UART */
+    PLL_Init();
+    system_Init();
+    UART0_Init(115200);
+
+    UART0_Print("\r\n[BOOT] LPC2478 USB Host Booting...\r\n");
+
+    /* 2. Initialize the USB Hardware Pins specifically for Port 2 */
+    USBHostInit();
+
+    /* 3. Wake up the OHCI Controller */
+    OHCIInit();
+
+    /* 4. Open Port 2 (Sends 5V to the J48 USB Socket) */
+    OHCIPortOpen(2);
+
+    UART0_Print("[USB] Scanning Port 2 for Flash Drive...\r\n");
+
+    while (1) {
+        /* 5. Check if a drive is attached and ready to receive SCSI commands */
+        if (MS_Init() == 0) { /* Returns 0 (OK) if successful */
+
+            UART0_Print("[USB] Flash Drive Enumerated!\r\n");
+
+            /* 6. Mount the FAT32 File System via FatFs */
+            /* "0:" specifies the logical drive number */
+            if (f_mount(&fs, "0:", 1) == FR_OK) {
+                UART0_Print("[FAT] Drive successfully mounted!\r\n");
+
+                /* --- YOUR APPLICATION CODE GOES HERE --- */
+                /* Example: f_open(), f_read(), f_write() */
+
+                while(1); /* Trap CPU here after successful mount to prevent re-mounting */
+            } else {
+                UART0_Print("[FAT] Failed to mount drive.\r\n");
+            }
+        }
+    }
+}

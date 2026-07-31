@@ -1,0 +1,99 @@
+#include "SDRAM.h"
+#include <stdio.h>
+#include "system_init"
+
+// --- Project Specific Headers ---
+// #include "LPC247x.h" // Replace with your actual MCU header for EMC registers
+// extern void row_wr(int row, char* str);
+// extern void transmit_array(char* str);
+// extern void transmit_byte(char byte);
+// --------------------------------
+
+// Define the global variables
+unsigned int *SDRAM_pointer;
+unsigned int test1234[256]; // Ensure this is large enough for your read operations
+char buffer[64];
+
+void SDRAM_init_32BIT()
+{
+  PCONP_bit.PCEMC = 1;
+  EMCCONTROL      = 1;         // enable EMC
+  EMCDINAMICRDCFG = 1;
+  EMCDYNAMICRASCAS0_bit.CAS = 3;
+  EMCDYNAMICRASCAS0_bit.RAS = 3;
+  EMCDYNAMICRP = P2C(SDRAM_TRP);
+  EMCDYNAMICRAS = P2C(SDRAM_TRAS);
+  EMCDYNAMICSREX = P2C(SDRAM_TXSR);
+  EMCDYNAMICAPR = SDRAM_TAPR;
+  EMCDYNAMICDAL = SDRAM_TDAL+P2C(SDRAM_TRP);
+  EMCDYNAMICWR = SDRAM_TWR;
+  EMCDYNAMICRC = P2C(SDRAM_TRC);
+  EMCDYNAMICRFC = P2C(SDRAM_TRFC);
+  EMCDYNAMICXSR = P2C(SDRAM_TXSR);
+  EMCDYNAMICRRD = P2C(SDRAM_TRRD);
+  EMCDYNAMICMRD = SDRAM_TMRD;
+  EMCDYNAMICCFG0 = 0x0004680;        // 13 row, 9 - col, SDRAM
+  //EMCDYNAMICCFG0 = 0x280;        // 12 row, 8 - col, SDRAM
+  // JEDEC General SDRAM Initialization Sequence
+  // DELAY to allow power and clocks to stabilize ~100 us
+  // NOP
+  EMCDINAMICCTRL = 0x0183;
+  
+  for(volatile int i = 200*30; i;i--);
+  // PALL
+  EMCDINAMICCTRL_bit.I = 2;
+  EMCDINAMICRFR = 1;
+  for(volatile int i= 128; i; --i); // > 128 clk
+  EMCDINAMICRFR = P2C(SDRAM_REFRESH) >> 4;
+  // COMM
+  EMCDINAMICCTRL_bit.I = 1;
+  // Burst 4, Sequential, CAS-3
+  volatile unsigned long Dummy = *(SDRAM_pointer+0x32);//(0x32 << 13)
+   // *(volatile unsigned short *)
+                                   // ((Int32U)&SDRAM_BASE_ADDR + (0x32UL << (13)));
+  // NORM
+  EMCDINAMICCTRL = 0x0000;///////////////////////
+  EMCDYNAMICCFG0_bit.B = 1;/////////////////////
+  for(volatile int i = 10000; i;i--);
+}
+
+void SDRAM_write(unsigned int No_of_data, unsigned int SDRAM_DAT[])
+{
+  unsigned int a;
+  SDRAM_pointer = (unsigned int*)0xA0000000;    //0x80000555
+  for(a = 0; a < No_of_data; a++)
+  {
+  
+  *SDRAM_pointer = SDRAM_DAT[a];
+  while(EMCSTATUS_bit.B == 0x01)   // Check if EMC is busy
+           {}
+         SDRAM_pointer++;
+        
+  }
+}
+
+void SDRAM_read(unsigned int No_of_data)
+{
+  int a, b;
+  SDRAM_pointer = (unsigned int*)0XA0000000;//0x801FE000;
+  for(a = 0; a < No_of_data; a++)
+  {
+        b = *SDRAM_pointer;
+        while(EMCSTATUS_bit.B == 0x01)   // Check if EMC is busy
+           {}
+        test1234[a] = b;
+        
+        SDRAM_pointer++;
+        //delay(100);
+  }
+  SDRAM_pointer = (unsigned int*)0XA0000000;
+   for(a = 0; a < No_of_data; a++)
+  {     
+        sprintf(buffer,"0x%x = 0x%x        !",SDRAM_pointer, test1234[a]);
+        row_wr(4,buffer);
+        transmit_array(buffer); 
+        transmit_byte(0X0D);
+        transmit_byte(0X0A);
+        SDRAM_pointer++;
+  }
+}

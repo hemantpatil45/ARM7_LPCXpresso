@@ -1,0 +1,64 @@
+#ifndef USBHW_H_
+#define USBHW_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+
+// just some helpers so we don't mix up directions later on
+#define USB_DIR_OUT 0  // PC is sending data to us
+#define USB_DIR_IN  1  // we are sending data to the PC
+
+
+// --- setup stuff ---
+
+// fire up the 48MHz clock, turn on usb power, and wire up the pins to the hardware engine
+void USB_Init(void);
+
+// yank the D+ line high to actually show up on the PC, or drop it to disconnect
+void USB_Connect(bool connect);
+
+
+// --- talking to the hardware engine ---
+
+// save the address the PC gives us during enumeration
+void USB_SetAddress(uint32_t adr);
+
+// flip the switch when the PC is done setting us up
+void USB_Configure(bool configure);
+
+// tell the hardware how big the chunks of data are for this endpoint (usually 64 bytes)
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize);
+
+// turn on a specific endpoint so it can actually do work
+void USB_EnableEP(uint32_t EPNum);
+
+// kill an endpoint
+void USB_DisableEP(uint32_t EPNum);
+
+// clear out the internal state and toggle bits for an endpoint
+void USB_ResetEP(uint32_t EPNum);
+
+// jam the endpoint. we need this to tell the PC "hey, bad command" during file transfers
+void USB_SetStallEP(uint32_t EPNum);
+
+// un-jam the endpoint so we can talk again
+void USB_ClrStallEP(uint32_t EPNum);
+
+
+// --- moving data around ---
+
+// grab the data the PC just sent us from the hardware buffer and dump it into our ram
+// returns how many bytes we actually grabbed
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData);
+
+// shove data from our ram into the hardware buffer to send to the PC
+// returns how many bytes we shoved in there
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt);
+
+
+// --- interrupts ---
+
+// this is the main interrupt trap. VIC channel 22 needs to point right here.
+void USB_ISR(void);
+
+#endif // USBHW_H_

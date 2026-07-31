@@ -1,0 +1,211 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+extern void UART0_Print(const char *str);
+extern void UART0_PrintHex(uint32_t val);
+
+USB_SETUP_PACKET SetupPacket;
+USB_CBW cbw;
+USB_CSW csw;
+
+// Point directly to the base of the SDRAM
+uint8_t *SDRAM_Disk = (uint8_t *)0xA0000000;
+#define SDRAM_DISK_SIZE (32 * 1024 * 1024) // 32MB Drive
+
+uint8_t *Bulk_Data_Ptr;
+uint32_t Bulk_Data_Len;
+bool Bulk_Sending_Data = false;
+
+uint8_t *Write_Data_Ptr;
+uint32_t Write_Data_Len;
+bool Bulk_Expecting_Write_Data = false;
+
+void Init_SDRAM_Disk(void) {
+    uint32_t *SDRAM_Disk32 = (uint32_t *)0xA0000000;
+
+    // Clear the first 4096 bytes strictly using 32-bit words (1024 words)
+    // This bypasses the broken DQM byte-write hardware entirely
+    for(int i = 0; i < 1024; i++) {
+        SDRAM_Disk32[i] = 0;
+    }
+
+    // Pack the FAT16 Boot Sector Signature into Little-Endian 32-bit words
+    SDRAM_Disk32[0] = 0x4C903CEB;
+    SDRAM_Disk32[1] = 0x34324350;
+    SDRAM_Disk32[2] = 0x00203837;
+    SDRAM_Disk32[3] = 0x00000002;
+
+    // The 55 AA boot signature at the end of the 512-byte block
+    SDRAM_Disk32[127] = 0xAA550000;
+}
+
+const uint8_t SCSI_Inquiry_Data[36] = {
+    0x00, 0x80, 0x02, 0x02, 31, 0x00, 0x00, 0x00,
+    'L', 'P', 'C', '2', '4', '7', '8', ' ',
+    'D', 'e', 'v', 'i', 'c', 'e', ' ', ' ',
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    '1', '.', '0', '0'
+};
+
+// SCSI CAPACITY: 32 MB (65536 sectors of 512 bytes)
+const uint8_t SCSI_Capacity_Data[8] = {
+    0x00, 0x00, 0xFF, 0xFF, // Last LBA: 65535
+    0x00, 0x00, 0x02, 0x00  // Block Length: 512 bytes
+};
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        USB_WriteCmd(CMD_SEL_EP + 0);
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP + 0);
+
+        if (ep_stat & (1 << 5)) {
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: pData = (uint8_t *)USB_DeviceDescriptor; descriptor_size = 18; break;
+                        case 0x02: pData = (uint8_t *)USB_ConfigDescriptor; descriptor_size = 32; break;
+                        default: USB_SetStallEP(0x80); return;
+                    }
+                    if (descriptor_size > SetupPacket.wLength) descriptor_size = SetupPacket.wLength;
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+                case USB_REQUEST_SET_CONFIGURATION:
+                    USB_Configure(true);
+                    USB_ConfigEP(0x81, 64); USB_EnableEP(0x81);
+                    USB_ConfigEP(0x02, 64); USB_EnableEP(0x02);
+                    EP_INT_EN |= (1 << 3) | (1 << 4);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case 0xFE:
+                    if (SetupPacket.bmRequestType == 0xA1) {
+                        uint8_t max_lun = 0; USB_WriteEP(0x80, &max_lun, 1);
+                    } else USB_SetStallEP(0x80);
+                    break;
+                default: USB_SetStallEP(0x80); break;
+            }
+        } else {
+            uint8_t dummy[64]; USB_ReadEP(0x00, dummy);
+        }
+    }
+}
+
+void BOT_Send_Next_Chunk(void) {
+    if (Bulk_Data_Len > 0) {
+        uint32_t chunk = (Bulk_Data_Len > 64) ? 64 : Bulk_Data_Len;
+        if (Bulk_Data_Ptr != 0) {
+            USB_WriteEP(0x81, Bulk_Data_Ptr, chunk);
+            Bulk_Data_Ptr += chunk;
+        } else {
+            uint8_t zeroes[64] = {0};
+            USB_WriteEP(0x81, zeroes, chunk);
+        }
+        Bulk_Data_Len -= chunk;
+    } else if (Bulk_Sending_Data) {
+        Bulk_Sending_Data = false;
+        USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+    }
+}
+
+void Process_Bulk_OUT(void) {
+    if (Bulk_Expecting_Write_Data) {
+        uint8_t temp[64];
+        uint32_t count;
+
+        if (Write_Data_Ptr != 0) {
+            count = USB_ReadEP(0x02, Write_Data_Ptr);
+            Write_Data_Ptr += count;
+        } else {
+            count = USB_ReadEP(0x02, temp);
+        }
+
+        if (Write_Data_Len > count) Write_Data_Len -= count;
+        else Write_Data_Len = 0;
+
+        if (Write_Data_Len == 0) {
+            Bulk_Expecting_Write_Data = false;
+            csw.bCSWStatus = 0;
+            USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+        }
+        return;
+    }
+
+    uint32_t count = USB_ReadEP(0x02, (uint8_t *)&cbw);
+    if (count == 31 && cbw.dCBWSignature == 0x43425355) {
+        csw.dCSWSignature = 0x53425355;
+        csw.dCSWTag = cbw.dCBWTag;
+        csw.dCSWDataResidue = 0;
+        csw.bCSWStatus = 0;
+
+        switch (cbw.CBWCB[0]) {
+            case 0x00: USB_WriteEP(0x81, (uint8_t *)&csw, 13); break;
+            case 0x03:
+                Bulk_Data_Ptr = (uint8_t[]){0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x30, 0x01, 0, 0, 0, 0};
+                Bulk_Data_Len = 18; Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x12:
+                Bulk_Data_Ptr = (uint8_t *)SCSI_Inquiry_Data; Bulk_Data_Len = sizeof(SCSI_Inquiry_Data);
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x1A:
+                Bulk_Data_Ptr = (uint8_t[]){0x03, 0x00, 0x00, 0x00}; Bulk_Data_Len = 4;
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x25:
+                Bulk_Data_Ptr = (uint8_t *)SCSI_Capacity_Data; Bulk_Data_Len = 8;
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+
+            case 0x28: // READ
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+                uint16_t blocks = (cbw.CBWCB[7] << 8) | cbw.CBWCB[8];
+                uint32_t byte_offset = lba * 512;
+
+                // LBA 0 DEBUG
+                if (lba == 0) {
+                    UART0_Print("\r\n[USB] Host READ Superblock (LBA 0)\r\n");
+                    UART0_Print("[USB] First 4 bytes: ");
+                    uint32_t *first_word = (uint32_t *)&SDRAM_Disk[0];
+                    UART0_PrintHex(*first_word);
+                    UART0_Print("\r\n");
+                }
+
+                if ((byte_offset + (blocks * 512)) <= SDRAM_DISK_SIZE) Bulk_Data_Ptr = &SDRAM_Disk[byte_offset];
+                else Bulk_Data_Ptr = 0;
+
+                Bulk_Data_Len = blocks * 512;
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+            }
+
+            case 0x2A: // WRITE
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+                uint16_t blocks = (cbw.CBWCB[7] << 8) | cbw.CBWCB[8];
+                uint32_t byte_offset = lba * 512;
+
+                // LBA 0 DEBUG
+                if (lba == 0) {
+                    UART0_Print("\r\n[USB] Host is WRITING Superblock (LBA 0)\r\n");
+                }
+
+                if ((byte_offset + (blocks * 512)) <= SDRAM_DISK_SIZE) Write_Data_Ptr = &SDRAM_Disk[byte_offset];
+                else Write_Data_Ptr = 0;
+
+                Write_Data_Len = blocks * 512;
+                Bulk_Expecting_Write_Data = true;
+                break;
+            }
+
+            default: USB_WriteEP(0x81, (uint8_t *)&csw, 13); break;
+        }
+    }
+}

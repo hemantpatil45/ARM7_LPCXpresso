@@ -1,0 +1,74 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include "system_init.h"
+#include <stdint.h>
+
+// Blocking loop tuned exactly for a 48MHz core clock
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // 1. Enable EMC Power
+    PCONP |= (1 << 11);
+
+    // 2. Route Port 2 Control Pins (CAS, RAS, CLK, DYCS0, CKE, DQM0-3)
+    PINSEL5 = 0x55010115;
+
+    // 3. Route Port 3 Data Pins (D0 - D31)
+    PINSEL6 = 0x55555555;
+    PINSEL7 = 0x55555555;
+
+    // 4. Route Port 4 Address Pins & Write Enable
+    PINSEL8 = 0x55555555;
+    PINSEL9 = (PINSEL9 & 0xFFF00000) | 0x00041555;
+
+    // 5. EMC Timing Configuration (Hardcoded limits for 48 MHz)
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = 0x00000303; // CAS=3, RAS=3
+
+    EMC_DYN_RP   = 2;
+    EMC_DYN_RAS  = 3;
+    EMC_DYN_SREX = 4;
+    EMC_DYN_APR  = 2;
+    EMC_DYN_DAL  = 3;
+    EMC_DYN_WR   = 2;
+    EMC_DYN_RC   = 4;
+    EMC_DYN_RFC  = 4;
+    EMC_DYN_XSR  = 4;
+    EMC_DYN_RRD  = 2;
+    EMC_DYN_MRD  = 2;
+
+        // Change this line (Bit 14 was 1 for 32-bit):
+        EMC_DYN_CFG0 = 0x00004680;
+        //EMC_DYN_CFG0 = 0x00000700;
+        // To this line (Bit 14 is 0 for 16-bit):
+        //EMC_DYN_CFG0 = 0x00000680;
+
+    // 6. SDRAM Hardware Initialization Sequence
+    timer_delay(100);
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    timer_delay(200);
+
+    EMC_DYN_CTRL = 0x0103;     // PALL command
+    timer_delay(100);
+
+    EMC_DYN_RFSH = 2;          // Auto-refresh pulse
+    timer_delay(10);
+    EMC_DYN_RFSH = 23;         // Continuous refresh (48MHz formula)
+    timer_delay(10);
+
+
+    // 7. THE MODE COMMAND (Mandatory)
+        EMC_DYN_CTRL = 0x0083;     // Enter MODE state
+
+        // CHANGE 0x30 to 0x32 to set Burst Length = 4 (Matches the EMC buffer size)
+        volatile unsigned int dummy = *((volatile unsigned int *)(0xA0000000 | (0x32 << 13)));
+        (void)dummy;
+    // 8. Normal Operation
+    EMC_DYN_CTRL = 0x0000;
+    EMC_DYN_CFG0 |= (1 << 19); // Enable EMC Write Buffers
+    timer_delay(100);
+}

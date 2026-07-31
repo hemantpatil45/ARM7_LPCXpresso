@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;PL_ARM_SDRAM_READ_WRITE/src/SDRAM.c&apos; to &apos;sdram.c&apos;" description="Rename resource &apos;SDRAM.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/SDRAM.c" name="sdram.c" stamp="1760156387421" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;PL_ARM_SDRAM_READ_WRITE/src/SDRAM.h&apos; to &apos;sdram.h&apos;" description="Rename resource &apos;SDRAM.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/SDRAM.h" name="sdram.h" stamp="1760156402346" updateReferences="true"/>
+</session>

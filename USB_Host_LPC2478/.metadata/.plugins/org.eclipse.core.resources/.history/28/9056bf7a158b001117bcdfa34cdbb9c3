@@ -1,0 +1,104 @@
+#include "usb_host_td.h"
+
+volatile USB_INT08U TDBuffer[128];  // <--- ADD THIS LINE: Allocate the scratchpad memory
+
+// Hardcode Descriptor Addresses into LPC2478 USB SRAM (0x7FD00000)
+// ... rest of the file remains exactly the same ...
+
+// Hardcode Descriptor Addresses into LPC2478 USB SRAM (0x7FD00000)
+// HCCA takes 0x7FD00000 to 0x7FD000FF. We use memory after it.
+volatile HCED *EDCtrl    = (volatile HCED *)0x7FD00100;
+volatile HCED *EDBulkIn  = (volatile HCED *)0x7FD00110;
+volatile HCED *EDBulkOut = (volatile HCED *)0x7FD00120;
+
+volatile HCTD *TDHead    = (volatile HCTD *)0x7FD00130;
+volatile HCTD *TDTail    = (volatile HCTD *)0x7FD00140;
+
+USB_INT32S Host_ProcessTD(volatile HCED *ed, USB_INT32U token, volatile USB_INT08U *buffer, USB_INT32U buffer_len) {
+    volatile USB_INT32U status;
+    volatile USB_INT32U timeout = 1000000; // Fallback software timeout loop
+
+    // 1. Configure the Transfer Descriptor
+    // Bits 19:20 = PID (token), Bit 23 = DIR, Bits 28:31 = ConditionCode (set to 0xF / Not Accessed)
+    TDHead->Control = (token << 19) | (1 << 23) | (0xF << 28);
+
+    // USB Specification: SETUP packets MUST force the DATA0 toggle (Bits 24:25 = 10)
+    if (token == TD_SETUP) {
+        TDHead->Control |= (2 << 24);
+    } else {
+        TDHead->Control |= (0 << 24); // IN/OUT packets get toggle from the Endpoint Descriptor
+    }
+
+    TDHead->CurrBufPtr = (USB_INT32U)buffer;
+    TDHead->BufEnd     = (buffer_len == 0) ? 0 : (USB_INT32U)(buffer + buffer_len - 1);
+    TDHead->NextTd     = (USB_INT32U)TDTail;
+
+    // 2. Attach TD to Endpoint Descriptor
+    ed->HeadTd = (USB_INT32U)TDHead | (ed->HeadTd & 0x00000002); // Preserve ED toggle bit
+    ed->TailTd = (USB_INT32U)TDTail;
+
+    // 3. Tell OHCI hardware to process the list
+    if (ed == EDCtrl) {
+        HC_CONTROL |= (1 << 4);     // Enable Control List
+        HC_CMD_STAT |= (1 << 1);    // ControlListFilled
+    } else {
+        HC_CONTROL |= (1 << 5);     // Enable Bulk List
+        HC_CMD_STAT |= (1 << 2);    // BulkListFilled
+    }
+
+    // 4. Poll for completion with Halt and Timeout checking
+    do {
+        status = ed->HeadTd;
+
+        // Check if OHCI Hardware Halted the Endpoint (Bit 0 of HeadTd)
+        if (status & 0x01) {
+            UART0_Print("  [TD_ERR] OHCI Endpoint HALTED! Condition Code: ");
+
+            // Extract the 4-bit OHCI Condition Code from the TD Control Word
+            USB_INT32U err_code = (TDHead->Control >> 28) & 0x0F;
+            if (err_code < 10) {
+                UART0_SendChar(err_code + '0');
+            } else {
+                UART0_SendChar((err_code - 10) + 'A'); // Print A, B, C etc. for codes > 9
+            }
+            UART0_Print("\r\n");
+
+            ed->HeadTd = (ed->HeadTd & ~0x01); // Clear the halt bit so we can recover later
+            return 1; // Error
+        }
+
+        // Software timeout to prevent infinite hangs if hardware clock fails
+        if (--timeout == 0) {
+            UART0_Print("  [TD_ERR] Software Timeout! OHCI Controller stopped responding.\r\n");
+            return 1;
+        }
+
+    } while ((status & 0xFFFFFFF0) != (USB_INT32U)TDTail);
+
+    // 5. Final check for any lingering OHCI Errors
+    status = (TDHead->Control >> 28) & 0x0F;
+    if (status != 0) {
+        return 1; // Error occurred
+    }
+
+    return 0; // Success
+}
+
+USB_INT32S Host_CtrlRecv(USB_INT08U bmRequestType, USB_INT08U bRequest, USB_INT16U wValue, USB_INT16U wIndex, USB_INT16U wLength, volatile USB_INT08U *buffer) {
+    // A simplified Control Receive implementation used for Enum / MaxLUN checks
+    volatile USB_INT08U setup_pkt[8];
+    setup_pkt[0] = bmRequestType;
+    setup_pkt[1] = bRequest;
+    setup_pkt[2] = wValue & 0xFF; setup_pkt[3] = (wValue >> 8) & 0xFF;
+    setup_pkt[4] = wIndex & 0xFF; setup_pkt[5] = (wIndex >> 8) & 0xFF;
+    setup_pkt[6] = wLength & 0xFF; setup_pkt[7] = (wLength >> 8) & 0xFF;
+
+    // SETUP phase
+    Host_ProcessTD(EDCtrl, TD_SETUP, setup_pkt, 8);
+    // DATA phase (IN)
+    if (wLength > 0) Host_ProcessTD(EDCtrl, TD_IN, buffer, wLength);
+    // STATUS phase (OUT)
+    Host_ProcessTD(EDCtrl, TD_OUT, 0, 0);
+
+    return 0;
+}

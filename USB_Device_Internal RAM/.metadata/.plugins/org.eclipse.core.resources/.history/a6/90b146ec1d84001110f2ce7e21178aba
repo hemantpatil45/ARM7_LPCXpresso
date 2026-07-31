@@ -1,0 +1,168 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+
+// --- LPC2478 USB Protocol Engine Command Codes ---
+#define CMD_SET_ADDR        0xD0
+#define CMD_CFG_DEV         0xD8
+#define CMD_SET_DEV_STAT    0xFE
+#define CMD_CLR_BUF         0xF2
+#define CMD_VALID_BUF       0xFA
+#define CMD_SEL_EP          0x00
+#define CMD_SET_EP_STAT     0x40
+
+// internal helper to talk to the usb protocol engine command register
+void USB_WriteCmd(uint32_t cmd) {
+    DEV_INT_CLR = 0x10; // clear command code empty flag
+    CMD_CODE = cmd;     // send command code to engine
+
+    // wait until the hardware protocol engine digests the command
+    while ((DEV_INT_STAT & 0x10) == 0);
+    DEV_INT_CLR = 0x10; // clear flag again
+}
+
+// --- setup stuff ---
+
+void USB_Init(void) {
+    // step 1: turn on power to the usb block in the power control register
+    PCONP |= (1 << 31);
+
+    // step 2: scale the shared main system pll clock down to exactly 48MHz for the usb block
+    // system_init.c sets up a 288MHz system clock; dividing by 6 yields 48MHz (value is divisor - 1)
+    USBCLKCFG = 5;
+
+    // step 3: wire up pins via PINSEL to hand control over to the usb hardware engine
+    PINSEL1 &= ~((3 << 26) | (3 << 28)); // clear P0.29 (D+) and P0.30 (D-)
+    PINSEL1 |=  ((1 << 26) | (1 << 28)); // set P0.29, P0.30 to USB function (01)
+
+    PINSEL3 &= ~(3 << 28);               // clear P1.30 (VBUS)
+    PINSEL3 |=  (2 << 28);               // set P1.30 to VBUS function (10)
+
+    PINSEL4 &= ~(3 << 18);               // clear P2.9 (USB_CONNECT1)
+    PINSEL4 |=  (1 << 18);               // set P2.9 to USB function (01)
+
+    // step 4: configure pull-up/down resistor modes on VBUS monitoring pin
+    PINMODE3 &= ~(3 << 28);              // ensure proper termination on P1.30
+
+    // step 5: clear out any stale device and endpoint interrupt flags
+    DEV_INT_CLR = 0x3FFF;
+    EP_INT_CLR  = 0xFFFFFFFF;
+
+    // step 6 & 7: realize endpoints (EP0 control, EP1 IN, EP2 OUT) and set max packet sizes
+    // (configured during enumeration or preset here)
+    REALIZE_EP = (1 << 0);              // realize endpoint 0
+    EP_INDEX = 0;
+    MAXPACKET_SIZE = 64;                // 64-byte max packet size for control pipe
+    while ((DEV_INT_STAT & (1 << 4)) == 0); // wait for EP_RLZED flag
+    DEV_INT_CLR = (1 << 4);
+
+    REALIZE_EP = (1 << 1);              // realize endpoint 1
+    EP_INDEX = 1;
+    MAXPACKET_SIZE = 64;
+    while ((DEV_INT_STAT & (1 << 4)) == 0);
+    DEV_INT_CLR = (1 << 4);
+
+    REALIZE_EP = (1 << 2);              // realize endpoint 2
+    EP_INDEX = 2;
+    MAXPACKET_SIZE = 64;
+    while ((DEV_INT_STAT & (1 << 4)) == 0);
+    DEV_INT_CLR = (1 << 4);
+
+    // step 8: enable endpoint interrupts in the usb block
+    EP_INT_EN = 0x00000007;             // enable EP0, EP1, and EP2 interrupts
+
+    // step 9: enable main device-level interrupts (device status and slow interrupts)
+    DEV_INT_EN = (1 << 0) | (1 << 1);   // bit 0: DEV_STAT, bit 1: EP_SLOW
+
+    // step 10: route the usb interrupt channel (channel 22) through the vic to the arm core
+    VICIntEnable |= (1 << 22);          // unmask channel 22 in the vectored interrupt controller
+}
+
+void USB_Connect(bool connect) {
+    // step 11: issue soft-connect command (0xFE) to control the external Q3 transistor on P2.9
+    USB_WriteCmd(0x00FE0500);
+
+    if (connect) {
+        USB_WriteCmd(0x00010100);       // pull D+ high to trigger host enumeration
+    } else {
+        USB_WriteCmd(0x00000100);       // drop connection
+    }
+}
+
+
+// --- hardware engine control functions ---
+
+void USB_SetAddress(uint32_t adr) {
+    USB_WriteCmd(D_SET_ADDRESS | (adr << 8)); // command code for setting device address
+}
+
+void USB_Configure(bool configure) {
+    USB_WriteCmd(0x00D80500); // configure device command
+    USB_WriteCmd(configure ? 0x00010100 : 0x00000100);
+}
+
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize) {
+    REALIZE_EP = (1 << EPNum);
+    EP_INDEX = EPNum;
+    MAXPACKET_SIZE = MaxPacketSize;
+    while ((DEV_INT_STAT & (1 << 4)) == 0);
+    DEV_INT_CLR = (1 << 4);
+}
+
+void USB_EnableEP(uint32_t EPNum) {
+    // endpoints are enabled via endpoint realization and interrupt enable masks
+}
+
+void USB_DisableEP(uint32_t EPNum) {
+    REALIZE_EP &= ~(1 << EPNum);
+}
+
+void USB_ResetEP(uint32_t EPNum) {
+    // toggle resets handled automatically by hardware on bus reset
+}
+
+void USB_SetStallEP(uint32_t EPNum) {
+    USB_WriteCmd(D_SET_ENDPOINT_STATUS | (EPNum << 8) | 0x0100); // stall endpoint
+}
+
+void USB_ClrStallEP(uint32_t EPNum) {
+    USB_WriteCmd(D_SET_ENDPOINT_STATUS | (EPNum << 8)); // clear stall
+}
+
+
+// --- data transfer functions ---
+
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData) {
+    uint32_t numBytes = RX_PLENGTH & 0x3FF; // grab packet length
+    uint32_t *pDst = (uint32_t *)pData;
+
+    for (uint32_t i = 0; i < numBytes; i += 4) {
+        *pDst++ = RX_DATA; // read 32-bit words out of hardware FIFO
+    }
+
+    // clear buffer release command
+    USB_WriteCmd(D_SEL_EP(EPNum));
+    USB_WriteCmd(D_CLR_BUF);
+    return numBytes;
+}
+
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt) {
+    USB_WriteCmd(D_SEL_EP(EPNum));
+
+    uint32_t *pSrc = (uint32_t *)pData;
+    for (uint32_t i = 0; i < cnt; i += 4) {
+        TX_DATA = *pSrc++; // write 32-bit words into hardware FIFO
+    }
+
+    // validate buffer command to send packet to host
+    USB_WriteCmd(D_SEL_EP(EPNum));
+    USB_WriteCmd(D_VALID_BUF);
+    return cnt;
+}
+
+
+// --- interrupt service routine ---
+
+void USB_ISR(void) {
+    // service device status, endpoint interrupts, and packet transfers here
+    VICAddress = 0; // clear VIC priority hardware at end of ISR
+}

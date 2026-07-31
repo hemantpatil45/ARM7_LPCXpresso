@@ -1,0 +1,22 @@
+13:19:35 **** Incremental Build of configuration Debug for project USB_Device_Hardware ****
+make -r all 
+Building file: ../src/upper_sdram.c
+Invoking: MCU C Compiler
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/upper_sdram.d" -MT"src/upper_sdram.o" -MT"src/upper_sdram.d" -o "src/upper_sdram.o" "../src/upper_sdram.c"
+Finished building: ../src/upper_sdram.c
+ 
+Building target: USB_Device_Hardware.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="USB_Device_Hardware.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "Ethernet_Rx_Debug.ld" -o "USB_Device_Hardware.axf" ./src/SDRAM.o ./src/cr_startup_lpc24.o ./src/crp.o ./src/glcd.o ./src/main.o ./src/sdcard.o ./src/sys_calls.o ./src/system_init.o ./src/upper_sdram.o ./src/usbcore.o ./src/usbdesc.o ./src/usbhw.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       12860 B       512 KB      2.45%
+           Ram64:       16488 B        64 KB     25.16%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: USB_Device_Hardware.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -O ihex "USB_Device_Hardware.axf" "USB_Device_Hardware.hex"
+ 

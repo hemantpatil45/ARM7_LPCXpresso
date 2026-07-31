@@ -1,0 +1,10 @@
+#ifndef __USBDESC_H
+#define __USBDESC_H
+
+#include <stdint.h>
+
+// Descriptor arrays defined in usbdesc.c
+extern const uint8_t USB_DeviceDescriptor[];
+extern const uint8_t USB_ConfigDescriptor[];
+
+#endif // __USBDESC_H

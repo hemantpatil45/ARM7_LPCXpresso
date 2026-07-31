@@ -1,0 +1,58 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "UART.h"
+
+// Maximum characters allowed on the display
+#define MAX_GLCD_CHARS 20
+
+// Simple software delay loops using NOP instructions
+void Delay1Sec(void) {
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) { __asm("NOP"); }
+}
+
+void Delay2Sec(void)
+{
+    volatile uint32_t i;
+    for(i = 0; i < 1200000; i++) {
+        __asm("NOP");
+    }
+}
+
+
+
+int main(void) {
+    bool link_status;
+    uint8_t rx_buffer[1536];    // Standard Ethernet MTU size
+    uint32_t rx_length = 0;
+    uint32_t j;
+    volatile uint32_t i;
+
+    // Short delay to let hardware stabilize
+    for(i = 0; i < 50000; i++) { __asm("NOP"); }
+
+    // Initialize system clocks and peripherals
+    PLL_Init();
+    system_Init();
+
+    // Setup display and UART
+    GLCD_Init();
+    GLCD_Clear();
+    UART0_Init(UART0_BAUD);
+
+    // Welcome screen on LCD
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"       PL-ARM7      ");
+    GLCD_RowWriteMargin(4,"UART RX             ");
+
+
+
+    while(1) {
+
+
+    }
+    }

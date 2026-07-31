@@ -1,0 +1,58 @@
+#include <stddef.h>            // Defines NULL
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "usb_host_lpc2478.h"
+#include "ff.h"
+
+// Declare the global variable defined in usb_host_lpc2478.c
+extern volatile DWORD g_USBConnected;
+
+FATFS FatFsObj;
+FIL TestFile;
+
+int main(void) {
+    UINT bytesWritten;
+    FRESULT fr;
+
+    // 1. Initialize PLL to 48MHz for CPU and USB
+    PLL_Init();
+    system_Init();
+
+    // 2. Initialize USB Host Low-Level Hardware
+    USBHost_HardwareInit();
+
+    // 3. Initialize OHCI Host Controller Block
+    if (USBHost_OHCIInit() != USB_HOST_OK) {
+        while (1); // Trap hardware initialization error
+    }
+
+    // Main Application Loop
+    while (1) {
+        // Wait for device insertion on Port 2
+        if (g_USBConnected) {
+
+            // Turn ON USB UP LED (P0.13 Active Low)
+            FIO0CLR = (1UL << 13);
+
+            // Mount the USB Drive via FatFs
+            fr = f_mount(&FatFsObj, "0:", 1);
+            if (fr == FR_OK) {
+
+                // Create/Open a test log file
+                fr = f_open(&TestFile, "0:/HOST_LOG.TXT", FA_WRITE | FA_OPEN_ALWAYS);
+                if (fr == FR_OK) {
+                    f_write(&TestFile, "LPC2478 USB Host Operating Successfully!\r\n", 40, &bytesWritten);
+                    f_close(&TestFile);
+                }
+            }
+
+            // Unmount and wait until device is removed
+            while (g_USBConnected);
+
+            // Turn OFF USB UP LED
+            FIO0SET = (1UL << 13);
+            f_mount(NULL, "0:", 0);
+        }
+    }
+    return 0;
+}

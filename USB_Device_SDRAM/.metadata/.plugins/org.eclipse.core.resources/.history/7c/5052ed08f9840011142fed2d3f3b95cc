@@ -1,0 +1,163 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+extern void UART0_Print(const char *str);
+extern void UART_PrintHex(uint32_t val);
+
+USB_SETUP_PACKET SetupPacket;
+USB_CBW cbw;
+USB_CSW csw;
+
+// Standard 36-byte SCSI Inquiry Response
+const uint8_t SCSI_Inquiry_Data[36] = {
+    0x00,          // Direct Access Block Device (Flash drive)
+    0x80,          // Removable Media Bit set
+    0x02,          // ANSI Version (SCSI-2)
+    0x02,          // Response Data Format
+    31,            // Additional Length
+    0x00, 0x00, 0x00,
+    'L', 'P', 'C', '2', '4', '7', '8', ' ', // Vendor ID (8 bytes)
+    'D', 'e', 'v', 'i', 'c', 'e', ' ', ' ', // Product ID (16 bytes)
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    '1', '.', '0', '0'                     // Firmware Revision (4 bytes)
+};
+
+// 8-Byte READ CAPACITY Response (Must be Big-Endian)
+// Represents a 32 KB drive (64 total sectors of 512 bytes)
+const uint8_t SCSI_Capacity_Data[8] = {
+    0x00, 0x00, 0x00, 0x3F, // Last LBA: 63
+    0x00, 0x00, 0x02, 0x00  // Block Length: 512 bytes (0x200)
+};
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        USB_WriteCmd(CMD_SEL_EP + 0);
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP + 0);
+
+        if (ep_stat & (1 << 5)) {
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            UART0_Print("[EP0] Setup -> ReqType: "); UART_PrintHex(SetupPacket.bmRequestType);
+            UART0_Print(" Req: "); UART_PrintHex(SetupPacket.bRequest);
+            UART0_Print(" Val: "); UART_PrintHex(SetupPacket.wValue); UART0_Print("\r\n");
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    UART0_Print("[EP0] Handling SET_ADDRESS (HW defers automatically)...\r\n");
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    UART0_Print("[EP0] Handling GET_DESCRIPTOR type: "); UART_PrintHex(SetupPacket.wValue >> 8); UART0_Print("\r\n");
+
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: // Device Descriptor
+                            pData = (uint8_t *)USB_DeviceDescriptor;
+                            descriptor_size = 18;
+                            break;
+                        case 0x02: // Configuration Descriptor
+                            pData = (uint8_t *)USB_ConfigDescriptor;
+                            descriptor_size = 32;
+                            break;
+                        default:
+                            UART0_Print("[EP0] Unknown descriptor! Stalling...\r\n");
+                            USB_SetStallEP(0x80);
+                            return;
+                    }
+
+                    if (descriptor_size > SetupPacket.wLength) {
+                        descriptor_size = SetupPacket.wLength;
+                    }
+
+                    UART0_Print("[EP0] Sending descriptor data bytes...\r\n");
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+
+                case USB_REQUEST_SET_CONFIGURATION:
+                    UART0_Print("[EP0] Handling SET_CONFIGURATION...\r\n");
+                    USB_Configure(true);
+
+                    // Configure and enable the Mass Storage Bulk Endpoints
+                    USB_ConfigEP(0x81, 64); // EP1 IN
+                    USB_EnableEP(0x81);
+
+                    USB_ConfigEP(0x02, 64); // EP2 OUT
+                    USB_EnableEP(0x02);
+
+                    // Enable EP interrupts for the Bulk Endpoints
+                    EP_INT_EN |= (1 << 3) | (1 << 4);
+
+                    USB_WriteEP(0x80, 0, 0); // Status IN packet
+                    break;
+
+                case 0xFE: // GET_MAX_LUN
+                    if (SetupPacket.bmRequestType == 0xA1) {
+                        UART0_Print("[EP0] Handling GET_MAX_LUN...\r\n");
+                        uint8_t max_lun = 0;
+                        USB_WriteEP(0x80, &max_lun, 1);
+                    } else {
+                        USB_SetStallEP(0x80);
+                    }
+                    break;
+
+                default:
+                    UART0_Print("[EP0] Unknown request! Stalling...\r\n");
+                    USB_SetStallEP(0x80);
+                    break;
+            }
+        } else {
+            uint8_t dummy[64];
+            USB_ReadEP(0x00, dummy);
+        }
+    }
+    else if (event == 1) {
+        UART0_Print("[EP0] IN Packet Transmission Complete.\r\n");
+    }
+}
+
+void Process_Bulk_OUT(void) {
+    uint32_t count = USB_ReadEP(0x02, (uint8_t *)&cbw);
+
+    // Verify valid CBW signature ("USBC" = 0x43425355)
+    if (count == 31 && cbw.dCBWSignature == 0x43425355) {
+        UART0_Print("[SCSI] Valid CBW Opcode: ");
+        UART_PrintHex(cbw.CBWCB[0]);
+        UART0_Print("\r\n");
+
+        // Prepare default CSW response
+        csw.dCSWSignature = 0x53425355; // "USBS"
+        csw.dCSWTag = cbw.dCBWTag;
+        csw.dCSWDataResidue = 0;
+        csw.bCSWStatus = 0; // Command Passed
+
+        uint8_t opcode = cbw.CBWCB[0];
+
+        switch (opcode) {
+            case 0x12: // SCSI INQUIRY (0x12)
+                UART0_Print("[SCSI] Responding to INQUIRY...\r\n");
+                USB_WriteEP(0x81, (uint8_t *)SCSI_Inquiry_Data, sizeof(SCSI_Inquiry_Data));
+                USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                break;
+
+            case 0x25: // SCSI READ CAPACITY (10)
+                UART0_Print("[SCSI] Responding to READ CAPACITY (32KB)...\r\n");
+                USB_WriteEP(0x81, (uint8_t *)SCSI_Capacity_Data, sizeof(SCSI_Capacity_Data));
+                USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                break;
+
+            case 0x00: // TEST UNIT READY (0x00)
+            case 0x1A: // MODE SENSE 6 (0x1A)
+            default:
+                // For unhandled commands, send a Passed CSW with 0 residue to keep host happy
+                UART0_Print("[SCSI] Unhandled Opcode, sending CSW Passed...\r\n");
+                USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                break;
+        }
+    }
+}

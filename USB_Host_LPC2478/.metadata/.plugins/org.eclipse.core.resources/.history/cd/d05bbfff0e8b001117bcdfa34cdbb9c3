@@ -1,0 +1,21 @@
+#ifndef USB_HOST_LPC2478_H_
+#define USB_HOST_LPC2478_H_
+
+#include "LPC24xx.h"
+#include "type.h"
+
+// OHCI & HCCA Alignment Constraints
+#define USB_OHCI_BASE_ADDR   0x7FD00000    // USB SRAM Base Address
+#define HCCA_BLOCK_SIZE      256
+
+// Status Flags
+#define USB_HOST_OK          0
+#define USB_HOST_ERR         1
+
+// Function Prototypes
+void USBHost_HardwareInit(void);
+DWORD USBHost_OHCIInit(void);
+BOOL USBHost_IsDeviceConnected(void);
+void USBHost_ResetPort(void);
+
+#endif /* USB_HOST_LPC2478_H_ */

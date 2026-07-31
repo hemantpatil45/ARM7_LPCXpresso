@@ -1,0 +1,61 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+
+/* Helper function to convert a byte to a 2-character hex string */
+static void to_hex2(uint8_t v, char *out)
+{
+    static const char hexd[] = "0123456789ABCDEF";
+    out[0] = hexd[(v >> 4) & 0xF];
+    out[1] = hexd[v & 0xF];
+    out[2] = '\0';
+}
+
+int main(void)
+{
+    char rowMsg[24];
+    char hexStr[3];
+    uint8_t response;
+
+    /* 1. Hardware Initialization */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "AKADEMIKA SD TEST   ");
+    GLCD_RowWriteMargin(1, "INITIALIZING SPI... ");
+
+    spi_init();
+
+    /* 2. Full SD Card Initialization
+     * This calls the new function in SPI.c which handles
+     * the dummy clocks, CMD0, CMD8, CMD55, and ACMD41.
+     */
+    GLCD_RowWriteMargin(2, "FULL SD INIT...     ");
+
+    response = sd_init();
+
+    /* 3. Display the Response on GLCD */
+    strcpy(rowMsg, "RESP: 0x");
+    to_hex2(response, hexStr);
+    strcat(rowMsg, hexStr);
+    GLCD_RowWriteMargin(4, rowMsg);
+
+    /* 4. Interpret the Result */
+    if (response == 0x00) {
+        GLCD_RowWriteMargin(6, "SUCCESS: CARD READY!");
+    } else if (response == 0x01) {
+        GLCD_RowWriteMargin(6, "ERR: STUCK IN IDLE  ");
+    } else {
+        GLCD_RowWriteMargin(6, "ERR: INIT FAILED    ");
+    }
+
+    /* Halt execution */
+    for (;;) {
+        // Do nothing. Wait for reset.
+    }
+}

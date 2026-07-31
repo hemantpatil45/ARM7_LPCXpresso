@@ -1,0 +1,107 @@
+#include <stdio.h>
+#include <string.h>
+#include "ff.h"       // FatFs library header
+
+// Function Prototypes
+void System_Init(void);
+void Error_Handler(FRESULT res, const char* msg);
+
+int main(void) {
+    // FatFs Object and Variables
+    FATFS fs;
+    FIL file;
+    FRESULT f_res;
+    UINT bytes_written = 0;
+    UINT bytes_read = 0;
+
+    // Buffers for our target text
+    const char write_buffer[] = "Hello from akademika";
+    char read_buffer[50] = {0}; // Initialized to zero for null-termination
+
+    // 1. Initialize MCU Hardware (Clocks, USB Host, SDIO, UART for printf, etc.)
+    System_Init();
+
+    printf("[MAIN] System Initialized. Starting FatFs Test...\n");
+
+    // 2. Mount the file system (1 = force mount now)
+    f_res = f_mount(&fs, "0:", 1);
+    if (f_res != FR_OK) {
+        Error_Handler(f_res, "Failed to mount FatFs");
+        while(1); // Halt if we cannot mount the drive
+    }
+    printf("[MAIN] FatFs Mounted Successfully!\n");
+
+    // ==========================================
+    // 3. WRITE OPERATION
+    // ==========================================
+    printf("[MAIN] Opening HOST_LOG.TXT for writing...\n");
+    f_res = f_open(&file, "0:/HOST_LOG.TXT", FA_WRITE | FA_CREATE_ALWAYS);
+
+    if (f_res != FR_OK) {
+        Error_Handler(f_res, "Failed to open file for writing");
+    } else {
+        // Write the exact string to the file
+        f_res = f_write(&file, write_buffer, strlen(write_buffer), &bytes_written);
+
+        if (f_res == FR_OK && bytes_written == strlen(write_buffer)) {
+            printf("[MAIN] Successfully wrote to file: '%s'\n", write_buffer);
+        } else {
+            printf("[MAIN_ERR] f_write failed or bytes written mismatch!\n");
+        }
+
+        // Critical: Close the file to flush data to physical memory
+        f_close(&file);
+    }
+
+    // ==========================================
+    // 4. READ OPERATION
+    // ==========================================
+    printf("[MAIN] Re-opening HOST_LOG.TXT for reading...\n");
+    f_res = f_open(&file, "0:/HOST_LOG.TXT", FA_READ);
+
+    if (f_res != FR_OK) {
+        Error_Handler(f_res, "Failed to open file for reading");
+    } else {
+        // Read data back. We read size - 1 to leave the last byte as \0
+        f_res = f_read(&file, read_buffer, sizeof(read_buffer) - 1, &bytes_read);
+
+        if (f_res == FR_OK) {
+            printf("[MAIN] Read successful! Bytes read: %d\n", bytes_read);
+            printf("[MAIN] File contents: '%s'\n", read_buffer);
+        } else {
+            Error_Handler(f_res, "Failed to read file");
+        }
+
+        f_close(&file);
+    }
+
+    // ==========================================
+    // 5. UNMOUNT & CLEANUP
+    // ==========================================
+    f_unmount("0:");
+    printf("[MAIN] Operations finished. Unmount device to continue.\n");
+
+    // Infinite loop to keep program alive
+    while (1) {
+        // Background tasks go here
+        // e.g., USBH_Process(&hUsbHostFS);
+    }
+}
+
+// ---------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------
+
+void System_Init(void) {
+    // Add your MCU-specific initialization here:
+    // - HAL_Init();
+    // - SystemClock_Config();
+    // - MX_GPIO_Init();
+    // - MX_USB_HOST_Init(); (If using STM32 USB Host)
+    // - UART initialization for printf
+}
+
+void Error_Handler(FRESULT res, const char* msg) {
+    // Prints the string message along with the FatFs FRESULT error integer
+    printf("[MAIN_ERR] %s. (FRESULT Error Code: %d)\n", msg, res);
+}

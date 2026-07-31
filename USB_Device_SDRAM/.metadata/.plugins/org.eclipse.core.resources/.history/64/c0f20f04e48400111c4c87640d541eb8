@@ -1,0 +1,42 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+#include "system_init.h"
+
+extern void UART0_Print(const char *str);
+extern void UART_PrintHex(uint32_t val);
+
+int main(void) {
+    PLL_Init();
+    system_Init();
+    UART0_Init(115200);
+
+    delay_ms(3000);
+    UART0_Print("\r\n[BOOT] LPC2478 USB Booting...\r\n");
+    delay_ms(100);
+
+    UART0_Print("[USB] Initializing USB Engine...\r\n");
+    VBUS_ON;
+    USB_Init();
+
+    UART0_Print("[USB] Connecting to Bus (D+ pull-up)...\r\n");
+    USB_Connect(true);
+
+    UART0_Print("[USB] Entering Main Loop.\r\n");
+
+    uint32_t last_dev_stat = 0;
+
+    while (1) {
+        // Continuously monitor device status to catch hot-plug / reset events
+        uint32_t current_dev_stat = USB_ReadCmdData(CMD_GET_DEV_STAT);
+
+        if (current_dev_stat != last_dev_stat) {
+            UART0_Print("[MainLoop] USB Device Status Changed: ");
+            UART_PrintHex(current_dev_stat);
+            UART0_Print("\r\n");
+            last_dev_stat = current_dev_stat;
+        }
+
+        // Small delay to prevent flooding the UART log
+        for (volatile int i = 0; i < 500000; i++);
+    }
+}

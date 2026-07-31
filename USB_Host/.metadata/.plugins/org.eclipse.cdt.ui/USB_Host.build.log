@@ -1,0 +1,83 @@
+12:38:41 **** Incremental Build of configuration Debug for project USB_Host ****
+make -r all 
+Building target: USB_Host.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="USB_Host.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "Ethernet_Rx_Debug.ld" -o "USB_Host.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/diskio.o ./src/ff.o ./src/glcd.o ./src/main.o ./src/sys_calls.o ./src/system_init.o ./src/usbhost.o ./src/usbhost_ms.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       12564 B       512 KB      2.40%
+           Ram64:         576 B        64 KB      0.88%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+./src/main.o: In function `main':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:11: undefined reference to `UART0_Init'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:13: undefined reference to `delayMs'
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:14: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:17: undefined reference to `USBHostInit'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:18: undefined reference to `OHCIInit'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:23: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:28: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:32: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:35: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:38: undefined reference to `UART0_Print'
+./src/main.o:/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:41: more undefined references to `UART0_Print' follow
+./src/main.o: In function `main':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/main.c:45: undefined reference to `delayMs'
+./src/usbhost.o: In function `OHCIPortOpen':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost.c:18: undefined reference to `delayMs'
+./src/usbhost.o: In function `Host_EnumDev':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost.c:32: undefined reference to `UART0_Print'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost.c:36: undefined reference to `delayMs'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost.c:40: undefined reference to `delayMs'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost.c:44: undefined reference to `delayMs'
+./src/usbhost_ms.o: In function `MS_Init':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:66: undefined reference to `UART0_Print'
+./src/usbhost_ms.o: In function `MS_GetMaxLUN':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:166: undefined reference to `Host_CtrlRecv'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:173: undefined reference to `TDBuffer'
+./src/usbhost_ms.o: In function `MS_GetSenseInfo':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:195: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:197: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:199: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:208: undefined reference to `EDBulkOut'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:208: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:208: undefined reference to `EDBulkIn'
+./src/usbhost_ms.o: In function `MS_TestUnitReady':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:230: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:232: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:240: undefined reference to `EDBulkOut'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:240: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:240: undefined reference to `EDBulkIn'
+./src/usbhost_ms.o: In function `MS_ReadCapacity':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:262: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:264: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:267: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:276: undefined reference to `EDBulkOut'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:276: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:276: undefined reference to `EDBulkIn'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:276: undefined reference to `TDBuffer'
+./src/usbhost_ms.o: In function `MS_BulkRecv':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:301: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:303: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:305: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:314: undefined reference to `EDBulkOut'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:314: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:314: undefined reference to `EDBulkIn'
+./src/usbhost_ms.o: In function `MS_BulkSend':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:339: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:341: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:343: undefined reference to `Host_ProcessTD'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:352: undefined reference to `EDBulkOut'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:352: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:352: undefined reference to `EDBulkIn'
+./src/usbhost_ms.o: In function `Fill_MSCommand':
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:410: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:410: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:410: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:410: undefined reference to `TDBuffer'
+/home/vboxuser/LPCXpresso/USB_Host/USB_Host/Debug/../src/usbhost_ms.c:410: undefined reference to `TDBuffer'
+collect2: error: ld returned 1 exit status
+make: *** [makefile:32: USB_Host.axf] Error 1
+
+12:38:41 Build Finished (took 61ms)
+

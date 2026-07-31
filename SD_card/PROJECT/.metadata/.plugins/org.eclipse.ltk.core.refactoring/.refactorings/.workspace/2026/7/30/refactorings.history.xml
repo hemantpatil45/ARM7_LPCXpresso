@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;PL_ARM7_RFID_READER/src/sys_calls.c&apos;" deleteContents="false" description="Delete resource &apos;PL_ARM7_RFID_READER/src/sys_calls.c&apos;" element1="/PL_ARM7_RFID_READER/src/sys_calls.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1784540691793"/>&#x0A;<refactoring comment="Delete resource &apos;PL_ARM7_RFID_READER/src/sys_calls.c&apos;" deleteContents="false" description="Delete resource &apos;PL_ARM7_RFID_READER/src/sys_calls.c&apos;" element1="/PL_ARM7_RFID_READER/src/sys_calls.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1784540840965"/>
+</session>

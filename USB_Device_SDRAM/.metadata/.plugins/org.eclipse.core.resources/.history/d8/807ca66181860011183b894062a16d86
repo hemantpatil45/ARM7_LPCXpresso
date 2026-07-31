@@ -1,0 +1,46 @@
+#ifndef __USBCORE_H
+#define __USBCORE_H
+
+#include <stdint.h>
+
+typedef struct {
+    uint8_t  bmRequestType;
+    uint8_t  bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+} USB_SETUP_PACKET;
+
+typedef struct {
+    uint32_t dCBWSignature;
+    uint32_t dCBWTag;
+    uint32_t dCBWDataTransferLength;
+    uint8_t  bmCBWFlags;
+    uint8_t  bCBWLUN;
+    uint8_t  bCBWCBLength;
+    uint8_t  CBWCB[16];
+} __attribute__((packed)) USB_CBW;
+
+typedef struct {
+    uint32_t dCSWSignature;
+    uint32_t dCSWTag;
+    uint32_t dCSWDataResidue;
+    uint8_t  bCSWStatus;
+} __attribute__((packed)) USB_CSW;
+
+#define USB_REQUEST_GET_STATUS          0x00
+#define USB_REQUEST_CLEAR_FEATURE       0x01
+#define USB_REQUEST_SET_FEATURE         0x03
+#define USB_REQUEST_SET_ADDRESS         0x05
+#define USB_REQUEST_GET_DESCRIPTOR      0x06
+#define USB_REQUEST_SET_DESCRIPTOR      0x07
+#define USB_REQUEST_GET_CONFIGURATION   0x08
+#define USB_REQUEST_SET_CONFIGURATION   0x09
+
+extern USB_SETUP_PACKET SetupPacket;
+extern void USB_EndPoint0(uint32_t event);
+extern void Process_Bulk_OUT(void);
+// Renamed to target the SDRAM
+extern void Init_SDRAM_Disk(void);
+
+#endif

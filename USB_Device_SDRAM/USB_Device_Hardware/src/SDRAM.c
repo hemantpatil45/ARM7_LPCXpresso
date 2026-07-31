@@ -1,0 +1,60 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include "system_init.h"
+#include <stdint.h>
+
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    PCONP |= (1 << 11);
+
+    PINSEL5 = 0x55010115;
+
+    PINSEL6 = 0x55555555;
+    PINSEL7 = 0x55555555;
+
+    PINSEL8 = 0x55555555;
+    PINSEL9 = (PINSEL9 & 0xFFF00000) | 0x00041555;
+
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = 0x00000303;
+
+    EMC_DYN_RP   = 2;
+    EMC_DYN_RAS  = 3;
+    EMC_DYN_SREX = 4;
+    EMC_DYN_APR  = 2;
+    EMC_DYN_DAL  = 3;
+    EMC_DYN_WR   = 2;
+    EMC_DYN_RC   = 4;
+    EMC_DYN_RFC  = 4;
+    EMC_DYN_XSR  = 4;
+    EMC_DYN_RRD  = 2;
+    EMC_DYN_MRD  = 2;
+
+    EMC_DYN_CFG0 = 0x00000680;
+
+    timer_delay(100);
+    EMC_DYN_CTRL = 0x0183;
+    timer_delay(200);
+
+    EMC_DYN_CTRL = 0x0103;
+    timer_delay(100);
+
+    EMC_DYN_RFSH = 2;
+    timer_delay(10);
+    EMC_DYN_RFSH = 23;
+    timer_delay(10);
+
+    EMC_DYN_CTRL = 0x0083;
+
+    volatile unsigned int dummy = *((volatile unsigned int *)(0xA0000000 | (0x33 << 11)));
+    (void)dummy;
+
+    EMC_DYN_CTRL = 0x0000;
+    EMC_DYN_CFG0 |= (1 << 19);
+    timer_delay(100);
+}

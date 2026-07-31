@@ -1,0 +1,43 @@
+#ifndef __USBHOST_INC_H__
+#define __USBHOST_INC_H__
+
+/* 1. Core Hardware & Type Definitions */
+#include "LPC24xx.h"
+#include "type.h"
+#include "usb_host_lpc2478.h"
+#include "usb_host_td.h"
+#include "uart0.h"
+
+/* --- Missing USB Standard Constants --- */
+#define USB_DESCRIPTOR_TYPE_CONFIGURATION 0x02
+#define USB_DESCRIPTOR_TYPE_INTERFACE     0x04
+#define USB_DESCRIPTOR_TYPE_ENDPOINT      0x05
+
+#define USB_DEVICE_TO_HOST                0x80
+#define USB_REQUEST_TYPE_CLASS            0x20
+#define USB_RECIPIENT_INTERFACE           0x01
+
+/* --- Missing Error Codes --- */
+#define ERR_BAD_CONFIGURATION             -1
+#define ERR_NO_MS_INTERFACE               -2
+#define ERR_MS_CMD_FAILED                 -3
+
+/* --- Missing Endianness / Byte Swapping Macros --- */
+#define ReadLE16U(p)     ((USB_INT16U)(p)[0] | ((USB_INT16U)(p)[1] << 8))
+#define ReadBE32U(p)     (((USB_INT32U)(p)[0] << 24) | ((USB_INT32U)(p)[1] << 16) | ((USB_INT32U)(p)[2] << 8) | (USB_INT32U)(p)[3])
+#define WriteLE32U(p, v) do { (p)[0] = (v) & 0xFF; (p)[1] = ((v) >> 8) & 0xFF; (p)[2] = ((v) >> 16) & 0xFF; (p)[3] = ((v) >> 24) & 0xFF; } while(0)
+#define WriteBE32U(p, v) do { (p)[0] = ((v) >> 24) & 0xFF; (p)[1] = ((v) >> 16) & 0xFF; (p)[2] = ((v) >> 8) & 0xFF; (p)[3] = (v) & 0xFF; } while(0)
+#define WriteBE16U(p, v) do { (p)[0] = ((v) >> 8) & 0xFF; (p)[1] = (v) & 0xFF; } while(0)
+
+/* --- TDBuffer Scratchpad Declaration --- */
+extern volatile USB_INT08U TDBuffer[128];
+
+/* --- Active Debugging Macros --- */
+#define PRINT_Log(msg)  UART0_Print("[MSC] " msg)
+#define PRINT_Err(rc)   do { \
+                            UART0_Print("[MSC_ERR] Command Failed. Code: "); \
+                            UART0_SendChar((rc % 10) + '0'); \
+                            UART0_Print("\r\n"); \
+                        } while(0)
+
+#endif /* __USBHOST_INC_H__ */

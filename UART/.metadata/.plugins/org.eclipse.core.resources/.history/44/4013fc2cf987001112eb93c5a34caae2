@@ -1,0 +1,39 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "UART.h"
+
+// Simple software delay loops using NOP instructions
+void Delay1Sec(void) {
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) { __asm("NOP"); } //[cite: 1]
+}
+
+int main(void) {
+    volatile uint32_t i;
+
+    // Short delay to let hardware stabilize
+    for(i = 0; i < 50000; i++) { __asm("NOP"); }    //[cite: 1]
+
+    // Initialize system clocks and peripherals
+    PLL_Init();                                     //[cite: 1]
+    system_Init();                                  //[cite: 1]
+
+    // Setup display and UART
+    GLCD_Init();                                    //[cite: 1]
+    GLCD_Clear();                                   //[cite: 1]
+    UART0_Init(UART0_BAUD);                         //[cite: 1]
+
+    // Welcome screen on LCD
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA"); //[cite: 1]
+    GLCD_RowWriteMargin(2, "       PL-ARM7      "); //[cite: 1]
+    GLCD_RowWriteMargin(4, "UART TX ACTIVE      ");
+
+    // Infinite transmission loop
+    while(1) {                                      //[cite: 1]
+        UART0_SendString("Testing UART: 1 Second Elapsed\r\n");
+        Delay1Sec();
+    }
+}

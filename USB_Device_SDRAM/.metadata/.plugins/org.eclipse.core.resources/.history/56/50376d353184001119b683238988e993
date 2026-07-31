@@ -1,0 +1,35 @@
+#include <LPC24xx.H>
+#include "usbhw.h"
+
+// Optional: A simple software delay function
+void delay_ms(uint32_t ms) {
+    // Basic loop delay (calibrate for your specific clock speed if needed)
+    for (volatile uint32_t i = 0; i < (ms * 10000); i++);
+}
+
+int main(void) {
+    // 1. System Clock Initialization
+    // If you have a separate system_init.c file that sets up your 48MHz PLL,
+    // call that function here. If your startup_LPC24xx.s handles it, you can skip this.
+
+    // Give the hardware a brief moment to stabilize after power-on
+    delay_ms(100);
+
+    // 2. Initialize the USB Protocol Engine
+    // This calls the function in usbhw.c that configures the pins (including your GoodLink LED),
+    // sets up Endpoint 0, and routes the hardware interrupts to the VIC.
+    USB_Init();
+
+    // 3. Connect to the Bus
+    // This activates the internal pull-up resistor on the D+ line.
+    // The exact moment this executes, your Linux PC will detect the voltage change
+    // and fire the first Setup Packet, triggering your USB_ISR.
+    USB_Connect(true);
+
+    // 4. The Main Loop
+    // Because the enumeration is handled by hardware interrupts, the main loop
+    // is completely free to do other things. For now, we just wait.
+    while (1) {
+        // Later, we will put the Mass Storage Read/Write polling logic here.
+    }
+}

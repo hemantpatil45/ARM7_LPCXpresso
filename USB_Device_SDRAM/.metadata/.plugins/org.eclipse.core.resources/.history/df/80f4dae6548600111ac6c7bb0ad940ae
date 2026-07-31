@@ -1,0 +1,172 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+USB_SETUP_PACKET SetupPacket;
+USB_CBW cbw;
+USB_CSW csw;
+
+// Pointer directly to the base of your External SDRAM (CS0)
+uint8_t *External_SDRAM = (uint8_t *)0xA0000000;
+
+uint8_t *Bulk_Data_Ptr;
+uint32_t Bulk_Data_Len;
+bool Bulk_Sending_Data = false;
+
+uint8_t *Write_Data_Ptr;
+uint32_t Write_Data_Len;
+bool Bulk_Expecting_Write_Data = false;
+
+const uint8_t SCSI_Inquiry_Data[36] = {
+    0x00, 0x80, 0x02, 0x02, 31, 0x00, 0x00, 0x00,
+    'L', 'P', 'C', '2', '4', '7', '8', ' ',
+    'S', 'D', 'R', 'A', 'M', ' ', 'D', 'r',
+    'i', 'v', 'e', ' ', ' ', ' ', ' ', ' ',
+    '1', '.', '0', '0'
+};
+
+// 32 MB Capacity (65,536 sectors of 512 bytes) -> Last LBA: 65,535 (0x0000FFFF)
+const uint8_t SCSI_Capacity_Data[8] = {
+    0x00, 0x00, 0xFF, 0xFF,
+    0x00, 0x00, 0x02, 0x00
+};
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        USB_WriteCmd(CMD_SEL_EP + 0);
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP + 0);
+
+        if (ep_stat & (1 << 5)) {
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: pData = (uint8_t *)USB_DeviceDescriptor; descriptor_size = 18; break;
+                        case 0x02: pData = (uint8_t *)USB_ConfigDescriptor; descriptor_size = 32; break;
+                        default: USB_SetStallEP(0x80); return;
+                    }
+                    if (descriptor_size > SetupPacket.wLength) descriptor_size = SetupPacket.wLength;
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+                case USB_REQUEST_SET_CONFIGURATION:
+                    USB_Configure(true);
+                    USB_ConfigEP(0x81, 64); USB_EnableEP(0x81);
+                    USB_ConfigEP(0x02, 64); USB_EnableEP(0x02);
+                    EP_INT_EN |= (1 << 3) | (1 << 4);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case 0xFE:
+                    if (SetupPacket.bmRequestType == 0xA1) {
+                        uint8_t max_lun = 0; USB_WriteEP(0x80, &max_lun, 1);
+                    } else USB_SetStallEP(0x80);
+                    break;
+                default: USB_SetStallEP(0x80); break;
+            }
+        } else {
+            uint8_t dummy[64]; USB_ReadEP(0x00, dummy);
+        }
+    }
+}
+
+void BOT_Send_Next_Chunk(void) {
+    if (Bulk_Data_Len > 0) {
+        uint32_t chunk = (Bulk_Data_Len > 64) ? 64 : Bulk_Data_Len;
+        USB_WriteEP(0x81, Bulk_Data_Ptr, chunk);
+        Bulk_Data_Ptr += chunk;
+        Bulk_Data_Len -= chunk;
+    } else if (Bulk_Sending_Data) {
+        Bulk_Sending_Data = false;
+        USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+    }
+}
+
+void Process_Bulk_OUT(void) {
+    // 1. DATA PHASE: Receiving Write Chunks from Host
+    if (Bulk_Expecting_Write_Data) {
+        uint32_t count = USB_ReadEP(0x02, Write_Data_Ptr);
+        Write_Data_Ptr += count;
+
+        if (Write_Data_Len > count) Write_Data_Len -= count;
+        else Write_Data_Len = 0;
+
+        if (Write_Data_Len == 0) {
+            Bulk_Expecting_Write_Data = false;
+            csw.bCSWStatus = 0;
+            USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+        }
+        return;
+    }
+
+    // 2. COMMAND PHASE: Processing Incoming CBW
+    uint32_t count = USB_ReadEP(0x02, (uint8_t *)&cbw);
+    if (count == 31 && cbw.dCBWSignature == 0x43425355) {
+        csw.dCSWSignature = 0x53425355;
+        csw.dCSWTag = cbw.dCBWTag;
+        csw.dCSWDataResidue = 0;
+        csw.bCSWStatus = 0;
+
+        switch (cbw.CBWCB[0]) {
+            case 0x00: USB_WriteEP(0x81, (uint8_t *)&csw, 13); break;
+            case 0x03:
+                Bulk_Data_Ptr = (uint8_t[]){0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x30, 0x01, 0, 0, 0, 0};
+                Bulk_Data_Len = 18; Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x12:
+                Bulk_Data_Ptr = (uint8_t *)SCSI_Inquiry_Data; Bulk_Data_Len = sizeof(SCSI_Inquiry_Data);
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x1A:
+                Bulk_Data_Ptr = (uint8_t[]){0x03, 0x00, 0x00, 0x00}; Bulk_Data_Len = 4;
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+            case 0x25:
+                Bulk_Data_Ptr = (uint8_t *)SCSI_Capacity_Data; Bulk_Data_Len = 8;
+                Bulk_Sending_Data = true; BOT_Send_Next_Chunk(); break;
+
+            case 0x28: // READ (10)
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+                uint16_t blocks = (cbw.CBWCB[7] << 8) | cbw.CBWCB[8];
+                uint32_t byte_offset = lba * 512;
+                uint32_t byte_length = blocks * 512;
+
+                if ((byte_offset + byte_length) <= 33554432) { // 32 MB Max limit
+                    Bulk_Data_Ptr = External_SDRAM + byte_offset;
+                    Bulk_Data_Len = byte_length;
+                    Bulk_Sending_Data = true;
+                    BOT_Send_Next_Chunk();
+                } else {
+                    csw.bCSWStatus = 1;
+                    USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                }
+                break;
+            }
+
+            case 0x2A: // WRITE (10)
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+                uint16_t blocks = (cbw.CBWCB[7] << 8) | cbw.CBWCB[8];
+                uint32_t byte_offset = lba * 512;
+                uint32_t byte_length = blocks * 512;
+
+                if ((byte_offset + byte_length) <= 33554432) { // 32 MB Max limit
+                    Write_Data_Ptr = External_SDRAM + byte_offset;
+                    Write_Data_Len = byte_length;
+                    Bulk_Expecting_Write_Data = true;
+                } else {
+                    csw.bCSWStatus = 1;
+                    USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                }
+                break;
+            }
+
+            default: USB_WriteEP(0x81, (uint8_t *)&csw, 13); break;
+        }
+    }
+}

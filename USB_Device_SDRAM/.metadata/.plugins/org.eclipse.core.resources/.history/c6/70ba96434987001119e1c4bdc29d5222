@@ -1,0 +1,41 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+#include "sdcard.h"
+#include <stdbool.h>
+
+extern void UART0_Init(uint32_t baudrate);
+extern void UART0_Print(const char *str);
+extern void PLL_Init(void);
+extern void system_Init(void);
+
+int main(void) {
+    // 1. Initialize Clocks and System Peripherals
+    PLL_Init();
+    system_Init();
+    UART0_Init(115200);
+
+    UART0_Print("\r\n========================================\r\n");
+    UART0_Print("     LPC2478 USB SD-CARD MASS STORAGE   \r\n");
+    UART0_Print("========================================\r\n");
+
+    // 2. Initialize SD Card over SPI0
+    UART0_Print("[SD] Initializing SPI SD Card...\r\n");
+    if (SD_Init()) {
+        UART0_Print("[SD] SD Card Initialized Successfully!\r\n");
+    } else {
+        UART0_Print("[SD ERROR] SD Card Initialization Failed! Check wiring/card.\r\n");
+    }
+
+    // 3. Initialize USB Device Stack
+    UART0_Print("[USB] Initializing USB Core...\r\n");
+    USB_Init();
+    USB_Connect(true);
+    UART0_Print("[USB] USB Connected and Enumerating...\r\n");
+
+    // 4. Main Superloop (USB and Endpoint interrupts handle transactions)
+    while (1) {
+        // Background loop can remain idle or handle status LEDs
+    }
+}

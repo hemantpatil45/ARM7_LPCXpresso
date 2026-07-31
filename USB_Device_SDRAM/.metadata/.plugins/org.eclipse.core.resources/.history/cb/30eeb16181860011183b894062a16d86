@@ -1,0 +1,53 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include <stdint.h>
+
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // Enable EMC Power
+    PCONP |= (1 << 11);
+
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = (3 << 4) | 3;
+
+    // The fixed P2C macro in SDRAM.h perfectly scales these down to 48MHz
+    EMC_DYN_RP = P2C(20);
+    EMC_DYN_RAS = P2C(45);
+    EMC_DYN_SREX = P2C(70);
+    EMC_DYN_APR = 5;
+    EMC_DYN_DAL = 7 + P2C(20);
+    EMC_DYN_WR = 2;
+    EMC_DYN_RC = P2C(65);
+    EMC_DYN_RFC = P2C(70);
+    EMC_DYN_XSR = P2C(70);
+    EMC_DYN_RRD = P2C(15);
+    EMC_DYN_MRD = 2;
+
+    // Your exact original 16-bit mapping configuration
+    EMC_DYN_CFG0 = 0x00000680;
+
+    // Hardware Initialization Sequence
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    timer_delay(200);
+
+    EMC_DYN_CTRL = 0x0103;     // PALL command
+    timer_delay(100);
+
+    EMC_DYN_RFSH = 2;          // Set 2 auto refresh cycles
+    for (volatile int i = 0; i < 128; i++) {};
+
+    // FIXED FOR 48MHz: Prevents the 11-bit hardware register overflow
+    EMC_DYN_RFSH = 23;
+
+    // Your exact original normal operation command (Keeps Clock Enable High)
+    EMC_DYN_CTRL = 0x0001;
+
+    // Buffer enable
+    EMC_DYN_CFG0 |= (1 << 19);
+    timer_delay(100);
+}

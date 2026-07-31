@@ -1,0 +1,45 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include <stdint.h>
+
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    PCONP |= (1 << 11);
+
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = (3 << 4) | 3;
+    EMC_DYN_RP = P2C(20);      // SDRAM_TRP
+    EMC_DYN_RAS = P2C(45);     // SDRAM_TRAS
+    EMC_DYN_SREX = P2C(70);    // SDRAM_TXSR
+    EMC_DYN_APR = 5;           // SDRAM_TAPR
+    EMC_DYN_DAL = 7 + P2C(20);// SDRAM_TDAL + TRP
+    EMC_DYN_WR = 2;            // SDRAM_TWR
+    EMC_DYN_RC = P2C(65);      // SDRAM_TRC
+    EMC_DYN_RFC = P2C(70);     // SDRAM_TRFC
+    EMC_DYN_XSR = P2C(70);     // SDRAM_TXSR
+    EMC_DYN_RRD = P2C(15);     // SDRAM_TRRD
+    EMC_DYN_MRD = 2;           // SDRAM_TMRD
+
+    EMC_DYN_CFG0 = 0x00000680; // 16-bit width, 4 banks, 13 row, 9 col
+
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    timer_delay(200);          // > 200 us delay
+
+    EMC_DYN_CTRL = 0x0103;     // PALL command
+    timer_delay(100);          // > 100 us delay
+
+    EMC_DYN_RFSH = 2;          // Set 2 auto refresh cycles
+    for (volatile int i = 0; i < 128; i++) {};
+
+    EMC_DYN_RFSH = (P2C(64000000) >> 4); // refresh timing
+    EMC_DYN_CTRL = 0x0001;     // Normal operation
+
+    EMC_DYN_CFG0 |= (1 << 19); // Buffer enable
+
+    timer_delay(100);          // final delay
+}

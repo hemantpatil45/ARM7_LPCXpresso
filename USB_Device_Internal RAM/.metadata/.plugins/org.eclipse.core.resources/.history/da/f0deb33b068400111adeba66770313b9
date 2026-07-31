@@ -1,0 +1,122 @@
+/*
+ * usbhw.h
+ *
+ *  Created on: Jul 20, 2026
+ *      Author: vboxuser
+ */
+
+#ifndef USBHW_H_
+#define USBHW_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+
+// --- Helper Macros ---
+// Endpoint direction indicators for readability in your C code
+#define USB_DIR_OUT 0  // Host to Device
+#define USB_DIR_IN  1  // Device to Host
+
+
+// --- Initialization & Connection ---
+
+/*
+ * USB_Init
+ * Configures PLL1 for 48MHz, enables USB peripheral power in PCONP,
+ * and maps PINSEL registers for D+, D-, VBUS, and SoftConnect.
+ */
+void USB_Init(void);
+
+/*
+ * USB_Connect
+ * connect = true: Pulls P2.9 LOW to turn on your Q3 transistor, pulling D+ high.
+ * connect = false: Releases the pin, disconnecting from the PC.
+ */
+void USB_Connect(bool connect);
+
+
+// --- Standard USB Hardware Engine Commands ---
+
+/*
+ * USB_SetAddress
+ * When the PC Host assigns an address during enumeration, this function
+ * writes that address into the LPC2478 hardware DEV_ADR register.
+ */
+void USB_SetAddress(uint32_t adr);
+
+/*
+ * USB_Configure
+ * Tells the hardware whether the device is currently configured (true)
+ * or unconfigured (false) by the host.
+ */
+void USB_Configure(bool configure);
+
+/*
+ * USB_ConfigEP
+ * Tells the USB hardware engine the Max Packet Size (usually 64 bytes)
+ * for a specific Endpoint Number.
+ */
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize);
+
+/*
+ * USB_EnableEP
+ * Turns on a specific endpoint buffer so it can transmit/receive data.
+ */
+void USB_EnableEP(uint32_t EPNum);
+
+/*
+ * USB_DisableEP
+ * Shuts down a specific endpoint buffer.
+ */
+void USB_DisableEP(uint32_t EPNum);
+
+/*
+ * USB_ResetEP
+ * Resets an endpoint's internal data toggle (PID) and state machine.
+ */
+void USB_ResetEP(uint32_t EPNum);
+
+/*
+ * USB_SetStallEP
+ * Forcefully stalls an endpoint. This is heavily used in the Mass Storage
+ * BOT protocol to tell the PC when a SCSI command is invalid.
+ */
+void USB_SetStallEP(uint32_t EPNum);
+
+/*
+ * USB_ClrStallEP
+ * Clears the stall condition on an endpoint so it can resume communication.
+ */
+void USB_ClrStallEP(uint32_t EPNum);
+
+
+// --- Data Transfer Functions ---
+
+/*
+ * USB_ReadEP
+ * Fetches the payload from the hardware endpoint buffer and copies it
+ * into your provided *pData RAM array.
+ * Returns: The total number of bytes read.
+ */
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData);
+
+/*
+ * USB_WriteEP
+ * Copies 'cnt' bytes of data from your *pData RAM array directly into
+ * the hardware endpoint buffer to be transmitted to the PC Host.
+ * Returns: The total number of bytes written.
+ */
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt);
+
+
+// --- Interrupt Service Routine ---
+
+/*
+ * USB_ISR
+ * The main hardware interrupt handler. You will map the Vectored Interrupt
+ * Controller (VIC) Channel 22 to point to this exact function.
+ */
+void USB_ISR(void);
+
+#endif /* __USBHW_H__ */
+
+

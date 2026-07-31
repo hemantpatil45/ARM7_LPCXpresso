@@ -1,0 +1,75 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+#include "ff.h" // FatFs Library
+
+/* FatFs requires a time function for file timestamps.
+ * We provide a dummy time (Jan 1, 2024, 00:00:00) so the linker doesn't fail.
+ */
+DWORD get_fattime(void) {
+    return ((DWORD)(2024 - 1980) << 25) | ((DWORD)1 << 21) | ((DWORD)1 << 16);
+}
+
+int main(void)
+{
+    FATFS fs;           // Filesystem object
+    FIL fil;            // File object
+    FRESULT fr;         // FatFs return code
+    UINT bw;            // Bytes written
+    char rowMsg[24];
+
+    /* 1. Hardware Initialization */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "AKADEMIKA FATFS TEST");
+    GLCD_RowWriteMargin(1, "INIT HARDWARE...    ");
+
+    spi_init(); // Set up pins and slow clock
+
+    /* 2. Mount the SD Card
+     * The '1' at the end forces immediate initialization.
+     * This will automatically call disk_initialize() and sd_init().
+     */
+    GLCD_RowWriteMargin(2, "MOUNTING DRIVE...   ");
+    fr = f_mount(&fs, "", 1);
+
+    if (fr != FR_OK) {
+        GLCD_RowWriteMargin(4, "ERR: MOUNT FAILED   ");
+        for (;;) ; // Halt
+    }
+    GLCD_RowWriteMargin(3, "MOUNT SUCCESS!      ");
+
+    /* 3. Open (or create) a file */
+    GLCD_RowWriteMargin(4, "OPENING TEST.TXT... ");
+    fr = f_open(&fil, "TEST.TXT", FA_WRITE | FA_CREATE_ALWAYS);
+
+    if (fr != FR_OK) {
+        GLCD_RowWriteMargin(6, "ERR: FILE OPEN FAIL ");
+        for (;;) ; // Halt
+    }
+
+    /* 4. Write data to the file */
+    GLCD_RowWriteMargin(5, "WRITING DATA...     ");
+    f_write(&fil, "Hello from the LPC2478 via FatFs!\r\n", 35, &bw);
+
+    /* 5. Close the file (Crucial! Otherwise data is lost) */
+    f_close(&fil);
+
+    /* 6. Success */
+    if (bw == 35) {
+        GLCD_RowWriteMargin(6, "FILE SAVED OK!      ");
+    } else {
+        GLCD_RowWriteMargin(6, "ERR: WRITE SIZE BAD ");
+    }
+
+    /* Halt execution */
+    for (;;) {
+        // Do nothing. Wait for reset.
+    }
+}

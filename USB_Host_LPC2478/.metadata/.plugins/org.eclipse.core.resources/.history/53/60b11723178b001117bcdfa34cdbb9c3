@@ -1,0 +1,112 @@
+#include "usb_host_td.h"
+#include "uart0.h"
+#include <stddef.h>
+// -------------------------------------------------------------------------
+// CRITICAL MEMORY MAPPING:
+// The LPC2478 USB DMA CANNOT access Main SRAM (0x40000000).
+// All descriptors and data buffers MUST be explicitly mapped to USB RAM (0x7FD00000).
+// -------------------------------------------------------------------------
+
+// 16-Byte Aligned OHCI Descriptors
+volatile HCED *EDCtrl    = (volatile HCED *)0x7FD00100;
+volatile HCED *EDBulkIn  = (volatile HCED *)0x7FD00110;
+volatile HCED *EDBulkOut = (volatile HCED *)0x7FD00120;
+volatile HCTD *TDHead    = (volatile HCTD *)0x7FD00130;
+volatile HCTD *TDTail    = (volatile HCTD *)0x7FD00140;
+
+// Data Buffers mapped to safe USB RAM space
+volatile USB_INT08U *TDBuffer    = (volatile USB_INT08U *)0x7FD00200; // 128 Bytes
+volatile USB_INT08U *SetupBuffer = (volatile USB_INT08U *)0x7FD00280; // 8 Bytes
+
+USB_INT32S Host_ProcessTD(volatile HCED *ed, USB_INT32U token, volatile USB_INT08U *buffer, USB_INT32U buffer_len) {
+    volatile USB_INT32U status;
+    volatile USB_INT32U timeout = 500000;
+
+    // Zero out the dummy Tail TD to ensure OHCI doesn't parse garbage
+    TDTail->Control    = 0;
+    TDTail->CurrBufPtr = 0;
+    TDTail->NextTd     = 0;
+    TDTail->BufEnd     = 0;
+
+    // Configure the Transfer Descriptor Control Word
+    // Bit 18: Buffer Rounding = 1
+    // Bits 19:20: PID Token
+    // Bits 21:23: Delay Interrupt = 7 (No Interrupt)
+    // Bits 28:31: Condition Code = 0xF (Not Accessed)
+    TDHead->Control = (1 << 18) | (token << 19) | (7 << 21) | (0xF << 28);
+
+    // SETUP packets MUST force the DATA0 toggle (Bits 24:25 = 10)
+    if (token == TD_SETUP) {
+        TDHead->Control |= (2 << 24);
+    }
+
+    TDHead->CurrBufPtr = (USB_INT32U)buffer;
+    TDHead->BufEnd     = (buffer_len == 0) ? 0 : (USB_INT32U)(buffer + buffer_len - 1);
+    TDHead->NextTd     = (USB_INT32U)TDTail;
+
+    // Attach TD to Endpoint Descriptor (Preserving the internal toggle bit 1)
+    ed->HeadTd = (USB_INT32U)TDHead | (ed->HeadTd & 0x00000002);
+    ed->TailTd = (USB_INT32U)TDTail;
+
+    // Tell OHCI hardware to process the specific list
+    if (ed == EDCtrl) {
+        HC_CONTROL |= (1 << 4);     // ControlListEnable
+        HC_CMD_STAT |= (1 << 1);    // ControlListFilled
+    } else {
+        HC_CONTROL |= (1 << 5);     // BulkListEnable
+        HC_CMD_STAT |= (1 << 2);    // BulkListFilled
+    }
+
+    // Poll for completion
+    do {
+        status = ed->HeadTd;
+
+        if (status & 0x01) {
+            UART0_Print("  [TD_ERR] Endpoint HALTED! Condition Code: ");
+            USB_INT32U err_code = (TDHead->Control >> 28) & 0x0F;
+            if (err_code < 10) UART0_SendChar(err_code + '0');
+            else UART0_SendChar((err_code - 10) + 'A');
+            UART0_Print("\r\n");
+
+            ed->HeadTd = (ed->HeadTd & ~0x01); // Clear halt bit
+            return 1;
+        }
+
+        if (--timeout == 0) {
+            UART0_Print("  [TD_ERR] Software Timeout! OHCI Controller unresponsive.\r\n");
+            return 1;
+        }
+    } while ((status & 0xFFFFFFF0) != (USB_INT32U)TDTail);
+
+    // Final check for OHCI Errors
+    status = (TDHead->Control >> 28) & 0x0F;
+    if (status != 0) return 1;
+
+    return 0; // Success
+}
+
+USB_INT32S Host_CtrlRecv(USB_INT08U bmRequestType, USB_INT08U bRequest, USB_INT16U wValue, USB_INT16U wIndex, USB_INT16U wLength, volatile USB_INT08U *buffer) {
+
+    // Construct the packet inside the safe USB RAM buffer instead of the local stack
+    SetupBuffer[0] = bmRequestType;
+    SetupBuffer[1] = bRequest;
+    SetupBuffer[2] = wValue & 0xFF;
+    SetupBuffer[3] = (wValue >> 8) & 0xFF;
+    SetupBuffer[4] = wIndex & 0xFF;
+    SetupBuffer[5] = (wIndex >> 8) & 0xFF;
+    SetupBuffer[6] = wLength & 0xFF;
+    SetupBuffer[7] = (wLength >> 8) & 0xFF;
+
+    // SETUP phase
+    Host_ProcessTD(EDCtrl, TD_SETUP, SetupBuffer, 8);
+
+    // DATA phase (IN)
+    if (wLength > 0) {
+        Host_ProcessTD(EDCtrl, TD_IN, buffer, wLength);
+    }
+
+    // STATUS phase (OUT)
+    Host_ProcessTD(EDCtrl, TD_OUT, NULL, 0);
+
+    return 0;
+}

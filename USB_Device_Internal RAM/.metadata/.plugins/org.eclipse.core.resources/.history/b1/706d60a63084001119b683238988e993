@@ -1,0 +1,58 @@
+#ifndef __USBCORE_H
+#define __USBCORE_H
+
+#include <stdint.h>
+
+// Standard USB Setup Packet Structure (Exactly 8 bytes)
+typedef struct {
+    uint8_t  bmRequestType;
+    uint8_t  bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;#ifndef __USBHW_H
+#define __USBHW_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+// --- Setup & Connection ---
+void USB_Init(void);
+void USB_Connect(bool connect);
+
+// --- Hardware Engine Control ---
+void USB_SetAddress(uint32_t adr);
+void USB_Configure(bool configure);
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize);
+void USB_EnableEP(uint32_t EPNum);
+void USB_DisableEP(uint32_t EPNum);
+void USB_SetStallEP(uint32_t EPNum);
+void USB_ClrStallEP(uint32_t EPNum);
+
+// --- Data Transfer Functions ---
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData);
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt);
+
+// --- Interrupt Service Routine ---
+void USB_ISR(void);
+
+#endif // __USBHW_H
+
+} USB_SETUP_PACKET;
+
+// Standard USB Device Requests (Chapter 9 of USB 2.0 Spec)
+#define USB_REQUEST_GET_STATUS          0x00
+#define USB_REQUEST_CLEAR_FEATURE       0x01
+#define USB_REQUEST_SET_FEATURE         0x03
+#define USB_REQUEST_SET_ADDRESS         0x05
+#define USB_REQUEST_GET_DESCRIPTOR      0x06
+#define USB_REQUEST_SET_DESCRIPTOR      0x07
+#define USB_REQUEST_GET_CONFIGURATION   0x08
+#define USB_REQUEST_SET_CONFIGURATION   0x09
+
+// Expose the global Setup Packet so other files can read the PC's request if needed
+extern USB_SETUP_PACKET SetupPacket;
+
+// Expose the Endpoint 0 state machine to the hardware ISR
+extern void USB_EndPoint0(uint32_t event);
+
+#endif // __USBCORE_H

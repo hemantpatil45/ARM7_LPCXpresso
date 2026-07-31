@@ -1,0 +1,29 @@
+#ifndef __USBCORE_H
+#define __USBCORE_H
+
+#include <stdint.h>
+
+// 1. Standard USB Setup Packet Structure
+typedef struct {
+    uint8_t  bmRequestType;
+    uint8_t  bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+} USB_SETUP_PACKET;
+
+// 2. Standard USB Device Requests (These were missing!)
+#define USB_REQUEST_GET_STATUS          0x00
+#define USB_REQUEST_CLEAR_FEATURE       0x01
+#define USB_REQUEST_SET_FEATURE         0x03
+#define USB_REQUEST_SET_ADDRESS         0x05
+#define USB_REQUEST_GET_DESCRIPTOR      0x06  // <-- Your compiler was looking for this
+#define USB_REQUEST_SET_DESCRIPTOR      0x07
+#define USB_REQUEST_GET_CONFIGURATION   0x08
+#define USB_REQUEST_SET_CONFIGURATION   0x09
+
+// 3. Global variables and functions
+extern USB_SETUP_PACKET SetupPacket;
+extern void USB_EndPoint0(uint32_t event);
+
+#endif // __USBCORE_H

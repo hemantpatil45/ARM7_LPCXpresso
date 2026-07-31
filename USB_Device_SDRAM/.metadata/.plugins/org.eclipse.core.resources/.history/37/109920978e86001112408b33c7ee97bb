@@ -1,0 +1,20 @@
+#ifndef USB_SDRAM_DISK_H_
+#define DRAM_DISK_H_
+
+#include <stdint.h>
+#include "SDRAM.h"
+
+// Define the Base Address for SDRAM CS0
+#define SDRAM_BASE_ADDR     0xA0000000
+
+// Define Disk Parameters (8 Megabytes Total via 16384 blocks of 512 bytes)
+#define MSC_BLOCK_SIZE      512
+#define MSC_BLOCK_COUNT     16384
+#define MSC_MEMORY_SIZE     (MSC_BLOCK_COUNT * MSC_BLOCK_SIZE)
+
+// Function Prototypes
+void SDRAM_Disk_Format(void);
+void MSC_MemoryRead(uint32_t offset, uint8_t *dst, uint32_t length);
+void MSC_MemoryWrite(uint32_t offset, uint8_t *src, uint32_t length);
+
+#endif /* USB_SDRAM_DISK_H_ */

@@ -1,0 +1,205 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+#include "usbcore.h"
+
+// External UART print functions declared in main.c
+extern void UART0_Print(const char *str);
+extern void UART_PrintHex(uint32_t val);
+
+// Dump critical USB and System registers to verify hardware configuration
+void Check_USB_Registers(void) {
+    UART0_Print("\r\n--- LPC2478 USB Register Diagnostic ---\r\n");
+
+    UART0_Print("PCONP (Power Control): ");
+    UART_PrintHex(PCONP);
+    UART0_Print("\r\n");
+
+    UART0_Print("USBCLKCFG (USB Clock Divider): ");
+    UART_PrintHex(USBCLKCFG);
+    UART0_Print("\r\n");
+
+    UART0_Print("PINSEL1 (USB Pins D+/D-): ");
+    UART_PrintHex(PINSEL1);
+    UART0_Print("\r\n");
+
+    UART0_Print("DEV_INT_STAT (Device Interrupt Status): ");
+    UART_PrintHex(DEV_INT_STAT);
+    UART0_Print("\r\n");
+
+    UART0_Print("----------------------------------------\r\n");
+}
+
+void USB_WriteCmd(uint32_t cmd) {
+    DEV_INT_CLR = 0x10;
+    CMD_CODE = (cmd << 16) | 0x0500;
+    while ((DEV_INT_STAT & 0x10) == 0);
+    DEV_INT_CLR = 0x10;
+}
+
+void USB_WriteCmdData(uint32_t cmd, uint32_t data) {
+    USB_WriteCmd(cmd);
+    CMD_CODE = (data << 16) | 0x0100;
+    while ((DEV_INT_STAT & 0x10) == 0);
+    DEV_INT_CLR = 0x10;
+}
+
+uint32_t EPAdrToPhys(uint32_t EPNum) {
+    uint32_t dir = (EPNum & 0x80) ? 1 : 0;
+    return ((EPNum & 0x0F) * 2) + dir;
+}
+
+void USB_Init(void) {
+    UART0_Print("[USB_Init] Turning on power and clocks...\r\n");
+
+    // 1. Turn on power for USB controller
+    PCONP |= (1 << 31);
+
+    // 2. Set USB Clock Divider to 5 (yields 48MHz from CCLK)
+    USBCLKCFG = 5;
+
+    // 3. Configure P0.29 (USB_D+) and P0.30 (USB_D-) to USB function
+    PINSEL1 &= ~((3 << 26) | (3 << 28));
+    PINSEL1 |=  ((1 << 26) | (1 << 28));
+
+    // Configure Connect / VBUS pin configuration
+    PINSEL3 &= ~(3 << 28);
+    PINSEL3 |=  (2 << 28);
+
+    DEV_INT_CLR = 0x3FFF;
+    EP_INT_CLR  = 0xFFFFFFFF;
+
+    UART0_Print("[USB_Init] Realizing Endpoint 0x00...\r\n");
+    USB_ConfigEP(0x00, 64);
+
+    UART0_Print("[USB_Init] Realizing Endpoint 0x80...\r\n");
+    USB_ConfigEP(0x80, 64);
+
+    Check_USB_Registers();
+
+    EP_INT_EN = 0x00000003;
+    DEV_INT_EN = (1 << 0) | (1 << 1);
+    VICIntEnable |= (1 << 22);
+
+    UART0_Print("[USB_Init] Initialization sequence completed.\r\n");
+}
+
+void USB_Connect(bool connect) {
+    UART0_Print(connect ? "[USB] Asserting Connect (Pull-up ON)...\r\n" : "[USB] Disconnecting...\r\n");
+    USB_WriteCmdData(CMD_SET_DEV_STAT, connect ? 1 : 0);
+}
+
+void USB_SetAddress(uint32_t adr) {
+    UART0_Print("[USB] Setting Device Address: ");
+    UART_PrintHex(adr);
+    UART0_Print("\r\n");
+    USB_WriteCmdData(CMD_SET_ADDR, adr | 0x80);
+}
+
+void USB_Configure(bool configure) {
+    UART0_Print(configure ? "[USB] Device Configured by Host.\r\n" : "[USB] Device Unconfigured.\r\n");
+    USB_WriteCmdData(CMD_CFG_DEV, configure ? 1 : 0);
+}
+
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+
+    REALIZE_EP |= (1 << phys_ep);
+    EP_INDEX = phys_ep;
+    MAXPACKET_SIZE = MaxPacketSize;
+
+    // Safe timeout loop with trace output
+    uint32_t timeout = 100000;
+    while ((DEV_INT_STAT & (1 << 4)) == 0) {
+        timeout--;
+        if (timeout == 0) {
+            UART0_Print("[WARNING] Endpoint realization timeout hit for EP: ");
+            UART_PrintHex(EPNum);
+            UART0_Print("\r\n");
+            break;
+        }
+    }
+    DEV_INT_CLR = (1 << 4);
+}
+
+void USB_SetStallEP(uint32_t EPNum) {
+    UART0_Print("[USB] Stalling Endpoint: ");
+    UART_PrintHex(EPNum);
+    UART0_Print("\r\n");
+    USB_WriteCmdData(CMD_SET_EP_STAT + EPAdrToPhys(EPNum), 1);
+}
+
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+
+    uint32_t numBytes = RX_PLENGTH & 0x3FF;
+    uint32_t *pDst = (uint32_t *)pData;
+
+    for (uint32_t i = 0; i < (numBytes + 3) / 4; i++) {
+        *pDst++ = RX_DATA;
+    }
+
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+    USB_WriteCmd(CMD_CLR_BUF);
+
+    return numBytes;
+}
+
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt) {
+    uint32_t phys_ep = EPAdrToPhys(EPNum);
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+
+    TX_PLENGTH = cnt;
+    uint32_t *pSrc = (uint32_t *)pData;
+
+    for (uint32_t i = 0; i < (cnt + 3) / 4; i++) {
+        TX_DATA = *pSrc++;
+    }
+
+    USB_WriteCmd(CMD_SEL_EP + phys_ep);
+    USB_WriteCmd(CMD_VALID_BUF);
+
+    return cnt;
+}
+
+void USB_ISR(void) {
+    uint32_t disr = DEV_INT_STAT;
+    uint32_t episr = EP_INT_STAT;
+
+    // Trace whenever any device interrupt fires
+    UART0_Print("[ISR] Triggered! DEV_INT_STAT: ");
+    UART_PrintHex(disr);
+    UART0_Print(" | EP_INT_STAT: ");
+    UART_PrintHex(episr);
+    UART0_Print("\r\n");
+
+    if (disr & (1 << 0)) {
+        DEV_INT_CLR = (1 << 0);
+        UART0_Print("[ISR] USB Bus Reset Event Detected!\r\n");
+
+        USB_WriteCmd(CMD_GET_DEV_STAT);
+        uint32_t dev_stat = CMD_DATA;
+
+        if (dev_stat & (1 << 4)) {
+            UART0_Print("[ISR] Device is connected and reset. Re-configuring EP0...\r\n");
+            USB_ConfigEP(0x00, 64);
+            USB_ConfigEP(0x80, 64);
+            USB_SetAddress(0);
+        }
+    }
+
+    if (disr & (1 << 1)) {
+        if (episr & (1 << 0)) {
+            EP_INT_CLR = (1 << 0);
+            UART0_Print("[ISR] Endpoint 0 OUT packet received.\r\n");
+            USB_EndPoint0(0);
+        }
+        if (episr & (1 << 1)) {
+            EP_INT_CLR = (1 << 1);
+            UART0_Print("[ISR] Endpoint 0 IN packet sent.\r\n");
+            USB_EndPoint0(1);
+        }
+    }
+
+    VICVectAddr = 0;
+}

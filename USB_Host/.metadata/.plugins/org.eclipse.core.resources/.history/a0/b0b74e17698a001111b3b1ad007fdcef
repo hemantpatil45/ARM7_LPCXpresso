@@ -1,0 +1,44 @@
+#ifndef __USBHOST_H__
+#define __USBHOST_H__
+
+#include "type.h"
+
+/* USB Host Control Registers / Constants */
+#define HC_CONTROL          (*(volatile DWORD *)(0xFFE0C004))
+#define HC_CMD_STAT         (*(volatile DWORD *)(0xFFE0C008))
+#define HC_INT_STAT         (*(volatile DWORD *)(0xFFE0C00C))
+#define HC_INT_EN           (*(volatile DWORD *)(0xFFE0C010))
+#define HC_INT_DIS          (*(volatile DWORD *)(0xFFE0C014))
+#define HC_HCCA             (*(volatile DWORD *)(0xFFE0C018))
+#define HC_BULK_HEAD_ED     (*(volatile DWORD *)(0xFFE0C028))
+#define HC_CTRL_HEAD_ED     (*(volatile DWORD *)(0xFFE0C020))
+#define HC_FM_INTERVAL      (*(volatile DWORD *)(0xFFE0C034))
+#define HC_PERIOD_START     (*(volatile DWORD *)(0xFFE0C038))
+#define HC_LS_THRHLD        (*(volatile DWORD *)(0xFFE0C03C))
+#define HC_RH_DESCA         (*(volatile DWORD *)(0xFFE0C040))
+#define HC_RH_DESCB         (*(volatile DWORD *)(0xFFE0C044))
+#define HC_RH_STAT          (*(volatile DWORD *)(0xFFE0C048))
+#define HC_RH_PORT_STAT1    (*(volatile DWORD *)(0xFFE0C04C))
+#define HC_RH_PORT_STAT2    (*(volatile DWORD *)(0xFFE0C050))
+#define HC_REVISION         (*(volatile DWORD *)(0xFFE0C000))
+
+#define USB_OHCI_ADDR       0x7E000000
+#define FM_INTERVAL_FI      0x277F
+#define FM_INTERVAL_FSMPS   0x2FF3
+#define PERIODIC_START      0x2CDF
+#define LS_THRESHOLD        0x0628
+#define PWRON_TO_PWRGOOD    10
+
+#define TYPE_HOST           2
+#define TYPE_DEVICE         1
+#define TYPE_OTG            3
+
+/* Function Prototypes */
+extern void USBHostHandler (void) __attribute__ ((interrupt("IRQ")));
+extern DWORD USBHostInit(void);
+extern DWORD OHCIInit( void );
+extern void OHCIPortOpen( DWORD portNum );
+extern void OHCIPortClose( DWORD portNum );
+extern void OHCISetAddress( void );
+
+#endif

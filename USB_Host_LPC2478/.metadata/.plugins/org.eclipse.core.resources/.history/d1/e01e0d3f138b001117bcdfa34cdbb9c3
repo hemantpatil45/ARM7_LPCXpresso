@@ -1,0 +1,109 @@
+#include "ff.h"
+#include "diskio.h"
+#include "type.h"
+#include "usbhost_ms.h"
+#include "usb_host_lpc2478.h"
+#include "usb_host_td.h"
+#include "uart0.h"
+
+// External declarations
+extern volatile DWORD g_USBConnected;
+extern USB_INT32U MS_BlkSize;
+extern volatile USB_INT08U TDBuffer[128];
+extern volatile HCED *EDCtrl;
+
+// Import the software delay from main.c
+extern void delay_ms(uint32_t ms);
+
+DSTATUS disk_status(BYTE pdrv) {
+    if (pdrv != 0) return STA_NOINIT;
+    if (!g_USBConnected) return STA_NODISK;
+    return 0; // Ready
+}
+
+/* ====================================================================
+ * USB ENUMERATION STATE MACHINE
+ * Handles Address Assignment and Configuration Requests on Endpoint 0
+ * ==================================================================== */
+int USBHost_Enumerate(void) {
+    UART0_Print("  [ENUM] Initializing Control Endpoint 0...\r\n");
+    // Format: MaxPacketSize=64 (Bits 16:26), Speed=Full, Dir=FromTD, Endpoint=0, Address=0
+    EDCtrl->Control = (64 << 16);
+    EDCtrl->HeadTd  = 0;
+    EDCtrl->TailTd  = 0;
+    EDCtrl->NextEd  = 0;
+
+    // Link EDCtrl to OHCI Hardware register
+    HC_CTRL_HEAD_ED = (USB_INT32U)EDCtrl;
+
+    UART0_Print("  [ENUM] Sending SET_ADDRESS (Address = 1)...\r\n");
+    // bmRequestType=0x00, bRequest=0x05 (SET_ADDRESS), wValue=1
+    Host_CtrlRecv(0x00, 0x05, 1, 0, 0, NULL);
+    delay_ms(50); // Allow device time to switch its internal address
+
+    UART0_Print("  [ENUM] Updating Host Controller to Address 1...\r\n");
+    // Modify the Endpoint Descriptor to use Address 1 (Bits 0:6)
+    EDCtrl->Control = (64 << 16) | 1;
+
+    UART0_Print("  [ENUM] Sending GET_DESCRIPTOR (Configuration)...\r\n");
+    // bmRequestType=0x80, bRequest=0x06 (GET_DESCRIPTOR), wValue=0x0200 (Config)
+    Host_CtrlRecv(0x80, 0x06, 0x0200, 0, 128, TDBuffer);
+
+    UART0_Print("  [ENUM] Sending SET_CONFIGURATION (Config = 1)...\r\n");
+    // bmRequestType=0x00, bRequest=0x09 (SET_CONFIGURATION), wValue=1
+    Host_CtrlRecv(0x00, 0x09, 1, 0, 0, NULL);
+    delay_ms(50);
+
+    return 0; // Success
+}
+
+DSTATUS disk_initialize(BYTE pdrv) {
+    if (pdrv != 0) return STA_NOINIT;
+
+    UART0_Print("[DISKIO] Resetting USB Port...\r\n");
+    USBHost_ResetPort();
+    delay_ms(100); // Wait for port reset recovery
+
+    UART0_Print("[DISKIO] Starting USB Enumeration...\r\n");
+    if (USBHost_Enumerate() != 0) {
+        UART0_Print("[DISKIO_ERR] Enumeration Failed!\r\n");
+        return STA_NOINIT;
+    }
+
+    UART0_Print("[DISKIO] Parsing Configuration for MSC (Bulk Endpoints)...\r\n");
+    if (MS_ParseConfiguration() != OK) {
+        UART0_Print("[DISKIO_ERR] MSC Configuration Parse Failed!\r\n");
+        return STA_NOINIT;
+    }
+
+    UART0_Print("[DISKIO] Initializing Mass Storage Class (SCSI Commands)...\r\n");
+    if (MS_Init() != OK) {
+        UART0_Print("[DISKIO_ERR] MSC SCSI Init Failed!\r\n");
+        return STA_NOINIT;
+    }
+
+    UART0_Print("[DISKIO] Disk Initialized Successfully!\r\n");
+    return 0; // Success
+}
+
+DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
+    if (pdrv != 0 || !count) return RES_PARERR;
+    if (MS_BulkRecv(sector, count, (USB_INT08U*)buff) == OK) return RES_OK;
+    return RES_ERROR;
+}
+
+DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
+    if (pdrv != 0 || !count) return RES_PARERR;
+    if (MS_BulkSend(sector, count, (USB_INT08U*)buff) == OK) return RES_OK;
+    return RES_ERROR;
+}
+
+DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff) {
+    if (pdrv != 0) return RES_PARERR;
+    switch (cmd) {
+        case CTRL_SYNC:       return RES_OK;
+        case GET_SECTOR_SIZE: *(WORD*)buff = (WORD)MS_BlkSize; return RES_OK;
+        case GET_BLOCK_SIZE:  *(DWORD*)buff = 1; return RES_OK;
+        default:              return RES_PARERR;
+    }
+}

@@ -1,0 +1,65 @@
+#include "usb_host_td.h"
+
+// Hardcode Descriptor Addresses into LPC2478 USB SRAM (0x7FD00000)
+// HCCA takes 0x7FD00000 to 0x7FD000FF. We use memory after it.
+volatile HCED *EDCtrl    = (volatile HCED *)0x7FD00100;
+volatile HCED *EDBulkIn  = (volatile HCED *)0x7FD00110;
+volatile HCED *EDBulkOut = (volatile HCED *)0x7FD00120;
+
+volatile HCTD *TDHead    = (volatile HCTD *)0x7FD00130;
+volatile HCTD *TDTail    = (volatile HCTD *)0x7FD00140;
+
+USB_INT32S Host_ProcessTD(volatile HCED *ed, USB_INT32U token, volatile USB_INT08U *buffer, USB_INT32U buffer_len) {
+    volatile USB_INT32U status;
+
+    // 1. Configure the Transfer Descriptor
+    TDHead->Control    = (TD_SETUP << 18) | (token << 19) | (1 << 23) | (3 << 28);
+    TDHead->CurrBufPtr = (USB_INT32U)buffer;
+    TDHead->BufEnd     = (buffer_len == 0) ? 0 : (USB_INT32U)(buffer + buffer_len - 1);
+    TDHead->NextTd     = (USB_INT32U)TDTail;
+
+    // 2. Attach TD to Endpoint Descriptor
+    ed->HeadTd = (USB_INT32U)TDHead | (ed->HeadTd & 0x00000002); // Preserve toggle bit
+    ed->TailTd = (USB_INT32U)TDTail;
+
+    // 3. Tell OHCI hardware to process the list
+    if (ed == EDCtrl) {
+        HC_CONTROL |= (1 << 4);     // Enable Control List
+        HC_CMD_STAT |= (1 << 1);    // ControlListFilled
+    } else {
+        HC_CONTROL |= (1 << 5);     // Enable Bulk List
+        HC_CMD_STAT |= (1 << 2);    // BulkListFilled
+    }
+
+    // 4. Poll for completion (Wait until Head pointer reaches Tail)
+    do {
+        status = ed->HeadTd;
+    } while ((status & 0xFFFFFFF0) != (USB_INT32U)TDTail);
+
+    // 5. Check for OHCI Errors in the TD Control Word
+    status = (TDHead->Control >> 28) & 0x0F;
+    if (status != 0) { // 0 = No Error
+        return 1;      // Error occurred
+    }
+
+    return 0; // Success
+}
+
+USB_INT32S Host_CtrlRecv(USB_INT08U bmRequestType, USB_INT08U bRequest, USB_INT16U wValue, USB_INT16U wIndex, USB_INT16U wLength, volatile USB_INT08U *buffer) {
+    // A simplified Control Receive implementation used for Enum / MaxLUN checks
+    volatile USB_INT08U setup_pkt[8];
+    setup_pkt[0] = bmRequestType;
+    setup_pkt[1] = bRequest;
+    setup_pkt[2] = wValue & 0xFF; setup_pkt[3] = (wValue >> 8) & 0xFF;
+    setup_pkt[4] = wIndex & 0xFF; setup_pkt[5] = (wIndex >> 8) & 0xFF;
+    setup_pkt[6] = wLength & 0xFF; setup_pkt[7] = (wLength >> 8) & 0xFF;
+
+    // SETUP phase
+    Host_ProcessTD(EDCtrl, TD_SETUP, setup_pkt, 8);
+    // DATA phase (IN)
+    if (wLength > 0) Host_ProcessTD(EDCtrl, TD_IN, buffer, wLength);
+    // STATUS phase (OUT)
+    Host_ProcessTD(EDCtrl, TD_OUT, 0, 0);
+
+    return 0;
+}

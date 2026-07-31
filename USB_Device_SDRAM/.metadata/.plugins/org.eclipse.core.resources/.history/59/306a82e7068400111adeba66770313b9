@@ -1,0 +1,98 @@
+#include <LPC24xx.H>
+#include "usbhw.h"
+
+// --- internal helper to talk to the usb protocol engine ---
+// you write a command code, and the silicon does the heavy lifting
+void USB_WriteCmd(uint32_t cmd) {
+    USBDevIntClr = 0x10; // clear the 'command code empty' interrupt flag
+    USBCmdCode = cmd;    // shove the command into the engine
+
+    // wait until the engine says it swallowed the command
+    while ((USBDevIntSt & 0x10) == 0);
+    USBDevIntClr = 0x10; // clear the flag again
+}
+
+
+// --- setup stuff ---
+
+void USB_Init(void) {
+    // 1. turn on the power to the usb block (PCUSB bit)
+    PCONP |= (1 << 31);
+
+    // 2. wire up the pins to the hardware engine (stealing them from your GPIO setup)
+
+    // P0.29 (D+) and P0.30 (D-) -> set to alternate function 1 (binary 01)
+    // clear the bits first, then set them
+    PINSEL1 &= ~((3 << 26) | (3 << 28));
+    PINSEL1 |=  ((1 << 26) | (1 << 28));
+
+    // P1.30 (VBUS) -> set to alternate function 2 (binary 10)
+    PINSEL3 &= ~(3 << 28);
+    PINSEL3 |=  (2 << 28);
+
+    // P2.9 (USB_CONNECT) -> set to alternate function 1 (binary 01)
+    PINSEL4 &= ~(3 << 18);
+    PINSEL4 |=  (1 << 18);
+
+    // 3. crank up the usb clock (PLL1) to exactly 48MHz
+    // *NOTE*: this math assumes your board has a 12MHz crystal!
+    // 12MHz * 4 = 48MHz. If your crystal is different, we need to change M and P.
+
+    PLL1CON = 1;         // enable PLL1
+    PLL1FEED = 0xAA;     // standard weird NXP feed sequence to lock it in
+    PLL1FEED = 0x55;
+
+    // MSEL = 3 (which means M=4), PSEL = 1 (which means P=2)
+    PLL1CFG = 0x23;
+    PLL1FEED = 0xAA;
+    PLL1FEED = 0x55;
+
+    // wait for the hardware lock bit (bit 10) to go high
+    while (!(PLL1STAT & (1 << 10)));
+
+    // connect the pll to the usb engine
+    PLL1CON = 3;
+    PLL1FEED = 0xAA;
+    PLL1FEED = 0x55;
+
+    // 4. clear out any old garbage interrupts
+    USBDevIntClr = 0x3FFF;
+}
+
+void USB_Connect(bool connect) {
+    // we use the protocol engine to tell the silicon to pull P2.9 low.
+    // command 0xFE is 'Set Device Status'.
+    // data 1 = connect, 0 = disconnect.
+
+    // 0x050000 tells the engine "I am writing data to you"
+    USB_WriteCmd(0x00FE0500);
+
+    if (connect) {
+        // 0x010000 tells the engine "data bit 1" (connect!)
+        USB_WriteCmd(0x00010100);
+    } else {
+        // 0x010000 tells the engine "data bit 0" (disconnect!)
+        USB_WriteCmd(0x00000100);
+    }
+}
+
+
+// --- talking to the hardware engine (placeholders for next step) ---
+
+void USB_SetAddress(uint32_t adr) {
+    // we will fill this in when the PC asks for an address
+}
+
+void USB_Configure(bool configure) {
+    // we will fill this in when the PC configures the device
+}
+
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize) {
+    // we will fill this in to set endpoint sizes
+}
+
+// ... you can add the rest of the empty functions from the .h file here ...
+
+void USB_ISR(void) {
+    // this is our main trap. we will build a state machine here later!
+}

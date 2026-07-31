@@ -1,0 +1,67 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include "system_init.h"
+#include <stdint.h>
+
+// Blocking loop tuned exactly for a 48MHz core clock
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // 1. Enable EMC Power
+    PCONP |= (1 << 11);
+
+    // 2. Route Port 2 Control Pins
+    PINSEL5 = 0x55010115;
+    // 3. Route Port 3 Data Pins
+    PINSEL6 = 0x55555555;
+    PINSEL7 = 0x55555555;
+    // 4. Route Port 4 Address Pins & Write Enable
+    PINSEL8 = 0x55555555;
+    PINSEL9 = (PINSEL9 & 0xFFF00000) | 0x00041555;
+
+    // 5. EMC Timing Configuration (Safe timings for 48 MHz)
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = 0x00000303;
+    EMC_DYN_RP   = 2;
+    EMC_DYN_RAS  = 3;
+    EMC_DYN_SREX = 4;
+    EMC_DYN_APR  = 2;
+    EMC_DYN_DAL  = 3;
+    EMC_DYN_WR   = 2;
+    EMC_DYN_RC   = 4;
+    EMC_DYN_RFC  = 4;
+    EMC_DYN_XSR  = 4;
+    EMC_DYN_RRD  = 2;
+    EMC_DYN_MRD  = 2;
+
+    // FIXED: Reverted to your exact original AM=13 setting for dual 16MB parallel chips
+    EMC_DYN_CFG0 = 0x00000680;
+
+    // 6. SDRAM Hardware Initialization Sequence
+    timer_delay(100);
+    EMC_DYN_CTRL = 0x0183;
+    timer_delay(200);
+    EMC_DYN_CTRL = 0x0103;
+    timer_delay(100);
+    EMC_DYN_RFSH = 2;
+    timer_delay(10);
+    EMC_DYN_RFSH = 23;         // 48MHz continuous refresh
+    timer_delay(10);
+
+    // 7. Mode Command Dummy Reads (Checks multiple shifts to ensure A0-A11 catch it)
+    EMC_DYN_CTRL = 0x0083;
+    volatile unsigned int dummy;
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x33 << 11)));
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x33 << 12)));
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x33 << 13)));
+    (void)dummy;
+
+    // 8. Normal Operation
+    EMC_DYN_CTRL = 0x0000;
+    EMC_DYN_CFG0 |= (1 << 19);
+    timer_delay(100);
+}

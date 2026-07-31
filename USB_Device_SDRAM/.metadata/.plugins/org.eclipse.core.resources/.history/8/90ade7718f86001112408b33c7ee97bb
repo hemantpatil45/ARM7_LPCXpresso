@@ -1,0 +1,13 @@
+/*
+ * usb_sdram.h
+ *
+ *  Created on: Jul 23, 2026
+ *      Author: vboxuser
+ */
+
+#ifndef USB_SDRAM_DISK_H_
+#define USB_SDRAM_DISK_H_
+
+
+
+#endif /* USB_SDRAM_DISK_H_ */

@@ -1,0 +1,178 @@
+#include "LPC24xx.h"
+#include "stdint.h"
+#include "system_init.h"
+#include "glcd.h"
+#include "SDRAM.h"
+#include <stdio.h>
+
+unsigned int SDRAM_data[MAX_SDRAM_DATA];
+unsigned int test1234[MAX_SDRAM_DATA];
+char buffer[64];
+volatile unsigned int *SDRAM_pointer = (volatile unsigned int *)0xA0000000;
+
+void SW2_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));                 /* P2.0  -> GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+    FIO2DIR &= ~KBD_ROW1_MASK;    /* row input  */
+    FIO2DIR |=  KBD_COL1_MASK;    /* col output */
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+void SW6_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));                 /* P2.0  -> GPIO */
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));           /* P2.25 -> GPIO */
+
+    FIO2DIR &= ~KBD_ROW2_MASK;    /* row input  */
+    FIO2DIR |=  KBD_COL1_MASK;    /* col output */
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+uint32_t SW2_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      /* scan: drive low */
+    delay_us(200);              /* settle (not debounce) */
+    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      /* release column */
+    return pressed;
+}
+
+uint32_t SW6_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      /* scan: drive low */
+    delay_us(200);              /* settle (not debounce) */
+    uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      /* release column */
+    return pressed;
+}
+
+void Timer0_irq(void) __attribute__((interrupt("IRQ")));
+volatile unsigned int timer_cnt = 0;
+void Timer0_irq(void)
+{
+	T0IR = 0x01;
+	timer_cnt++;
+}
+
+void Timer0_init()
+{
+	T0TCR = 0; // Disable timer 0.
+	T0PR = 0x0; // Prescaler is set to no division.
+	T0MR0 = 6000; // Timer intervel
+	T0MCR = 0x03;	// Interrupt and reset on MR0 match
+	T0CCR = 0; // Capture is disabled.
+	T0EMR = 0; // No external match output.
+	VICVectAddr4 = (unsigned long)Timer0_irq; // Set ISR address
+	VICVectCntl4 = 0x20 | 4;	//Enable slot and assign to timer 0
+	VICIntEnable = (1 << 4);	//Enable timer 0 interrupt
+    T0TCR=0x00;         // diable timer 0
+    T0IR = 0x01;
+}
+
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // 1. Enable EMC Power
+    PCONP |= (1 << 11);
+
+    // 2. Route Port 2 Control Pins (CAS, RAS, CLK, DYCS0, CKE, DQM0-3)
+    PINSEL5 = 0x55010115;
+
+    // 3. Route Port 3 Data Pins (D0 - D31)
+    PINSEL6 = 0x55555555;
+    PINSEL7 = 0x55555555;
+
+    // 4. Route Port 4 Address Pins & Write Enable (A0-A22, WRENB)
+    PINSEL8 = 0x55555555;
+    PINSEL9 = (PINSEL9 & 0xFFF00000) | 0x00041555;
+
+    // 5. EMC Timing Configuration (Hardcoded for 48 MHz)
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = 0x00000303; // CAS=3, RAS=3
+
+    EMC_DYN_RP   = 1; // 2 clocks
+    EMC_DYN_RAS  = 2; // 3 clocks
+    EMC_DYN_SREX = 4; // 5 clocks
+    EMC_DYN_APR  = 1;
+    EMC_DYN_DAL  = 3; // 4 clocks
+    EMC_DYN_WR   = 1; // 2 clocks
+    EMC_DYN_RC   = 4; // 5 clocks
+    EMC_DYN_RFC  = 4; // 5 clocks
+    EMC_DYN_XSR  = 4; // 5 clocks
+    EMC_DYN_RRD  = 1; // 2 clocks
+    EMC_DYN_MRD  = 1; // 2 clocks
+
+    // FIXED: 32-bit bus (Bit 14=1), 4 banks, 13 rows, 9 cols (AM=10)
+    EMC_DYN_CFG0 = 0x00004500;
+
+    // 6. Mandatory Initialization Sequence
+    timer_delay(100);
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    timer_delay(200);
+
+    EMC_DYN_CTRL = 0x0103;     // PALL command
+    timer_delay(10);
+
+    EMC_DYN_RFSH = 2;          // Rapid auto-refresh
+    timer_delay(10);
+    EMC_DYN_RFSH = 23;         // Normal refresh (48MHz / 16 / ~7.8us = 23)
+    timer_delay(10);
+
+    // 7. THE MISSING MODE COMMAND
+    EMC_DYN_CTRL = 0x0083;     // Enter MODE state
+
+    // Perform dummy reads to push 0x32 (CAS 3, Burst Length 4) to the Mode Register.
+    // We read across multiple shifts to guarantee the AHB multiplexer hits the A0-A8 pins.
+    volatile unsigned int dummy;
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x32 << 11)));
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x32 << 12)));
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x32 << 13)));
+    dummy = *((volatile unsigned int *)(0xA0000000 | (0x32 << 14)));
+    (void)dummy; // Prevent compiler from optimizing the dummy reads away
+
+    // 8. Normal Operation
+    EMC_DYN_CTRL = 0x0000;     // Normal operation
+    EMC_DYN_CFG0 |= (1 << 19); // Enable EMC Write Buffers
+    timer_delay(100);
+}
+void SDRAM_write(void)
+{
+    volatile unsigned int *ptr = (volatile unsigned int *)0xA0000000;
+    for (unsigned int i = 0; i < MAX_SDRAM_DATA; i++)
+    {
+        unsigned int timeout = EMC_BUSY_TIMEOUT;
+        while ((EMC_STAT & EMCSTATUS_BIT_0) != 0)
+        {
+            if (--timeout == 0)
+            {
+                // Error: busy timeout
+                return;
+            }
+        }
+        ptr[i] = SDRAM_data[i];
+    }
+}
+
+void SDRAM_read(void)
+{
+    volatile unsigned int *ptr = (volatile unsigned int *)0xA0000000;
+    for (unsigned int i = 0; i < MAX_SDRAM_DATA; i++)
+    {
+        unsigned int timeout = EMC_BUSY_TIMEOUT;
+        while ((EMC_STAT & EMCSTATUS_BIT_0) != 0)
+        {
+            if (--timeout == 0)
+            {
+                // Error: busy timeout
+                return;
+            }
+        }
+        test1234[i] = ptr[i];
+    }
+}

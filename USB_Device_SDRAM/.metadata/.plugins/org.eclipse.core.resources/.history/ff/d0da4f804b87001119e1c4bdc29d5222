@@ -1,0 +1,205 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+#include "sdcard.h"
+#include <stdbool.h>
+
+extern void UART0_Print(const char *str);
+extern void UART0_PrintHex(uint32_t val);
+extern void UART0_SendChar(char ch);
+
+USB_SETUP_PACKET SetupPacket;
+USB_CBW cbw;
+USB_CSW csw;
+
+static const uint8_t SCSI_Sense_Data[] = {0x70, 0, 0x05, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0x30, 0x01, 0, 0, 0, 0};
+static const uint8_t SCSI_Mode_Data[]  = {0x03, 0x00, 0x00, 0x00};
+
+// CAPACITY: Update this to match your specific SD card total sectors (e.g., 2GB card = 3,825,408 sectors)
+// For a standard 1GB/2GB card, standard capacity blocks:
+const uint8_t SCSI_Capacity_Data[8] = {
+    0x00, 0x1D, 0x5D, 0x3F, // Last LBA (Example: 1,924,414 for ~1GB card)
+    0x00, 0x00, 0x02, 0x00  // Block Length: 512 bytes
+};
+
+const uint8_t SCSI_Inquiry_Data[36] = {
+    0x00, 0x80, 0x02, 0x02, 31, 0x00, 0x00, 0x00,
+    'L', 'P', 'C', '2', '4', '7', '8', ' ',
+    'S', 'D', ' ', 'D', 'r', 'i', 'v', 'e',
+    ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+    '1', '.', '0', '0'
+};
+
+volatile uint8_t *Bulk_Data_Ptr;
+uint32_t Bulk_Data_Len;
+bool Bulk_Sending_Data = false;
+
+volatile uint8_t *Write_Data_Ptr;
+uint32_t Write_Data_Len;
+bool Bulk_Expecting_Write_Data = false;
+uint32_t Expected_Transfer_Len = 0;
+uint32_t Actual_Transferred_Len = 0;
+
+// Working sector buffer for SD SPI transfers (512 bytes)
+static uint8_t sd_sector_buffer[512];
+static uint32_t current_target_lba = 0;
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        USB_WriteCmd(CMD_SEL_EP + 0);
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP + 0);
+
+        if (ep_stat & (1 << 5)) {
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: pData = (uint8_t *)USB_DeviceDescriptor; descriptor_size = 18; break;
+                        case 0x02: pData = (uint8_t *)USB_ConfigDescriptor; descriptor_size = 32; break;
+                        default: USB_SetStallEP(0x80); return;
+                    }
+                    if (descriptor_size > SetupPacket.wLength) descriptor_size = SetupPacket.wLength;
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+                case USB_REQUEST_SET_CONFIGURATION:
+                    USB_Configure(true);
+                    USB_ConfigEP(0x81, 64); USB_EnableEP(0x81);
+                    USB_ConfigEP(0x02, 64); USB_EnableEP(0x02);
+                    EP_INT_EN |= (1 << 3) | (1 << 4);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+                case 0xFE:
+                    if (SetupPacket.bmRequestType == 0xA1) {
+                        uint8_t max_lun = 0; USB_WriteEP(0x80, &max_lun, 1);
+                    } else USB_SetStallEP(0x80);
+                    break;
+                default: USB_SetStallEP(0x80); break;
+            }
+        } else {
+            uint8_t dummy[64]; USB_ReadEP(0x00, dummy);
+        }
+    }
+}
+
+void BOT_Send_Next_Chunk(void) {
+    if (Bulk_Data_Len > 0) {
+        uint32_t chunk = (Bulk_Data_Len > 64) ? 64 : Bulk_Data_Len;
+        if (Bulk_Data_Ptr != 0) {
+            USB_WriteEP(0x81, (uint8_t *)Bulk_Data_Ptr, chunk);
+            Bulk_Data_Ptr += chunk;
+        } else {
+            uint8_t zeroes[64] = {0};
+            USB_WriteEP(0x81, zeroes, chunk);
+        }
+        Bulk_Data_Len -= chunk;
+        Actual_Transferred_Len += chunk;
+    } else if (Bulk_Sending_Data) {
+        Bulk_Sending_Data = false;
+        csw.dCSWDataResidue = Expected_Transfer_Len - Actual_Transferred_Len;
+        USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+    }
+}
+
+void Process_Bulk_OUT(void) {
+    if (Bulk_Expecting_Write_Data) {
+        uint32_t count = USB_ReadEP(0x02, (uint8_t *)Write_Data_Ptr);
+
+        Write_Data_Ptr += count;
+        if (Write_Data_Len > count) Write_Data_Len -= count;
+        else Write_Data_Len = 0;
+
+        Actual_Transferred_Len += count;
+
+        if (Write_Data_Len == 0) {
+            Bulk_Expecting_Write_Data = false;
+
+            // Commit the received 512-byte block to the physical SD Card via SPI
+            SD_Write_Block(current_target_lba, sd_sector_buffer);
+
+            csw.bCSWStatus = 0;
+            csw.dCSWDataResidue = Expected_Transfer_Len - Actual_Transferred_Len;
+            USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+        }
+        return;
+    }
+
+    uint32_t count = USB_ReadEP(0x02, (uint8_t *)&cbw);
+    if (count == 31 && cbw.dCBWSignature == 0x43425355) {
+        csw.dCSWSignature = 0x53425355;
+        csw.dCSWTag = cbw.dCBWTag;
+        csw.bCSWStatus = 0;
+        Expected_Transfer_Len = cbw.dCBWDataTransferLength;
+        Actual_Transferred_Len = 0;
+
+        switch (cbw.CBWCB[0]) {
+            case 0x00: // TEST UNIT READY
+                csw.dCSWDataResidue = 0;
+                USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                break;
+            case 0x03: // REQUEST SENSE
+                Bulk_Data_Ptr = (volatile uint8_t *)SCSI_Sense_Data;
+                Bulk_Data_Len = sizeof(SCSI_Sense_Data);
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+            case 0x12: // INQUIRY
+                Bulk_Data_Ptr = (volatile uint8_t *)SCSI_Inquiry_Data;
+                Bulk_Data_Len = sizeof(SCSI_Inquiry_Data);
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+            case 0x1A: // MODE SENSE
+                Bulk_Data_Ptr = (volatile uint8_t *)SCSI_Mode_Data;
+                Bulk_Data_Len = sizeof(SCSI_Mode_Data);
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+            case 0x25: // READ CAPACITY
+                Bulk_Data_Ptr = (volatile uint8_t *)SCSI_Capacity_Data;
+                Bulk_Data_Len = 8;
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+
+            case 0x28: // READ (10)
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+
+                // Read 512-byte block directly from SD card into buffer
+                SD_Read_Block(lba, sd_sector_buffer);
+
+                Bulk_Data_Ptr = sd_sector_buffer;
+                Bulk_Data_Len = 512; // Single block transfer per command payload
+                Bulk_Sending_Data = true;
+                BOT_Send_Next_Chunk();
+                break;
+            }
+
+            case 0x2A: // WRITE (10)
+            {
+                uint32_t lba = (cbw.CBWCB[2] << 24) | (cbw.CBWCB[3] << 16) | (cbw.CBWCB[4] << 8) | cbw.CBWCB[5];
+
+                current_target_lba = lba;
+                Write_Data_Ptr = sd_sector_buffer;
+                Write_Data_Len = 512;
+                Bulk_Expecting_Write_Data = true;
+                break;
+            }
+
+            default:
+                csw.dCSWDataResidue = Expected_Transfer_Len;
+                csw.bCSWStatus = 0x01; // Command Failed Status
+                USB_WriteEP(0x81, (uint8_t *)&csw, 13);
+                break;
+        }
+    }
+}

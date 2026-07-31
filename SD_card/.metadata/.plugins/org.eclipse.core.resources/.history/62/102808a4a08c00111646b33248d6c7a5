@@ -1,0 +1,87 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+#include "ff.h"
+
+DWORD get_fattime(void) {
+    return ((DWORD)(2024 - 1980) << 25) | ((DWORD)1 << 21) | ((DWORD)1 << 16);
+}
+
+int main(void)
+{
+    FATFS fs;
+    FIL fil;
+    FRESULT fr;
+    UINT br;                  // "Bytes Read" (instead of Bytes Written)
+    char read_buffer[64];     // Buffer to hold the text from the SD card
+    char display_row[24];     // Temporary buffer to format text for the GLCD
+
+    /* 1. Hardware Initialization */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "AKADEMIKA FATFS READ");
+    GLCD_RowWriteMargin(1, "MOUNTING DRIVE...   ");
+
+    spi_init();
+
+    /* 2. Mount the SD Card */
+    fr = f_mount(&fs, "", 1);
+    if (fr != FR_OK) {
+        GLCD_RowWriteMargin(2, "ERR: MOUNT FAILED   ");
+        for (;;) ;
+    }
+
+    /* 3. Open the file for READING (FA_READ) */
+    GLCD_RowWriteMargin(2, "OPENING TEST.TXT... ");
+    fr = f_open(&fil, "TEST.TXT", FA_READ);
+
+    if (fr != FR_OK) {
+        GLCD_RowWriteMargin(4, "ERR: FILE NOT FOUND ");
+        for (;;) ;
+    }
+
+    /* 4. Read data from the file */
+    GLCD_RowWriteMargin(3, "READING DATA...     ");
+
+    // Clear the buffer with zeros so we don't print garbage memory
+    memset(read_buffer, 0, sizeof(read_buffer));
+
+    // Read up to 40 bytes from the file into our buffer
+    fr = f_read(&fil, read_buffer, 40, &br);
+
+    /* 5. Close the file (Always close after reading too!) */
+    f_close(&fil);
+
+    /* 6. Display the text on the GLCD */
+    if (fr == FR_OK && br > 0) {
+        GLCD_RowWriteMargin(4, "FILE CONTENTS:      ");
+
+        // --- Splitting the text to fit the 20-character GLCD width ---
+
+        // Print the first 20 characters to Row 5
+        memset(display_row, 0, sizeof(display_row));
+        strncpy(display_row, read_buffer, 20);
+        GLCD_RowWriteMargin(5, display_row);
+
+        // Print the remaining characters to Row 6
+        memset(display_row, 0, sizeof(display_row));
+        if (br > 20) {
+            strncpy(display_row, read_buffer + 20, 20); // Skip first 20 chars
+        }
+        GLCD_RowWriteMargin(6, display_row);
+
+    } else {
+        GLCD_RowWriteMargin(5, "ERR: READ FAILED    ");
+    }
+
+    /* Halt execution */
+    for (;;) {
+        // Do nothing. Wait for reset.
+    }
+}

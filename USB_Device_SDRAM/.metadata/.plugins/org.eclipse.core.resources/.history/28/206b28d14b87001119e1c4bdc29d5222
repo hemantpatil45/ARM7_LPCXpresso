@@ -1,0 +1,160 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+#include "usbcore.h"
+#include "system_init.h"
+#include "SDRAM.h"
+#include <stdbool.h>
+
+#define UART0_BAUD 115200
+
+extern void PLL_Init(void);
+extern void system_Init(void);
+extern volatile bool usb_event_detected;
+
+void Enable_Global_Interrupts(void) {
+    __asm("mrs r0, cpsr");
+    __asm("bic r0, r0, #0x80");
+    __asm("msr cpsr_c, r0");
+}
+
+void UART0_Init(uint32_t baudrate) {
+    uint32_t Fdiv;
+    PCONP |= (1 << 3);
+
+    // Sets UART0 peripheral clock to match CPU Clock (now 72 MHz)
+    PCLKSEL0 &= ~(3 << 6);
+    PCLKSEL0 |=  (1 << 6);
+
+    PINSEL0 &= ~0x000000F0;
+    PINSEL0 |=  0x00000050;
+    U0LCR = 0x83;
+
+    // FIX: Updated math for 72 MHz CPU Clock (72,000,000 / 16 = 4,500,000)
+    Fdiv = 4500000 / baudrate;
+
+    U0DLM = (Fdiv >> 8) & 0xFF;
+    U0DLL = Fdiv & 0xFF;
+    U0FDR = 0x10;
+    U0LCR = 0x03;
+    U0FCR = 0x07;
+}
+
+void UART0_SendChar(char ch) {
+    while (!(U0LSR & 0x20));
+    U0THR = ch;
+}
+
+void UART0_Print(const char *str) {
+    while (*str) {
+        UART0_SendChar(*str++);
+    }
+}
+
+// Helper to print Hex values for debugging
+void UART0_PrintHex(uint32_t val) {
+    char hex[] = "0123456789ABCDEF";
+    UART0_Print("0x");
+    for (int i = 28; i >= 0; i -= 4) {
+        UART0_SendChar(hex[(val >> i) & 0xF]);
+    }
+}
+
+void delay_ms(uint32_t ms) {
+    for (volatile uint32_t i = 0; i < (ms * 1000); i++);
+}
+
+void Test_SDRAM_Hardware(void) {
+    volatile uint32_t *sdram = (volatile uint32_t *)0xA0000000;
+    uint32_t read_val;
+
+    UART0_Print("\r\n========================================\r\n");
+    UART0_Print("       RAW SDRAM HARDWARE TEST\r\n");
+    UART0_Print("========================================\r\n");
+
+    UART0_Print("\r\n[TEST 1] Writing all ZEROs (0x00000000)...\r\n");
+    sdram[0] = 0x00000000;
+    UART0_Print("Readback: "); UART0_PrintHex(sdram[0]); UART0_Print("\r\n");
+
+    UART0_Print("\r\n[TEST 2] Writing all ONEs (0xFFFFFFFF)...\r\n");
+    sdram[0] = 0xFFFFFFFF;
+    UART0_Print("Readback: "); UART0_PrintHex(sdram[0]); UART0_Print("\r\n");
+
+    UART0_Print("\r\n[TEST 3] Walking 1s Data Bus Test...\r\n");
+    for (int i = 0; i < 32; i++) {
+        uint32_t write_val = (1UL << i);
+        sdram[0] = write_val;
+        read_val = sdram[0];
+
+        if (read_val != write_val) {
+            UART0_Print("FAIL at Data Line D");
+
+            // Quick integer to string for UART
+            char buf[3];
+            buf[0] = (i / 10) + '0';
+            buf[1] = (i % 10) + '0';
+            buf[2] = '\0';
+            if (buf[0] == '0') UART0_SendChar(buf[1]);
+            else UART0_Print(buf);
+
+            UART0_Print(" | Wrote: "); UART0_PrintHex(write_val);
+            UART0_Print(" | Read:  "); UART0_PrintHex(read_val);
+            UART0_Print("\r\n");
+        }
+    }
+
+    UART0_Print("\r\n========================================\r\n");
+    UART0_Print("TEST COMPLETE. HALTING CPU.\r\n");
+    while(1); // Stop here so USB doesn't interfere
+}
+
+
+
+int main(void) {
+    // Uses your original 48MHz PLL initialization
+    PLL_Init();
+    system_Init();
+    UART0_Init(UART0_BAUD);
+
+    delay_ms(3000);
+    UART0_Print("\r\n[BOOT] LPC2478 USB Booting...\r\n");
+    delay_ms(100);
+
+    UART0_Print("[MEM] Initializing SDRAM...\r\n");
+    SDRAM_init_32BIT();
+    Test_SDRAM_Hardware();
+    // PHYSICAL SDRAM HARDWARE TEST
+    UART0_Print("[TEST] Testing SDRAM Physical Bus...\r\n");
+    volatile uint32_t *sdram_test = (volatile uint32_t *)0xA0000000;
+
+    sdram_test[0] = 0xDEADBEEF;
+    sdram_test[1] = 0x12345678;
+
+    if (sdram_test[0] == 0xDEADBEEF && sdram_test[1] == 0x12345678) {
+        UART0_Print("[TEST] SUCCESS! CPU can read/write to SDRAM.\r\n");
+    } else {
+        UART0_Print("[TEST] FATAL HARDWARE ERROR!\r\n");
+        UART0_Print("Expected: 0xDEADBEEF, Got: ");
+        UART0_PrintHex(sdram_test[0]);
+        UART0_Print("\r\n");
+        while(1); // Halt system on failure
+    }
+
+    // Write the boot sector signature
+    Init_SDRAM_Disk();
+    UART0_Print("[MEM] 32MB SDRAM Disk Formatted.\r\n");
+
+    Enable_Global_Interrupts();
+    UART0_Print("[CPU] Global Interrupts Enabled.\r\n");
+
+    UART0_Print("[USB] Initializing USB Engine...\r\n");
+    USB_Init();
+
+    UART0_Print("[USB] Connecting to Bus (D+ pull-up)...\r\n");
+    USB_Connect(true);
+
+    while (1) {
+        if (usb_event_detected) {
+            usb_event_detected = false;
+        }
+    }
+}

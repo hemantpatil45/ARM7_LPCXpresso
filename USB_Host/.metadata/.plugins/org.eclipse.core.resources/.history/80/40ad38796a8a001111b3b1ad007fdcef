@@ -1,0 +1,44 @@
+#include "LPC24xx.h"
+#include "ff.h"
+#include "usbhost.h"
+#include "usbhost_ms.h"
+
+/* External System and Clock Initialization Prototypes */
+extern void PLL_Init(void);
+extern void system_Init(void);
+extern void UART0_Init(uint32_t baudrate);
+extern void UART0_Print(const char *str);
+
+FATFS fs;
+
+int main(void) {
+    PLL_Init();
+    system_Init();
+    UART0_Init(115200);
+
+    UART0_Print("\r\n[BOOT] LPC2478 USB Host Booting...\r\n");
+
+    /* Initialize USB Host Hardware for Port 2 */
+    USBHostInit();
+
+    /* Wake up OHCI Controller */
+    OHCIInit();
+
+    /* Open Port 2 (Apply VBUS power) */
+    OHCIPortOpen(2);
+
+    UART0_Print("[USB] Scanning Port 2 for Flash Drive...\r\n");
+
+    while (1) {
+        if (MS_Init() == 0) {
+            UART0_Print("[USB] Flash Drive Enumerated!\r\n");
+
+            if (f_mount(&fs, "0:", 1) == FR_OK) {
+                UART0_Print("[FAT] Drive successfully mounted!\r\n");
+                while(1);
+            } else {
+                UART0_Print("[FAT] Failed to mount drive.\r\n");
+            }
+        }
+    }
+}

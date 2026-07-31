@@ -1,0 +1,130 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "ethernet.h"
+#include "ethernet_rx.h"
+
+#define UART0_BAUD 115200
+#define CCLK_FREQ   72000000
+#define PCLK_DIV    4
+#define Fpclk       (CCLK_FREQ / PCLK_DIV)  // 18 MHz
+#define MAX_GLCD_CHARS 20
+
+/* Global Variable Allocation to prevent Stack Overflow */
+uint8_t rx_buffer[1536];
+
+void Delay1Sec(void) {
+    volatile uint32_t i;
+    for(i = 0; i < 12000000; i++) { __asm("NOP"); }
+}
+
+void Delay2Sec(void) {
+    volatile uint32_t i;
+    for(i = 0; i < 1200000; i++) { __asm("NOP"); }
+}
+
+void UART0_Init(uint32_t baudrate) {
+    uint32_t Fdiv;
+    PCONP |= (1 << 3);
+    PCLKSEL0 &= ~(3 << 6);
+    PINSEL0 &= ~0x000000F0;
+    PINSEL0 |=  0x00000050;
+    U0LCR = 0x83;
+    Fdiv = (Fpclk / 16) / baudrate;
+    U0DLM = (Fdiv >> 8) & 0xFF;
+    U0DLL = Fdiv & 0xFF;
+    U0FDR = 0x10;
+    U0LCR = 0x03;
+    U0FCR = 0x07;
+}
+
+void UART0_SendChar(char ch) {
+    while (!(U0LSR & 0x20));
+    U0THR = ch;
+}
+
+void UART0_SendString(const char *str) {
+    while (*str) {
+        UART0_SendChar(*str++);
+    }
+}
+
+/* Safely sends raw binary data over UART using the frame's exact length */
+void UART0_SendBuffer(const uint8_t *buf, uint32_t len) {
+    for (uint32_t k = 0; k < len; k++) {
+        UART0_SendChar((char)buf[k]);
+    }
+}
+
+int main(void) {
+    bool link_status;
+    uint32_t rx_length = 0;
+    uint32_t j;
+    volatile uint32_t i;
+
+    for(i = 0; i < 50000; i++) { __asm("NOP"); }
+
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+    UART0_Init(UART0_BAUD);
+
+    GLCD_RowWriteMargin(0,"WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(2,"      PL-ARM7       ");
+    GLCD_RowWriteMargin(4,"ETHERNET RX         ");
+    GLCD_RowWriteMargin(6," PRESS SW2 TO RESET ");
+
+    while(SW2_Pressed() == 0);
+
+    GLCD_RowWriteMargin(6,"WAIT 05             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(6,"WAIT 04             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(6,"WAIT 03             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(6,"WAIT 02             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(6,"WAIT 01             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(6,"WAIT 00             ");
+    Delay2Sec();
+    GLCD_RowWriteMargin(7,"   EMAC INIT OK     ");
+    GLCD_RowWriteMargin(5,"SEND DATA FROM TX   ");
+    GLCD_RowWriteMargin(6,"OPEN HYPERTERMINAL  ");
+
+    link_status = Eth_Init();
+
+    while(1) {
+        if (link_status) {
+            if (EMAC_ReceivePacket(rx_buffer, sizeof(rx_buffer), &rx_length)) {
+                char display_str[MAX_GLCD_CHARS + 1];
+
+                /* Extract printable payload data (Skip 14 bytes header) */
+                for(j = 0; j < MAX_GLCD_CHARS; j++) {
+                    if ((14 + j) < rx_length && (rx_buffer[14 + j] >= 32 && rx_buffer[14 + j] <= 126)) {
+                        display_str[j] = (char)rx_buffer[14 + j];
+                    } else {
+                        display_str[j] = ' ';
+                    }
+                }
+                display_str[MAX_GLCD_CHARS] = '\0';
+
+                GLCD_RowWriteMargin(7,"PRESS SW6 TO SEND   ");
+
+                while(SW6_Pressed() == 0); // Wait for button press
+
+                //remove header from the frame and send to the uart
+                UART0_SendBuffer(&rx_buffer[14], rx_length-14);
+
+                /* Show processed payload string on screen */
+                GLCD_RowWriteMargin(7, display_str);
+
+                while(SW6_Pressed() == 1); // Wait for button release
+            }
+        }
+    }
+}

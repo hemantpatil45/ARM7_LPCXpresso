@@ -1,0 +1,12 @@
+src/main.o src/main.d: ../src/main.c ../src/LPC24xx.h \
+ ../src/system_init.h ../src/usbhost_inc.h ../src/ff.h ../src/ffconf.h
+
+../src/LPC24xx.h:
+
+../src/system_init.h:
+
+../src/usbhost_inc.h:
+
+../src/ff.h:
+
+../src/ffconf.h:

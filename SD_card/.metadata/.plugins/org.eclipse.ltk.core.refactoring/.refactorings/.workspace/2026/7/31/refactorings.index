@@ -1,0 +1,3 @@
+1785403342111	Rename resource 'PL_ARM7_RFID_READER'
+1785405029170	Delete resource 'SD_card/src/mfrc522.c'
+1785405033328	Delete resource 'SD_card/src/mfrc522.h'

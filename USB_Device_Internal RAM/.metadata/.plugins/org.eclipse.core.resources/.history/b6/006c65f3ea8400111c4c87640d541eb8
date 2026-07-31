@@ -1,0 +1,78 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+// External UART declarations (non-static)
+extern void UART0_Print(const char *str);
+extern void UART_PrintHex(uint32_t val);
+
+USB_SETUP_PACKET SetupPacket;
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        USB_WriteCmd(CMD_SEL_EP + 0);
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP + 0);
+
+        if (ep_stat & (1 << 5)) { // Check STP bit
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            UART0_Print("[EP0] Setup -> ReqType: ");
+            UART_PrintHex(SetupPacket.bmRequestType);
+            UART0_Print(" Req: ");
+            UART_PrintHex(SetupPacket.bRequest);
+            UART0_Print(" Val: ");
+            UART_PrintHex(SetupPacket.wValue);
+            UART0_Print("\r\n");
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: // Device Descriptor
+                            pData = (uint8_t *)USB_DeviceDescriptor;
+                            descriptor_size = 18;
+                            break;
+                        case 0x02: // Configuration Descriptor
+                            pData = (uint8_t *)USB_ConfigDescriptor;
+                            descriptor_size = 32;
+                            break;
+                        default:
+                            USB_SetStallEP(0x80);
+                            return;
+                    }
+
+                    if (descriptor_size > SetupPacket.wLength) {
+                        descriptor_size = SetupPacket.wLength;
+                    }
+
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+
+                case USB_REQUEST_SET_CONFIGURATION:
+                    USB_Configure(true);
+                    USB_WriteEP(0x80, 0, 0);
+                    break;
+
+                default:
+                    USB_SetStallEP(0x80);
+                    break;
+            }
+        } else {
+            uint8_t dummy[64];
+            USB_ReadEP(0x00, dummy);
+        }
+    }
+    else if (event == 1) {
+        if (SetupPacket.bRequest == USB_REQUEST_SET_ADDRESS) {
+            USB_WriteCmdData(CMD_SET_ADDR, SetupPacket.wValue | 0x80);
+        }
+    }
+}

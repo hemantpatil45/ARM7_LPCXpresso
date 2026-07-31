@@ -1,0 +1,57 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+
+void UART0_Init(void) {
+    // Enable power for UART0
+    PCONP |= (1 << 3);
+
+    // Pin select: TX0 on P0.2 (Bits 5:4 = 01), RX0 on P0.3 (Bits 7:6 = 01)
+    PINSEL0 &= ~((3 << 4) | (3 << 6));
+    PINSEL0 |=  ((1 << 4) | (1 << 6));
+
+    // 8 data bits, 1 stop bit, no parity, enable DLAB
+    U0LCR = 0x83;
+
+    // Baud rate configuration for 115200 bps (assuming 12MHz crystal / CCLK = 48MHz)
+    // DLM:DLL = 4 = 48000000 / (16 * 115200) -> 26.04 -> DLL = 26, DLM = 0
+    U0DLL = 26;
+    U0DLM = 0;
+
+    // Disable DLAB, keep FIFO enabled
+    U0LCR = 0x03;
+    U0FCR = 0x07;
+}
+
+void UART0_SendChar(char c) {
+    while (!(U0LSR & (1 << 5))); // Wait for Transmit Holding Register empty
+    U0THR = c;
+}
+
+void UART0_Print(const char *str) {
+    while (*str) {
+        UART0_SendChar(*str++);
+    }
+}
+
+void delay_ms(uint32_t ms) {
+    for (volatile uint32_t i = 0; i < (ms * 10000); i++);
+}
+
+int main(void) {
+    UART0_Init();
+    UART0_Print("\r\n[BOOT] LPC2478 USB Booting...\r\n");
+
+    delay_ms(100);
+
+    UART0_Print("[USB] Initializing USB Engine...\r\n");
+    USB_Init();
+
+    UART0_Print("[USB] Connecting to Bus (D+ pull-up)...\r\n");
+    USB_Connect(true);
+
+    UART0_Print("[USB] Entering Main Loop.\r\n");
+
+    while (1) {
+        // You can print periodic health checks here if needed
+    }
+}

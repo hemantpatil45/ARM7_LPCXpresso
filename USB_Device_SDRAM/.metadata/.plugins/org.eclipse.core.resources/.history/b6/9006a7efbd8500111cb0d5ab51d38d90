@@ -1,0 +1,38 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "SDRAM.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+int main()
+{
+    // 1. Core Hardware & Clock Initialization
+    PLL_Init();
+    system_Init();
+
+    // 2. Display Setup
+    GLCD_Init();
+    GLCD_Clear();
+
+    // 3. Initialize External SDRAM Controller (32-bit bus, JEDEC Sequence)
+    SDRAM_init_32BIT();
+
+    // 4. Render Status on GLCD (Matching your stable debug style)
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(1, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(3, "USB MASS STORAGE    ");
+    GLCD_RowWriteMargin(4, "SDRAM ACTIVE: 32MB  ");
+    GLCD_RowWriteMargin(6, "Ready for PC Link   ");
+
+    // 5. Initialize USB Device Engine for Mass Storage
+    USB_Init();
+    USB_Connect(1);
+
+    // 6. Infinite Background Loop (USB interrupts handle block read/write transfers)
+    while (1)
+    {
+    }
+}

@@ -1,0 +1,67 @@
+#include "LPC24xx.h"
+#include "SDRAM.h"
+#include <stdint.h>
+
+void timer_delay(unsigned int us) {
+    for (volatile uint32_t i = 0; i < (us * 10); i++);
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // 1. Enable EMC Power
+    PCONP |= (1 << 11);
+
+    // 2. Route Port 2 Control Pins
+    PINSEL5 = 0x55010115;
+
+    // 3. Route Port 3 Data Pins (Full 32-bit bus activated)
+    PINSEL6 = 0x55555555;
+    PINSEL7 = 0x55555555;
+
+    // 4. Route Port 4 Address Pins & Write Enable
+    PINSEL8 = 0x55555555;
+    PINSEL9 = (PINSEL9 & 0xFFF00000) | 0x00041555;
+
+    // 5. EMC Timing Configuration (Safe timings for 48 MHz)
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = 0x00000303;
+
+    EMC_DYN_RP   = 2;
+    EMC_DYN_RAS  = 3;
+    EMC_DYN_SREX = 4;
+    EMC_DYN_APR  = 2;
+    EMC_DYN_DAL  = 3;
+    EMC_DYN_WR   = 2;
+    EMC_DYN_RC   = 4;
+    EMC_DYN_RFC  = 4;
+    EMC_DYN_XSR  = 4;
+    EMC_DYN_RRD  = 2;
+    EMC_DYN_MRD  = 2;
+
+    // 32-bit bus, 13 Rows, 9 Cols. Routes Bank Selects perfectly to A13 and A14.
+    EMC_DYN_CFG0 = 0x00000A80;
+
+    // 6. SDRAM Hardware Initialization Sequence
+    timer_delay(100);
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    timer_delay(200);
+    EMC_DYN_CTRL = 0x0103;     // PALL command
+    timer_delay(100);
+    EMC_DYN_RFSH = 2;          // Auto-refresh pulse
+    timer_delay(10);
+    EMC_DYN_RFSH = 23;         // 48MHz continuous refresh
+    timer_delay(10);
+
+    // 7. THE CRITICAL MODE SHIFT
+    EMC_DYN_CTRL = 0x0083;     // Enter MODE state
+    // Shift is exactly 13 for 32-bit AM=0x15. Forces 0x33 to A0-A11.
+    volatile uint32_t dummy = *((volatile uint32_t *)(0xA0000000 | (0x33 << 13)));
+    (void)dummy;
+
+    // 8. Normal Operation
+    // THE FIX: 0x0001 keeps Clock Enable (CKE) HIGH.
+    EMC_DYN_CTRL = 0x0001;
+    EMC_DYN_CFG0 |= (1 << 19); // Enable EMC Write Buffers
+    timer_delay(100);
+}

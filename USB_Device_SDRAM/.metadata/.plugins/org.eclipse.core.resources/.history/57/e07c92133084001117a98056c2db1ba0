@@ -1,0 +1,31 @@
+#ifndef __USBCORE_H
+#define __USBCORE_H
+
+#include <stdint.h>
+
+// Standard USB Setup Packet Structure (Exactly 8 bytes)
+typedef struct {
+    uint8_t  bmRequestType;
+    uint8_t  bRequest;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+} USB_SETUP_PACKET;
+
+// Standard USB Device Requests (Chapter 9 of USB 2.0 Spec)
+#define USB_REQUEST_GET_STATUS          0x00
+#define USB_REQUEST_CLEAR_FEATURE       0x01
+#define USB_REQUEST_SET_FEATURE         0x03
+#define USB_REQUEST_SET_ADDRESS         0x05
+#define USB_REQUEST_GET_DESCRIPTOR      0x06
+#define USB_REQUEST_SET_DESCRIPTOR      0x07
+#define USB_REQUEST_GET_CONFIGURATION   0x08
+#define USB_REQUEST_SET_CONFIGURATION   0x09
+
+// Expose the global Setup Packet so other files can read the PC's request if needed
+extern USB_SETUP_PACKET SetupPacket;
+
+// Expose the Endpoint 0 state machine to the hardware ISR
+extern void USB_EndPoint0(uint32_t event);
+
+#endif // __USBCORE_H

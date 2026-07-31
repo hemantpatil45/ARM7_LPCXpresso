@@ -1,0 +1,55 @@
+#include "LPC24xx.h"
+#include "usbhost_inc.h"
+
+/*****************************************************************************
+** Function name:       OHCIPortOpen
+** Descriptions:        Open designated USB port and apply VBUS power
+*****************************************************************************/
+void OHCIPortOpen(DWORD portNum)
+{
+    if (portNum == 1)
+    {
+        HC_RH_PORT_STAT1 = 0x00000100; /* Set Port Power (PPS) */
+    }
+    else if (portNum == 2)
+    {
+        HC_RH_PORT_STAT2 = 0x00000100; /* Set Port Power (PPS) for Port 2 */
+    }
+    delayMs(1, 100);
+}
+
+/*****************************************************************************
+** Function name:       Host_EnumDev
+** Descriptions:        USB host device enumeration routine for Port 2
+*****************************************************************************/
+DWORD Host_EnumDev(void)
+{
+    DWORD port_stat = HC_RH_PORT_STAT2;
+
+    /* Check if Connect Status Change (Bit 16) is asserted on Port 2 */
+    if (port_stat & (1 << 16))
+    {
+        UART0_Print("[USB] Connect change detected on Port 2. Resetting...\r\n");
+
+        /* Clear Connect Status Change */
+        HC_RH_PORT_STAT2 = (1 << 16);
+        delayMs(1, 200);
+
+        /* Issue Port Reset (Set Bit 4) */
+        HC_RH_PORT_STAT2 = (1 << 4);
+        delayMs(1, 200);
+
+        /* Clear Reset Change (Bit 20) */
+        HC_RH_PORT_STAT2 = (1 << 20);
+        delayMs(1, 200);
+    }
+
+    /* Check if Port Enable Status (Bit 1) is active on Port 2 */
+    port_stat = HC_RH_PORT_STAT2;
+    if (port_stat & (1 << 1))
+    {
+        return OK;
+    }
+
+    return ERROR;
+}

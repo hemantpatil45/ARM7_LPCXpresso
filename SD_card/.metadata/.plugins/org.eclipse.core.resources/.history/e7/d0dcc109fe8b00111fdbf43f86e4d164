@@ -1,0 +1,73 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+
+static void to_hex2(uint8_t v, char *out)
+{
+    static const char hexd[] = "0123456789ABCDEF";
+    out[0] = hexd[(v >> 4) & 0xF];
+    out[1] = hexd[v & 0xF];
+    out[2] = '\0';
+}
+
+static void show_uid(const MFRC522_UID *uid)
+{
+    char row[24];
+    char hx[3];
+    uint8_t i;
+
+    strcpy(row, "UID:");
+    for (i = 0; i < uid->size; i++) {
+        strcat(row, " ");
+        to_hex2(uid->uidByte[i], hx);
+        strcat(row, hx);
+    }
+    GLCD_RowWriteMargin(2, row);
+
+    to_hex2(uid->sak, hx);
+    strcpy(row, "SAK: 0x");
+    strcat(row, hx);
+    GLCD_RowWriteMargin(4, row);
+
+    GLCD_RowWriteMargin(6, "CARD READ OK        ");
+}
+
+int main(void)
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(1, "   RFID  READER     ");
+    GLCD_RowWriteMargin(6, "TAP A CARD...       ");
+
+    PCD_Init();
+
+    MFRC522_UID uid;
+    uint8_t lastUid[4] = {0, 0, 0, 0};
+    uint8_t haveLast = 0;
+
+    for (;;) {
+        if (!PICC_IsNewCardPresent()) continue;
+        if (!PICC_ReadCardSerial(&uid)) continue;
+
+        if (!haveLast ||
+            uid.uidByte[0] != lastUid[0] || uid.uidByte[1] != lastUid[1] ||
+            uid.uidByte[2] != lastUid[2] || uid.uidByte[3] != lastUid[3])
+        {
+            show_uid(&uid);
+            lastUid[0] = uid.uidByte[0];
+            lastUid[1] = uid.uidByte[1];
+            lastUid[2] = uid.uidByte[2];
+            lastUid[3] = uid.uidByte[3];
+            haveLast = 1;
+        }
+
+        PICC_HaltA();
+    }
+}

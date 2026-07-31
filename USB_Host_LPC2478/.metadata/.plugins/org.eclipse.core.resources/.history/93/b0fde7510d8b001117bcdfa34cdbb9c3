@@ -1,0 +1,13 @@
+/*
+ * usb_host_lpc2478.h
+ *
+ *  Created on: Jul 29, 2026
+ *      Author: vboxuser
+ */
+
+#ifndef USB_HOST_LPC2478_H_
+#define USB_HOST_LPC2478_H_
+
+
+
+#endif /* USB_HOST_LPC2478_H_ */

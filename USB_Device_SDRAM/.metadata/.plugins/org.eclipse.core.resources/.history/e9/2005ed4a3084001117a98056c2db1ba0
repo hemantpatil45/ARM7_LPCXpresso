@@ -1,0 +1,83 @@
+
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+// Instantiate the 8-byte setup packet
+USB_SETUP_PACKET SetupPacket;
+
+// The main enumeration state machine
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) { // OUT Event (PC sent data/request to us)
+
+        // Read the protocol engine to check if this is a SETUP phase packet
+        USB_WriteCmd(CMD_SEL_EP);
+        uint32_t ep_stat = CMD_DATA;
+
+        if (ep_stat & (1 << 2)) { // Setup Packet Indicator bit is HIGH
+
+            // 1. Read the 8 bytes from the hardware FIFO into our struct
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            // 2. Decide how to answer based on bRequest
+            switch (SetupPacket.bRequest) {
+
+                case USB_REQUEST_SET_ADDRESS:
+                    // The PC assigned us an address
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0); // Send 0-byte ACK
+                    break;
+
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    // What type of descriptor does the PC want? (High byte of wValue)
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: // DEVICE Descriptor
+                            pData = (uint8_t *)USB_DeviceDescriptor;
+                            descriptor_size = 18;
+                            break;
+
+                        case 0x02: // CONFIGURATION Descriptor
+                            pData = (uint8_t *)USB_ConfigDescriptor;
+                            descriptor_size = 32;
+                            break;
+
+                        default:
+                            // We don't support whatever they asked for (like String Descriptors)
+                            USB_SetStallEP(0x80);
+                            return; // Exit early
+                    }
+
+                    // --- THE SAFETY CHECK (THE TRAP) ---
+                    // If the PC asks for fewer bytes than our array holds, shrink our send size
+                    if (descriptor_size > SetupPacket.wLength) {
+                        descriptor_size = SetupPacket.wLength;
+                    }
+
+                    // Push the correct number of bytes to the Endpoint 0 IN loading dock
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+
+                case USB_REQUEST_SET_CONFIGURATION:
+                    // The PC accepted our descriptors and is activating the device
+                    USB_Configure(true);
+                    USB_WriteEP(0x80, 0, 0); // Send 0-byte ACK
+                    break;
+
+                default:
+                    // Catch-all for requests we haven't written yet
+                    USB_SetStallEP(0x80);
+                    break;
+            }
+        }
+    }
+} * usbcore.c
+ *
+ *  Created on: Jul 20, 2026
+ *      Author: vboxuser
+ */
+
+

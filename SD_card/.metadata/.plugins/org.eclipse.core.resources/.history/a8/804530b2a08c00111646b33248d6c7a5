@@ -1,0 +1,58 @@
+#include <string.h> // For strlen()
+
+// FatFs variables
+FATFS fs;
+FIL file;
+FRESULT f_res;
+UINT bytes_written, bytes_read;
+
+// Buffers
+const char write_buffer[] = "Hello from akademika";
+char read_buffer[50] = {0}; // Zero-initialized buffer for reading
+
+void SD_Write_Read_Test(void) {
+    // 1. Mount the drive (Logical Drive 0)
+    f_res = f_mount(&fs, "0:", 1);
+
+    if (f_res == FR_OK) {
+
+        // ==========================================
+        // 2. WRITE OPERATION
+        // ==========================================
+        // Open file with Write and Create flags
+        f_res = f_open(&file, "0:/HOST_LOG.TXT", FA_WRITE | FA_CREATE_ALWAYS);
+
+        if (f_res == FR_OK) {
+            // Write the specific text to the file
+            f_write(&file, write_buffer, strlen(write_buffer), &bytes_written);
+
+            // Close the file to save the data properly to the SD card
+            f_close(&file);
+        } else {
+            // Handle write open error (e.g., print f_res)
+        }
+
+        // ==========================================
+        // 3. READ OPERATION
+        // ==========================================
+        // Re-open the same file with Read flag
+        f_res = f_open(&file, "0:/HOST_LOG.TXT", FA_READ);
+
+        if (f_res == FR_OK) {
+            // Read the data back into the read_buffer
+            // We read one byte less than the buffer size to ensure null-termination
+            f_read(&file, read_buffer, sizeof(read_buffer) - 1, &bytes_read);
+
+            // Close the file
+            f_close(&file);
+
+            // At this point, read_buffer contains "Hello from akademika"
+        } else {
+            // Handle read open error
+        }
+
+    }
+
+    // 4. Unmount the drive when finished
+    f_unmount("0:");
+}

@@ -1,0 +1,63 @@
+#include "usb_sdram_disk.h"
+#include "LPC24xx.h"
+#include <string.h>
+
+/*
+ * Called when the Host issues a SCSI READ(10) command via USB BOT.
+ */
+void MSC_MemoryRead(uint32_t offset, uint8_t *dst, uint32_t length)
+{
+    // Bounds check
+    if (offset + length > MSC_MEMORY_SIZE) {
+        return;
+    }
+
+    uint8_t *sdram_ptr = (uint8_t *)(SDRAM_BASE_ADDR + offset);
+
+    // Wait for EMC to be ready
+    unsigned int timeout = EMC_BUSY_TIMEOUT;
+    while ((EMC_STAT & EMCSTATUS_BIT_0) != 0) {
+        if (--timeout == 0) break;
+    }
+
+    // Copy data directly from physical SDRAM to the USB destination buffer
+    memcpy(dst, sdram_ptr, length);
+}
+
+/*
+ * Called when the Host issues a SCSI WRITE(10) command via USB BOT.
+ */
+void MSC_MemoryWrite(uint32_t offset, uint8_t *src, uint32_t length)
+{
+    // Bounds check
+    if (offset + length > MSC_MEMORY_SIZE) {
+        return;
+    }
+
+    uint8_t *sdram_ptr = (uint8_t *)(SDRAM_BASE_ADDR + offset);
+
+    // Wait for EMC to be ready
+    unsigned int timeout = EMC_BUSY_TIMEOUT;
+    while ((EMC_STAT & EMCSTATUS_BIT_0) != 0) {
+        if (--timeout == 0) break;
+    }
+
+    // Copy data from USB buffer directly into physical SDRAM
+    memcpy(sdram_ptr, src, length);
+}
+
+/*
+ * Formats the first sector with a valid MBR/FAT signature
+ * so the Host operating system instantly recognizes it as a mountable drive.
+ */
+void SDRAM_Disk_Format(void)
+{
+    uint8_t *sdram_ptr = (uint8_t *)SDRAM_BASE_ADDR;
+
+    // Clear out sector 0
+    memset(sdram_ptr, 0, MSC_BLOCK_SIZE);
+
+    // Standard boot signature bytes at offset 510 and 511
+    sdram_ptr[510] = 0x55;
+    sdram_ptr[511] = 0xAA;
+}

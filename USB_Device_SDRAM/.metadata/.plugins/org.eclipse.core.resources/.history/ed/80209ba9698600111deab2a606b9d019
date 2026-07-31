@@ -1,0 +1,14 @@
+#ifndef SDRAM_H_
+#define SDRAM_H_
+
+#include <stdint.h>
+
+// Update to 48 MHz to match your USB system clock
+#define EMC_CLK_FREQ 48000000
+
+extern void SDRAM_init_32BIT(void);
+extern void timer_delay(unsigned int us);
+
+// (Keep all your other existing keypad/timer definitions here)
+
+#endif

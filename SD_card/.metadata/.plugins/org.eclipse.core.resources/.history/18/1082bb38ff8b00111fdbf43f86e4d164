@@ -1,0 +1,77 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+
+/* Helper function to convert a byte to a 2-character hex string */
+static void to_hex2(uint8_t v, char *out)
+{
+    static const char hexd[] = "0123456789ABCDEF";
+    out[0] = hexd[(v >> 4) & 0xF];
+    out[1] = hexd[v & 0xF];
+    out[2] = '\0';
+}
+
+int main(void)
+{
+    char rowMsg[24];
+    char hexStr[3];
+    uint8_t response;
+    int i;
+
+    /* 1. Hardware Initialization */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "AKADEMIKA SD TEST   ");
+    GLCD_RowWriteMargin(1, "INITIALIZING SPI... ");
+
+    spi_init();
+
+    /* 2. SD Card Wake-Up Sequence (Dummy Clocks)
+     * The SD card needs at least 74 clock pulses with the Chip Select (CS)
+     * line held HIGH to power up and stabilize before receiving commands.
+     * Sending 10 bytes of 0xFF generates 80 clock pulses.
+     */
+    FIO0SET = (1u << 16);    // Ensure CS (P0.16) is HIGH
+    for (i = 0; i < 10; i++) {
+        spi_xfer(0xFF);
+    }
+
+    /* 3. Send CMD0 (GO_IDLE_STATE)
+     * We must pull CS LOW to select the card, send the command,
+     * and then pull CS HIGH to release the bus.
+     */
+    GLCD_RowWriteMargin(2, "SENDING CMD0...     ");
+
+    FIO0CLR = (1u << 16);    // Pull CS LOW
+
+    // CMD0 = 0, Arg = 0x00000000, CRC = 0x95
+    response = sd_send_command(0, 0x00000000, 0x95);
+
+    FIO0SET = (1u << 16);    // Pull CS HIGH
+
+    /* 4. Display the Response on GLCD */
+    strcpy(rowMsg, "RESP: 0x");
+    to_hex2(response, hexStr);
+    strcat(rowMsg, hexStr);
+    GLCD_RowWriteMargin(4, rowMsg);
+
+    /* 5. Interpret the Result */
+    if (response == 0x01) {
+        GLCD_RowWriteMargin(6, "SUCCESS: IDLE STATE ");
+    } else if (response == 0xFF) {
+        GLCD_RowWriteMargin(6, "ERR: NO RESPONSE    ");
+    } else {
+        GLCD_RowWriteMargin(6, "ERR: BAD RESPONSE   ");
+    }
+
+    /* Halt execution */
+    for (;;) {
+        // Do nothing. Wait for reset.
+    }
+}

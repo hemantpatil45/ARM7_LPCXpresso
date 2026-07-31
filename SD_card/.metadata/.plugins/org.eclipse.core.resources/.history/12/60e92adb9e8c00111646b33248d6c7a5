@@ -1,0 +1,118 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+#include "SPI.h"
+
+/* ==================== SSP0 (SPI) low level ==================== */
+
+void spi_init(void)
+{
+    /* 1. Configure Pin Multiplexing for SSP0 (SCK, MISO, MOSI) */
+    PINSEL0 |= (2UL << 30);    // P0.15 -> SCK0
+    PINSEL1 |= (2UL << 2);     // P0.17 -> MISO0
+    PINSEL1 |= (2UL << 4);     // P0.18 -> MOSI0
+
+    /* 2. Configure P1.12 as Chip Select (GPIO Output) */
+    PINSEL2 &= ~(3UL << 24);   // Clear bits to force P1.12 to GPIO
+    FIO1DIR |= (1u << 12);     // Set P1.12 as GPIO output
+    FIO1SET = (1u << 12);      // Idle state = HIGH (deselected)
+
+    /* 3. Power up the SSP0 peripheral */
+    PCONP |= (1u << 21);
+
+    /* 4. Configure SSP0 Control Registers */
+    SSP0CR0  = (7u << 0);      // DSS = 8-bit, FRF = SPI, CPOL=0, CPHA=0 (SPI Mode 0)
+    SSP0CR1  = (1u << 1);      // SSE = 1 (SSP Enable), master mode
+
+    /* 5. Set SPI Clock Speed */
+    SSP0CPSR = 8;              // SCK = PCLK_SSP0 / 8
+}
+
+/* Add this inside your SPI.c file */
+
+uint8_t sd_init(void)
+{
+    uint8_t response;
+    uint32_t retry = 0;
+    int i;
+
+    /* 1. Dummy Clocks */
+    FIO1SET = (1u << 12);    // CS HIGH
+    for (i = 0; i < 10; i++) spi_xfer(0xFF);
+
+    /* 2. CMD0 (GO_IDLE_STATE) */
+    FIO1CLR = (1u << 12);    // CS LOW
+    response = sd_send_command(0, 0x00000000, 0x95);
+    FIO1SET = (1u << 12);    // CS HIGH
+
+    if (response != 0x01) {
+        return response;     // Card failed to enter idle state
+    }
+
+    /* 3. CMD8 (SEND_IF_COND) - Check Voltage (Required for SDHC cards) */
+    FIO1CLR = (1u << 12);
+    // Arg: 0x000001AA (3.3V), CRC: 0x87
+    response = sd_send_command(8, 0x000001AA, 0x87);
+
+    // If CMD8 is accepted, read the next 4 bytes of the R7 response (we discard them for now)
+    if (response == 0x01) {
+        spi_xfer(0xFF); spi_xfer(0xFF); spi_xfer(0xFF); spi_xfer(0xFF);
+    }
+    FIO1SET = (1u << 12);
+
+    /* 4. ACMD41 (SD_SEND_OP_COND) - Wait for card to leave Idle state */
+    // ACMD41 requires sending CMD55 first. We loop until response is 0x00 (Ready).
+    do {
+        // Send CMD55 (APP_CMD)
+        FIO1CLR = (1u << 12);
+        sd_send_command(55, 0x00000000, 0x65); // CRC for CMD55 is mostly ignored, 0x65 is a safe dummy
+        FIO1SET = (1u << 12);
+
+        // Send ACMD41
+        FIO1CLR = (1u << 12);
+        // Arg: 0x40000000 tells the card the host supports SDHC/SDXC
+        response = sd_send_command(41, 0x40000000, 0x77);
+        FIO1SET = (1u << 12);
+
+        retry++;
+    } while ((response != 0x00) && (retry < 1000)); // Loop until 0x00 or timeout
+
+    return response; // Should be 0x00 for success
+}
+uint8_t spi_xfer(uint8_t out)
+{
+    while (SSP0SR & (1u << 4)) { /* Wait while BSY (Busy) flag is set */ }
+
+    SSP0DR = out;                /* Write byte to Data Register */
+
+    while ((SSP0SR & (1u << 2)) == 0) { /* Wait for RNE (Receive Not Empty) flag */ }
+
+    return (uint8_t)SSP0DR;      /* Read and return the received byte */
+}
+
+/* ==================== SD Card Commands ==================== */
+
+uint8_t sd_send_command(uint8_t cmd, uint32_t arg, uint8_t crc)
+{
+    uint8_t response;
+    uint8_t retry = 0;
+
+    /* 1. Send the command byte (SD commands always start with bit 6 set to 1) */
+    spi_xfer(cmd | 0x40);
+
+    /* 2. Send the 32-bit argument (Most Significant Byte first) */
+    spi_xfer((uint8_t)(arg >> 24));
+    spi_xfer((uint8_t)(arg >> 16));
+    spi_xfer((uint8_t)(arg >> 8));
+    spi_xfer((uint8_t)(arg));
+
+    /* 3. Send the CRC byte */
+    spi_xfer(crc);
+
+    /* 4. Wait for the SD card to respond. */
+    do {
+        response = spi_xfer(0xFF);
+        retry++;
+    } while ((response & 0x80) && (retry < 10)); // Response always has MSB = 0.
+
+    return response;
+}

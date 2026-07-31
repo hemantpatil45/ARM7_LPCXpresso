@@ -1,0 +1,68 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "SDRAM.h"
+
+extern unsigned int SDRAM_data[MAX_SDRAM_DATA];
+extern unsigned int test1234[MAX_SDRAM_DATA];
+extern char buffer[64];
+
+int main()
+{
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    SDRAM_init_32BIT();
+
+    for (unsigned int i = 0; i < MAX_SDRAM_DATA; i++)
+    {
+        SDRAM_data[i] = 0x00 + i;
+    }
+
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(1, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(4, "SDRAM READ/WRITE    ");
+    GLCD_RowWriteMargin(6, "                    ");
+    Timer0_init();
+    GLCD_RowWriteMargin(5, "PRESS SW2 TO WRITE  ");
+    SW2_Keypad_Init();
+    SW6_Keypad_Init();
+
+    uint8_t armed = 1;
+    while (armed == 1)
+    {
+    	if (armed && SW2_Pressed())
+    	{
+    	    GLCD_Clear();
+    	    GLCD_RowWriteMargin(0, "SDRAM WRITE STARTED ");
+    	    SDRAM_write();  // write SDRAM
+    	    for (unsigned int i = 0; i < MAX_SDRAM_DATA; i++)
+    	    {
+    	        sprintf(buffer, "0x%08X : 0x%03X", (uint32_t)(0xA0000000 + i*4), SDRAM_data[i]);
+    	        GLCD_RowWriteMargin(2 + i, buffer);
+    	        while ((EMC_STAT & EMCSTATUS_BIT_0) == 0) {
+    	            // Wait; EMC is busy
+    	        }
+    	    }
+    	}
+    	else if (armed && SW6_Pressed())
+    	{
+    	    GLCD_Clear();
+    	    GLCD_RowWriteMargin(5, "PRESS SW6 TO WRITE  ");
+    	    SDRAM_read();   // read SDRAM
+    	    GLCD_Clear();
+    	    GLCD_RowWriteMargin(0, "SDRAM READ STARTED  ");
+    	    for (unsigned int i = 0; i < MAX_SDRAM_DATA; i++)
+    	    {
+    	        sprintf(buffer, "0x%08X : 0x%03X", (uint32_t)(0xA0000000 + i*4), SDRAM_data[i]);
+    	        GLCD_RowWriteMargin(2 + i, buffer);
+    	        while ((EMC_STAT & EMCSTATUS_BIT_0) == 0) {
+    	            // Wait; EMC is busy
+    	        }
+    	    }
+    	}
+    }
+}

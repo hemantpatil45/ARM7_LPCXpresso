@@ -1,0 +1,27 @@
+#ifndef __USBHW_H
+#define __USBHW_H
+
+#include <stdint.h>
+#include <stdbool.h>
+
+// --- Setup & Connection ---
+void USB_Init(void);
+void USB_Connect(bool connect);
+
+// --- Hardware Engine Control ---
+void USB_SetAddress(uint32_t adr);
+void USB_Configure(bool configure);
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize);
+void USB_EnableEP(uint32_t EPNum);
+void USB_DisableEP(uint32_t EPNum);
+void USB_SetStallEP(uint32_t EPNum);
+void USB_ClrStallEP(uint32_t EPNum);
+
+// --- Data Transfer Functions ---
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData);
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt);
+
+// --- Interrupt Service Routine ---
+void USB_ISR(void);
+
+#endif // __USBHW_H

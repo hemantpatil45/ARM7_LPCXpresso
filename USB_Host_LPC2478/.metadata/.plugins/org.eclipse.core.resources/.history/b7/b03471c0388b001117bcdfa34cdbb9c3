@@ -1,0 +1,107 @@
+#include "usb_host_lpc2478.h"
+#include "usbhost_ms.h"
+
+volatile DWORD g_USBConnected = 0;
+
+/* Hardware Initialization tailored to PL-ARM7 Ver 14.1 Schematic */
+void USBHost_HardwareInit(void) {
+    PCONP |= (1UL << 31); // Power up USB block
+
+    // 1. Manually control the VBUS Power Switch (LM3526-L is Active LOW)
+    PINSEL0 &= ~(3UL << 24);      // Set P0.12 as GPIO (Func 00)
+    FIO0DIR |= (1UL << 12);       // Set P0.12 as Output
+    FIO0CLR  = (1UL << 12);       // Drive P0.12 LOW -> TURNS ON 5V VBUS!
+
+    // 2. Manually control the Status LED
+    PINSEL0 &= ~(3UL << 26);      // Set P0.13 as GPIO (Func 00)
+    FIO0DIR |= (1UL << 13);       // Set P0.13 as Output
+    FIO0SET  = (1UL << 13);       // Drive P0.13 HIGH -> Turns OFF LED initially
+
+    // 3. Route the USB D+2 Data Line to the OHCI Hardware
+    PINSEL1 = (PINSEL1 & ~(3UL << 30)) | (1UL << 30); // P0.31 as USB_D+2 (Func 01)
+
+    // 4. Disconnect Hardware Overcurrent pins to prevent false OHCI trips
+    PINSEL3 &= ~(0xFUL << 28);    // P1.30 and P1.31 as GPIO (Func 00)
+    PINMODE3 = (PINMODE3 & ~(0xFUL << 28)) | (0xAUL << 28);
+
+    // 5. Enable AHB and USB Clocks
+    OTG_CLK_CTRL = 0x1F;
+    while ((OTG_CLK_STAT & 0x1F) != 0x1F);
+
+    // 6. Release Host from reset
+    OTG_STAT_CTRL = 0x03;
+}
+/* GCC Interrupt Handler for USB */
+void __attribute__((interrupt("IRQ"))) USB_IRQHandler(void) {
+    DWORD int_stat = HC_INT_STAT;
+
+    // Root Hub Status Change (Device Connect / Disconnect)
+    if (int_stat & (1UL << 6)) {
+        if (HC_RH_PORT_STAT2 & 0x01) { // Device connected on Port 2
+            g_USBConnected = 1;
+        } else {
+            g_USBConnected = 0;
+        }
+        HC_INT_STAT = (1UL << 6); // Clear interrupt flag
+    }
+
+    // Acknowledge interrupt in Vectored Interrupt Controller (VIC)
+    VICVectAddr = 0;
+}
+
+/* Initialize OHCI Controller for Port 2 */
+/* Initialize OHCI Controller for Port 2 */
+DWORD USBHost_OHCIInit(void) {
+    // Controller Software Reset
+    HC_CONTROL = 0;
+    HC_CMD_STAT = 0x01; // HostControllerReset
+    while (HC_CMD_STAT & 0x01);
+
+    if ((HC_REVISION & 0xFF) != 0x10) {
+        return USB_HOST_ERR;
+    }
+
+    // Disable all OHCI interrupts during setup
+    HC_INT_DIS = 0x8000007F;
+
+    // Set HCCA Memory Address in USB SRAM
+    HC_HCCA = USB_OHCI_BASE_ADDR;
+
+    // Control/Bulk ED lists initialized to NULL
+    HC_CTRL_HEAD_ED = 0;
+    HC_BULK_HEAD_ED = 0;
+
+    // Set Frame Interval parameters
+    HC_FM_INTERVAL = (FM_INTERVAL_FSMPS << 16) | FM_INTERVAL_FI;
+    HC_PERIOD_START = PERIODIC_START;
+    HC_LS_THRHLD    = LS_THRESHOLD;
+
+    // Set Operational State
+    HC_CONTROL = (0x02 << 6) | (1 << 5) | (1 << 4) | (1 << 3) | 0x03;
+
+    // Brief delay to let OHCI transition states
+    for (volatile int i = 0; i < 10000; i++);
+
+    // =======================================================
+    // CRITICAL FIX: Tell OHCI "No Power Switching" (0x0B01)
+    // The hardware will now assume the port is permanently powered
+    // and will not attempt to toggle the P0.12 pin.
+    // =======================================================
+    HC_RH_DESCA = (PWRON_TO_PWRGOOD << 24) | 0x0B01;
+    HC_RH_DESCB = 0x0000;
+
+    // Enable Global Power (Internal OHCI State)
+    HC_RH_STAT = (1UL << 16); // SetGlobalPower
+
+    return USB_HOST_OK;
+}
+
+void USBHost_ResetPort(void) {
+    // Issue Reset to Port 2
+    HC_RH_PORT_STAT2 = (1UL << 4); // SetPortReset
+    while (!(HC_RH_PORT_STAT2 & (1UL << 20))); // Wait for PortResetStatusChange
+    HC_RH_PORT_STAT2 = (1UL << 20); // Clear reset change flag
+
+    // Enable Port 2
+    HC_RH_PORT_STAT2 = (1UL << 1); // SetPortEnable
+}

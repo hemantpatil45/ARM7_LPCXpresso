@@ -1,0 +1,34 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+int main()
+{
+    // 1. Core Hardware & Clock Initialization
+    PLL_Init();
+    system_Init();
+
+    // 2. Display Setup
+    GLCD_Init();
+    GLCD_Clear();
+
+    // 3. Render Status on GLCD
+    GLCD_RowWriteMargin(0, "WELCOME TO AKADEMIKA");
+    GLCD_RowWriteMargin(1, "      PL-ARM7       ");
+    GLCD_RowWriteMargin(3, "USB MASS STORAGE    ");
+    GLCD_RowWriteMargin(4, "INTERNAL RAM: 32 KB ");
+    GLCD_RowWriteMargin(6, "Ready for PC Link   ");
+
+    // 4. Initialize USB Device Engine for Mass Storage
+    USB_Init();
+    USB_Connect(1);
+
+    // 5. Infinite Background Loop
+    while (1)
+    {
+    }
+}

@@ -1,0 +1,27 @@
+#ifndef SDRAM_H_
+#define SDRAM_H_
+
+#include <stdint.h>
+
+// Matched strictly to your 48 MHz PLL configuration
+#define EMC_CLK_FREQ 48000000
+
+#define KBD_ROW1_BIT    0u
+#define KBD_COL1_BIT   25u
+#define KBD_ROW1_MASK  (1u << KBD_ROW1_BIT)
+#define KBD_COL1_MASK  (1u << KBD_COL1_BIT)
+#define KBD_ROW2_BIT    1u
+#define KBD_ROW2_MASK  (1u << KBD_ROW2_BIT)
+
+extern void SW2_Keypad_Init(void);
+extern void SW6_Keypad_Init(void);
+extern uint32_t SW2_Pressed(void);
+extern uint32_t SW6_Pressed(void);
+
+extern void Timer0_irq(void);
+extern void Timer0_init(void);
+extern void timer_delay(unsigned int us);
+
+extern void SDRAM_init_32BIT(void);
+
+#endif

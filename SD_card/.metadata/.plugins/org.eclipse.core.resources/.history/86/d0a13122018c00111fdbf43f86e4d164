@@ -1,0 +1,66 @@
+#include <stdint.h>
+#include <string.h>
+#include "LPC24xx.h"
+#include "glcd.h"
+#include "system_init.h"
+#include "SPI.h"
+
+/* Helper function to convert a byte to a 2-character hex string */
+static void to_hex2(uint8_t v, char *out)
+{
+    static const char hexd[] = "0123456789ABCDEF";
+    out[0] = hexd[(v >> 4) & 0xF];
+    out[1] = hexd[v & 0xF];
+    out[2] = '\0';
+}
+
+int main(void)
+{
+    char rowMsg[24];
+    char hexStr[3];
+    uint8_t test_byte = 0xA5;  // Test pattern
+    uint8_t received_byte;
+
+    /* 1. Hardware Initialization */
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    GLCD_RowWriteMargin(0, "SPI LOOPBACK TEST   ");
+    GLCD_RowWriteMargin(1, "SHORT MISO TO MOSI! ");
+
+    spi_init();
+
+    /* 2. Perform Loopback Transfer
+     * We send 0xA5 out of MOSI. Because MOSI is wired to MISO,
+     * the shift register should immediately read 0xA5 back in.
+     */
+    received_byte = spi_xfer(test_byte);
+
+    /* 3. Display the Sent Byte */
+    strcpy(rowMsg, "SENT: 0x");
+    to_hex2(test_byte, hexStr);
+    strcat(rowMsg, hexStr);
+    GLCD_RowWriteMargin(3, rowMsg);
+
+    /* 4. Display the Received Byte */
+    strcpy(rowMsg, "RECV: 0x");
+    to_hex2(received_byte, hexStr);
+    strcat(rowMsg, hexStr);
+    GLCD_RowWriteMargin(4, rowMsg);
+
+    /* 5. Evaluate the Result */
+    if (received_byte == test_byte) {
+        GLCD_RowWriteMargin(6, "STATUS: SUCCESS!    ");
+    } else if (received_byte == 0xFF || received_byte == 0x00) {
+        GLCD_RowWriteMargin(6, "STATUS: NOT SHORTED ");
+    } else {
+        GLCD_RowWriteMargin(6, "STATUS: DATA ERROR  ");
+    }
+
+    /* Halt execution */
+    for (;;) {
+        // Do nothing. Wait for reset.
+    }
+}

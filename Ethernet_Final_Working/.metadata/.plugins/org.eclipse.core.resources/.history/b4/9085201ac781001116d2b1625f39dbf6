@@ -1,0 +1,180 @@
+#include "LPC24xx.h"
+#include "ethernet_rx.h"
+#include "ethernet_reg.h"
+
+// Define buffer geometry and memory locations for Ethernet DMA.
+// These are placed in AHB SRAM (0x7FE00000 range) to ensure
+// the Ethernet DMA engine can access them at full speed.
+#define NUM_RX_FRAG         4
+#define ETH_RX_FRAG_SIZE    1536
+#define RX_DESC_BASE        0x7FE02000
+#define RX_STAT_BASE        (RX_DESC_BASE + (NUM_RX_FRAG * 8))
+#define RX_BUF_BASE         (RX_STAT_BASE + (NUM_RX_FRAG * 8))
+
+// Pointers for accessing the DMA descriptor and status arrays
+static uint32_t *RX_DESC_PACKET_PTRS;
+static uint32_t *RX_DESC_CTRL_PTRS;
+static uint32_t *RX_STAT_INFO_PTRS;
+
+// Configure EMAC Receive Descriptors and link them to hardware
+void EMAC_RxInit(void)
+{
+    uint32_t i;
+
+    // Map software pointers to the reserved AHB SRAM addresses
+    RX_DESC_PACKET_PTRS = (uint32_t *)RX_DESC_BASE;
+    RX_DESC_CTRL_PTRS   = (uint32_t *)(RX_DESC_BASE + 4);
+    RX_STAT_INFO_PTRS   = (uint32_t *)RX_STAT_BASE;
+
+    // Initialize each RX fragment descriptor
+    for (i = 0; i < NUM_RX_FRAG; i++) {
+        // Point the descriptor to the specific buffer location in SRAM
+        RX_DESC_PACKET_PTRS[i * 2] = RX_BUF_BASE + (i * ETH_RX_FRAG_SIZE);
+
+        // Set buffer size and enable the 'Interrupt' bit (bit 31)
+        // to notify CPU when a packet is received
+        RX_DESC_CTRL_PTRS[i * 2]   = (ETH_RX_FRAG_SIZE - 1) | (1UL << 31);
+
+        // Clear status info arrays
+        RX_STAT_INFO_PTRS[i * 2] = 0;
+        RX_STAT_INFO_PTRS[(i * 2) + 1] = 0;
+    }
+
+    // Link our descriptor chain to the actual EMAC hardware registers
+    LPC_EMAC->RXDESCRIPTOR    = RX_DESC_BASE;
+    LPC_EMAC->RXSTATUS        = RX_STAT_BASE;
+    LPC_EMAC->RXDESCRIPTORNUM = NUM_RX_FRAG - 1;
+    LPC_EMAC->RXCONSUMEINDEX  = 0;
+}
+
+// Check for and copy data from the EMAC RX DMA buffer
+bool EMAC_ReceivePacket(uint8_t *rx_buffer, uint32_t rx_buffer_capacity, uint32_t *rx_length)
+{
+    uint32_t consume_idx = LPC_EMAC->RXCONSUMEINDEX;
+    uint32_t produce_idx = LPC_EMAC->RXPRODUCEINDEX;
+    uint32_t status_info, packet_size;
+    uint8_t *dma_buffer_ptr;
+    uint32_t i;
+
+    // Check if new data is available (if consumer index matches producer, buffer is empty)
+    if (consume_idx == produce_idx) return false;
+
+    // Check status info for hardware errors
+    status_info = RX_STAT_INFO_PTRS[consume_idx * 2];
+    if (status_info & RXSTAT_ERROR) {
+        // Skip this corrupted packet and increment consumer index
+        if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+        LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+        *rx_length = 0;
+        return false;
+    }
+
+    // Calculate actual packet size (remove the 4-byte CRC check)
+    packet_size = (status_info & 0x7FF) + 1;
+    if (packet_size > 4) packet_size -= 4;
+
+    // Cap the size if it's larger than our provided application buffer
+    if (packet_size > rx_buffer_capacity) {
+        packet_size = rx_buffer_capacity;
+    }
+
+    *rx_length = packet_size;
+    dma_buffer_ptr = (uint8_t *)RX_DESC_PACKET_PTRS[consume_idx * 2];
+
+    // Copy received data from the DMA buffer to our local application buffer
+    for (i = 0; i < packet_size; i++) {
+        rx_buffer[i] = dma_buffer_ptr[i];
+    }
+
+    // Increment and wrap the consumer index, signaling the hardware we've processed the frame
+    if (++consume_idx == (LPC_EMAC->RXDESCRIPTORNUM + 1)) consume_idx = 0;
+    LPC_EMAC->RXCONSUMEINDEX = consume_idx;
+
+    return true;
+}
+
+// Initialize GPIOs for SW2 keypad (P2.0 and P2.25)
+void SW2_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));             // Configure Row as GPIO
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));       // Configure Col as GPIO
+    FIO2DIR &= ~KBD_ROW1_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Col as output
+    FIO2SET  =  KBD_COL1_MASK;    // Initialize column to high
+}
+
+// Poll SW2: Drive column low to scan, check if row was pulled low
+uint32_t SW2_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      // Drive scan column low
+    delay_us(200);                // Small settle delay
+    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      // Release column back to high
+    return pressed;
+}
+
+// Initialize GPIOs for SW6 keypad
+void SW6_Keypad_Init(void)
+{
+    PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));
+    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
+
+    FIO2DIR &= ~KBD_ROW2_MASK;    // Set Row as input
+    FIO2DIR |=  KBD_COL1_MASK;    // Set Col as output
+
+    FIO2SET  =  KBD_COL1_MASK;
+}
+
+// Poll SW6: Same scanning logic as SW2
+uint32_t SW6_Pressed(void)
+{
+    FIO2CLR = KBD_COL1_MASK;      // Drive scan column low
+    delay_us(200);                // Settle time
+    uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
+    FIO2SET = KBD_COL1_MASK;      // Release scan line
+    return pressed;
+}
+
+// Interrupt Service Routine for Timer0
+void Timer0_irq(void) __attribute__((interrupt("IRQ")));
+volatile unsigned int timer_cnt = 0;
+
+void Timer0_irq(void)
+{
+    T0IR = 0x01;    // Clear the interrupt flag
+    timer_cnt++;    // Increment count
+}
+
+// Initialize Timer0 peripheral
+void Timer0_init()
+{
+    T0TCR = 0;                  // Disable timer
+    T0PR = 0x0;                 // No prescaler
+    T0MR0 = 6000;               // Set match value for specific interval
+    T0MCR = 0x03;               // Enable interrupt and reset on match
+    T0CCR = 0;                  // Disable capture
+    T0EMR = 0;                  // Disable external match output
+
+    // Configure VIC (Vectored Interrupt Controller) to link our ISR
+    VICVectAddr4 = (unsigned long)Timer0_irq;
+    VICVectCntl4 = 0x20 | 4;                  // Enable slot and map to Timer0
+    VICIntEnable = (1 << 4);                  // Unmask interrupt
+
+    T0TCR = 0x00;                             // Keep disabled until needed
+    T0IR = 0x01;                              // Clear pending flags
+}
+
+// Simple blocking delay function using the timer
+void timer_delay(unsigned int time)
+{
+    T0IR = 0x01;      // Clear flags
+    T0TCR = 0x01;     // Enable timer
+    timer_cnt = 0x00; // Reset counter
+
+    // Busy-wait loop
+    while(timer_cnt != time)
+    {
+        timer_cnt++;
+    }
+    T0TCR = 0x00;     // Stop timer
+}

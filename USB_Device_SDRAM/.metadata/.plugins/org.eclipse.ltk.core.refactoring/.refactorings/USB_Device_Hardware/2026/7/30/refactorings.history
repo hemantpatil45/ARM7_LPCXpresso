@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Rename resource &apos;USB_Device_Hardware/src/usb_sdram.h&apos; to &apos;usb_sdram_disk.h&apos;" description="Rename resource &apos;usb_sdram.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/usb_sdram.h" name="usb_sdram_disk.h" stamp="1784808425769" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;USB_Device_Hardware/src/usb_sdram.c&apos; to &apos;usb_sdram_disk.c&apos;" description="Rename resource &apos;usb_sdram.c&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/usb_sdram.c" name="usb_sdram_disk.c" stamp="1784808440988" updateReferences="true"/>
+</session>

@@ -1,0 +1,32 @@
+#include <LPC24xx.H>
+#include "system_init.h"
+#include "usbhw.h"
+
+// simple global flag to track connection state if needed later
+volatile bool usb_configured = false;
+
+int main(void) {
+    // 1. fire up the main 72MHz system clock and configure memory acceleration (MAM)
+    PLL_Init();
+
+    // 2. run your custom board pin mappings, GLCD setup, and peripheral configs
+    system_Init();
+
+    // 3. initialize the usb hardware block, set the 48MHz clock, and wire up endpoint buffers
+    USB_Init();
+
+    // 4. enable global interrupts on the arm7 core so the VIC can catch usb events
+    // clear the I-bit in the CPSR register to enable IRQs
+    __asm("mrs r0, cpsr");
+    __asm("bic r0, r0, #0x80");
+    __asm("msr cpsr_c, r0");
+
+    // 5. yank the D+ line high to signal the pc host that a full-speed device has attached
+    USB_Connect(true);
+
+    // main application loop
+    while (1) {
+        // the heavy lifting is handled inside the usb interrupt service routine (USB_ISR).
+        // keep this loop clean for background tasks or storage management.
+    }
+}

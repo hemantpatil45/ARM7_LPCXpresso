@@ -1,0 +1,96 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+// External UART print functions declared in main.c
+extern void UART0_Print(const char *str);
+extern void UART_PrintHex(uint32_t val);
+
+USB_SETUP_PACKET SetupPacket;
+static bool send_zero_length_packet = false;
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        // --- OUT / SETUP PHASE ---
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP);
+
+        if (ep_stat & (1 << 2)) {
+            // STP Bit set: This is a new SETUP packet
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            UART0_Print("[EP0] Setup -> ReqType: ");
+            UART_PrintHex(SetupPacket.bmRequestType);
+            UART0_Print(" Req: ");
+            UART_PrintHex(SetupPacket.bRequest);
+            UART0_Print(" Val: ");
+            UART_PrintHex(SetupPacket.wValue);
+            UART0_Print("\r\n");
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    UART0_Print("[EP0] Handling SET_ADDRESS...\r\n");
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0); // Status IN
+                    break;
+
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    UART0_Print("[EP0] Handling GET_DESCRIPTOR type: ");
+                    UART_PrintHex(SetupPacket.wValue >> 8);
+                    UART0_Print("\r\n");
+
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: // Device Descriptor
+                            pData = (uint8_t *)USB_DeviceDescriptor;
+                            descriptor_size = 18;
+                            break;
+                        case 0x02: // Configuration Descriptor
+                            pData = (uint8_t *)USB_ConfigDescriptor;
+                            descriptor_size = 32;
+                            break;
+                        default:
+                            UART0_Print("[EP0] Unknown descriptor! Stalling...\r\n");
+                            USB_SetStallEP(0x80);
+                            return;
+                    }
+
+                    if (descriptor_size > SetupPacket.wLength) {
+                        descriptor_size = SetupPacket.wLength;
+                    }
+
+                    UART0_Print("[EP0] Sending descriptor data bytes...\r\n");
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+
+                case USB_REQUEST_SET_CONFIGURATION:
+                    UART0_Print("[EP0] Handling SET_CONFIGURATION...\r\n");
+                    USB_Configure(true);
+                    USB_WriteEP(0x80, 0, 0); // Status IN
+                    break;
+
+                default:
+                    UART0_Print("[EP0] Unknown request! Stalling...\r\n");
+                    USB_SetStallEP(0x80);
+                    break;
+            }
+        } else {
+            // Standard OUT packet (Status Phase acknowledgment from host)
+            UART0_Print("[EP0] Status OUT acknowledged.\r\n");
+            uint8_t dummy[64];
+            USB_ReadEP(0x00, dummy);
+        }
+    }
+    else if (event == 1) {
+        // --- IN COMPLETION PHASE ---
+        UART0_Print("[EP0] IN Packet Transmission Complete.\r\n");
+
+        // If we just assigned an address, apply it in hardware now that the status IN packet finished sending
+        if (SetupPacket.bRequest == USB_REQUEST_SET_ADDRESS) {
+            UART0_Print("[EP0] Applying pending USB Address...\r\n");
+            USB_WriteCmdData(CMD_SET_ADDR, SetupPacket.wValue | 0x80);
+        }
+    }
+}

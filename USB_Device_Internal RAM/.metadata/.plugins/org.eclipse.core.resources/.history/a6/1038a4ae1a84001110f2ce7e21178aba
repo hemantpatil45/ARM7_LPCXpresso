@@ -1,0 +1,110 @@
+#include "LPC24xx.h"
+#include "usbhw.h"
+
+// helper to talk to the usb protocol engine command register
+void USB_WriteCmd(uint32_t cmd) {
+    DEV_INT_CLR = 0x10; // clear command code empty flag
+    CMD_CODE = cmd;     // send command code
+
+    // wait until the engine digests the command
+    while ((DEV_INT_STAT & 0x10) == 0);
+    DEV_INT_CLR = 0x10; // clear flag again
+}
+
+
+// --- setup stuff ---
+
+void USB_Init(void) {
+    // 1. turn on power to the usb block in the power control register
+    PCONP |= (1 << 31);
+
+    // 2. wire up pins via PINSEL to hand control over to the usb engine
+
+    // P0.29 (D+) and P0.30 (D-) -> set to alternate function 1 (01)
+    PINSEL1 &= ~((3 << 26) | (3 << 28));
+    PINSEL1 |=  ((1 << 26) | (1 << 28));
+
+    // P1.30 (VBUS) -> set to alternate function 2 (10)
+    PINSEL3 &= ~(3 << 28);
+    PINSEL3 |=  (2 << 28);
+
+    // P2.9 (USB_CONNECT) -> set to alternate function 1 (01)
+    PINSEL4 &= ~(3 << 18);
+    PINSEL4 |=  (1 << 18);
+
+    // 3. scale the shared main system PLL clock down to exactly 48MHz for the usb block
+    // since system_init.c sets up a 288MHz system clock, dividing by 6 yields 48MHz.
+    // the register expects the divisor minus 1 (6 - 1 = 5).
+    USBCLKCFG = 5;
+
+    // 4. clear out any stale interrupts before starting up
+    DEV_INT_CLR = 0x3FFF;
+}
+
+void USB_Connect(bool connect) {
+    // send command 0xFE ('Set Device Status') to the protocol engine
+    USB_WriteCmd(0x00FE0500);
+
+    if (connect) {
+        // pull D+ high via soft-connect to make the pc notice us
+        USB_WriteCmd(0x00010100);
+    } else {
+        // drop connection
+        USB_WriteCmd(0x00000100);
+    }
+}
+
+
+// --- hardware engine control placeholders (filled out during enumeration phase) ---
+
+void USB_SetAddress(uint32_t adr) {
+    // assigned when the host sends a set-address request
+}
+
+void USB_Configure(bool configure) {
+    // triggered when configuration descriptor is accepted
+}
+
+void USB_ConfigEP(uint32_t EPNum, uint32_t MaxPacketSize) {
+    // set maximum packet size for endpoints
+}
+
+void USB_EnableEP(uint32_t EPNum) {
+    // turn on endpoint buffer
+}
+
+void USB_DisableEP(uint32_t EPNum) {
+    // shut down endpoint buffer
+}
+
+void USB_ResetEP(uint32_t EPNum) {
+    // reset endpoint toggles
+}
+
+void USB_SetStallEP(uint32_t EPNum) {
+    // force endpoint stall (crucial for mass storage error handling)
+}
+
+void USB_ClrStallEP(uint32_t EPNum) {
+    // clear endpoint stall condition
+}
+
+
+// --- moving data around ---
+
+uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData) {
+    // pull packet payload out of endpoint buffer
+    return 0;
+}
+
+uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt) {
+    // push packet payload into endpoint buffer to send to pc
+    return 0;
+}
+
+
+// --- interrupt handler ---
+
+void USB_ISR(void) {
+    // main event trap for usb packets and bus reset events
+}

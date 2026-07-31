@@ -1,0 +1,68 @@
+#include "LPC24xx.h"
+#include "upper_sdram.h"
+#include "SDRAM.h"
+
+#define SECTOR_SIZE         512
+#define WORDS_PER_SECTOR    (SECTOR_SIZE / 2) // 256 16-bit words per block
+#define SDRAM_BASE_ADDR     0xA0000000UL
+
+void UpperSDRAM_Init(void) {
+    SDRAM_init_32BIT(); // Initialize EMC controller to clock the 32-bit bus
+}
+
+/**
+ * @brief Write a 16-bit value to the upper half of the 32-bit bus.
+ */
+static inline void Upper16_Write(uint32_t index, uint16_t data) {
+    volatile uint32_t *sdram = (volatile uint32_t *)SDRAM_BASE_ADDR;
+    sdram[index] = ((uint32_t)data << 16);
+}
+
+/**
+ * @brief Read a 16-bit value from the upper half of the 32-bit bus.
+ */
+static inline uint16_t Upper16_Read(uint32_t index) {
+    volatile uint32_t *sdram = (volatile uint32_t *)SDRAM_BASE_ADDR;
+    return (uint16_t)(sdram[index] >> 16);
+}
+
+void UpperSDRAM_ReadBlock(uint32_t lba, uint8_t *buffer) {
+    uint32_t base_index = lba * WORDS_PER_SECTOR;
+    volatile uint32_t *sdram = (volatile uint32_t *)SDRAM_BASE_ADDR;
+
+    // Check if buffer is 16-bit aligned for safe casting
+    if (((uint32_t)buffer & 0x1) == 0) {
+        uint16_t *dest = (uint16_t *)buffer;
+        for (int i = 0; i < WORDS_PER_SECTOR; i++) {
+            dest[i] = (uint16_t)(sdram[base_index + i] >> 16);
+        }
+    } else {
+        // Fallback for unaligned buffers to prevent ARM7 alignment faults
+        for (int i = 0; i < WORDS_PER_SECTOR; i++) {
+            uint16_t val = (uint16_t)(sdram[base_index + i] >> 16);
+            buffer[i * 2]     = (uint8_t)(val & 0xFF);
+            buffer[i * 2 + 1] = (uint8_t)(val >> 8);
+        }
+    }
+}
+
+void UpperSDRAM_WriteBlock(uint32_t lba, const uint8_t *buffer) {
+    uint32_t base_index = lba * WORDS_PER_SECTOR;
+    volatile uint32_t *sdram = (volatile uint32_t *)SDRAM_BASE_ADDR;
+
+    if (((uint32_t)buffer & 0x1) == 0) {
+        const uint16_t *src = (const uint16_t *)buffer;
+        for (int i = 0; i < WORDS_PER_SECTOR; i++) {
+            sdram[base_index + i] = ((uint32_t)src[i] << 16);
+        }
+    } else {
+        // Fallback for unaligned buffers
+        for (int i = 0; i < WORDS_PER_SECTOR; i++) {
+            uint16_t val = buffer[i * 2] | ((uint16_t)buffer[i * 2 + 1] << 8);
+            sdram[base_index + i] = ((uint32_t)val << 16);
+        }
+    }
+
+    // Force-flush EMC write buffer by touching a distant address
+    sdram[4096] = 0xDEADBEEF;
+}

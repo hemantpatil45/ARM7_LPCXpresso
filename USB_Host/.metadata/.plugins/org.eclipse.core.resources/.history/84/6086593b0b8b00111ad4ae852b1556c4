@@ -1,0 +1,47 @@
+#include "LPC24xx.h"
+#include "system_init.h"
+#include "usbhost_inc.h"
+#include "ff.h"
+
+FATFS fs;
+
+int main(void) {
+    PLL_Init();
+    system_Init();
+    UART0_Init(115200);
+
+    delayMs(1, 500);
+    UART0_Print("\r\n[BOOT] LPC2478 USB Host Booting...\r\n");
+
+    /* Initialize USB Host Hardware & OHCI Controller */
+    USBHostInit();
+    OHCIInit();
+
+    /* Open Port 2 (Mapped to your board's physical USB socket) */
+    OHCIPortOpen(2);
+
+    UART0_Print("[USB] Scanning Port 2 for Flash Drive...\r\n");
+
+    while (1) {
+        /* Enumerate connected USB device on Port 2 */
+        if (Host_EnumDev() == OK) {
+            UART0_Print("[USB] Flash Drive Enumerated Successfully!\r\n");
+
+            /* Initialize Mass Storage Interface */
+            if (MS_Init() == 0) {
+                UART0_Print("[USB] Mass Storage Initialized!\r\n");
+
+                if (f_mount(&fs, "0:", 1) == FR_OK) {
+                    UART0_Print("[FAT] Drive successfully mounted!\r\n");
+                    while(1); /* Drive ready; halt or proceed to file operations */
+                } else {
+                    UART0_Print("[FAT] Failed to mount drive.\r\n");
+                }
+            } else {
+                UART0_Print("[USB] MS_Init failed.\r\n");
+            }
+        }
+
+        delayMs(1, 1000);
+    }
+}

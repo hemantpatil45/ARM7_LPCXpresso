@@ -1,0 +1,65 @@
+#include "LPC24xx.h"
+#include "usbcore.h"
+#include "usbhw.h"
+#include "usbdesc.h"
+
+USB_SETUP_PACKET SetupPacket;
+
+void USB_EndPoint0(uint32_t event) {
+    uint8_t *pData;
+    uint32_t descriptor_size;
+
+    if (event == 0) {
+        // Read the endpoint status using the correct hardware read phase
+        // (Make sure uint32_t USB_ReadCmdData(uint32_t cmd) is declared in usbhw.h!)
+        uint32_t ep_stat = USB_ReadCmdData(CMD_SEL_EP);
+
+        if (ep_stat & (1 << 2)) {
+            // STP Bit is set: This is a SETUP packet
+            USB_ReadEP(0x00, (uint8_t *)&SetupPacket);
+
+            switch (SetupPacket.bRequest) {
+                case USB_REQUEST_SET_ADDRESS:
+                    USB_SetAddress(SetupPacket.wValue);
+                    USB_WriteEP(0x80, 0, 0); // Acknowledge with Status IN
+                    break;
+
+                case USB_REQUEST_GET_DESCRIPTOR:
+                    switch (SetupPacket.wValue >> 8) {
+                        case 0x01: // Device Descriptor
+                            pData = (uint8_t *)USB_DeviceDescriptor;
+                            descriptor_size = 18;
+                            break;
+                        case 0x02: // Configuration Descriptor
+                            pData = (uint8_t *)USB_ConfigDescriptor;
+                            descriptor_size = 32;
+                            break;
+                        default:
+                            USB_SetStallEP(0x80);
+                            return;
+                    }
+
+                    if (descriptor_size > SetupPacket.wLength) {
+                        descriptor_size = SetupPacket.wLength;
+                    }
+
+                    USB_WriteEP(0x80, pData, descriptor_size);
+                    break;
+
+                case USB_REQUEST_SET_CONFIGURATION:
+                    USB_Configure(true);
+                    USB_WriteEP(0x80, 0, 0); // Acknowledge with Status IN
+                    break;
+
+                default:
+                    USB_SetStallEP(0x80);
+                    break;
+            }
+        } else {
+            // STP Bit is NOT set: This is a standard OUT packet (e.g., Status Phase)
+            // The FIFO MUST be read to clear the buffer, otherwise the bus jams!
+            uint8_t dummy[64];
+            USB_ReadEP(0x00, dummy);
+        }
+    }
+}

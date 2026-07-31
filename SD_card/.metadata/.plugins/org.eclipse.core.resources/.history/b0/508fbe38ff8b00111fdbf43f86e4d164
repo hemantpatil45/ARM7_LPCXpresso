@@ -1,0 +1,49 @@
+#include <stdint.h>
+#include "LPC24xx.h"
+
+/* ==================== SPI Chip Select ==================== */
+/*
+ * Bit-banged CS (active low) on P0.16.
+ * Managed manually to allow keeping the bus open during multi-byte transfers.
+ */
+static inline void CS_LOW(void)   { FIO0CLR = (1u << 16); }
+static inline void CS_HIGH(void)  { FIO0SET = (1u << 16); }
+
+/* ==================== SSP0 (SPI) low level ==================== */
+static void spi_init(void)
+{
+    /* 1. Configure Pin Multiplexing for SSP0 */
+    PINSEL0 |= (2UL << 30);    // P0.15 -> SCK0
+    PINSEL1 |= (2UL << 2);     // P0.17 -> MISO0
+    PINSEL1 |= (2UL << 4);     // P0.18 -> MOSI0
+
+    /* 2. Configure Chip Select as standard GPIO */
+    FIO0DIR |= (1u << 16);     // P0.16 -> GPIO output (CS)
+    CS_HIGH();                 // Idle state = deselected
+
+    /* 3. Power up the SSP0 peripheral */
+    PCONP |= (1u << 21);
+
+    /* 4. Configure SSP0 Control Registers */
+    SSP0CR0  = (7u << 0);      // DSS = 8-bit, FRF = SPI, CPOL=0, CPHA=0 (SPI Mode 0)
+    SSP0CR1  = (1u << 1);      // SSE = 1 (SSP Enable), master mode
+
+    /* 5. Set SPI Clock Speed */
+    SSP0CPSR = 8;              // Clock prescaler. SCK = PCLK_SSP0 / 8.
+                               // Note: Adjust this value based on your SD card phase (slow for init, fast for data).
+}
+
+/*
+ * Transmits a single byte and returns the received byte.
+ * Uses Polling/Blocking mode.
+ */
+static uint8_t spi_xfer(uint8_t out)
+{
+    while (SSP0SR & (1u << 4)) { /* Wait while BSY (Busy) flag is set */ }
+
+    SSP0DR = out;                /* Write byte to Data Register */
+
+    while ((SSP0SR & (1u << 2)) == 0) { /* Wait for RNE (Receive Not Empty) flag */ }
+
+    return (uint8_t)SSP0DR;      /* Read and return the received byte */
+}

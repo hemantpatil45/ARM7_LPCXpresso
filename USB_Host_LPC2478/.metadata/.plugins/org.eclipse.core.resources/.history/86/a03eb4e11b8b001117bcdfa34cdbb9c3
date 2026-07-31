@@ -1,0 +1,268 @@
+#include "usb_host_td.h"
+#include "uart0.h"
+#include <stddef.h>
+// -------------------------------------------------------------------------
+// CRITICAL MEMORY MAPPING:
+// The LPC2478 USB DMA CANNOT access Main SRAM (0x40000000).
+// All descriptors and data buffers MUST be explicitly mapped to USB RAM (0x7FD00000).
+// -------------------------------------------------------------------------
+
+// 16-Byte Aligned OHCI Descriptors
+volatile HCED *EDCtrl    = (volatile HCED *)0x7FD00100;
+volatile HCED *EDBulkIn  = (volatile HCED *)0x7FD00110;
+volatile HCED *EDBulkOut = (volatile HCED *)0x7FD00120;
+volatile HCTD *TDHead    = (volatile HCTD *)0x7FD00130;
+volatile HCTD *TDTail    = (volatile HCTD *)0x7FD00140;
+
+// Data Buffers mapped to safe USB RAM space
+volatile USB_INT08U *TDBuffer    = (volatile USB_INT08U *)0x7FD00200; // 128 Bytes
+volatile USB_INT08U *SetupBuffer = (volatile USB_INT08U *)0x7FD00280; // 8 Bytes
+
+USB_INT32S Host_ProcessTD(volatile HCED *ed,
+                          USB_INT32U token,
+                          volatile USB_INT08U *buffer,
+                          USB_INT32U buffer_len)
+{
+    // =====================================================
+    // DEBUG
+    // =====================================================
+    UART0_Print("\r\n=====================================\r\n");
+    UART0_Print("[DEBUG] Entering Host_ProcessTD\r\n");
+
+    UART0_Print("[DEBUG] Token = ");
+    UART0_PrintHex(token);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] Buffer = ");
+    UART0_PrintHex((USB_INT32U)buffer);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] Length = ");
+    UART0_PrintHex(buffer_len);
+    UART0_Print("\r\n");
+    // =====================================================
+
+    volatile USB_INT32U status;
+    volatile USB_INT32U timeout = 4000000;
+
+    // Zero Tail TD
+    TDTail->Control    = 0;
+    TDTail->CurrBufPtr = 0;
+    TDTail->NextTd     = 0;
+    TDTail->BufEnd     = 0;
+
+    // TD Setup
+    TDHead->Control = (1 << 18) | (token << 19) | (7 << 21) | (0xF << 28);
+
+    if (token == TD_SETUP)
+    {
+        TDHead->Control |= (2 << 24);
+    }
+
+    TDHead->CurrBufPtr = (USB_INT32U)buffer;
+    TDHead->BufEnd     = (buffer_len == 0) ? 0 : (USB_INT32U)(buffer + buffer_len - 1);
+    TDHead->NextTd     = (USB_INT32U)TDTail;
+
+    // =====================================================
+    // DEBUG
+    // =====================================================
+    UART0_Print("[DEBUG] TDHead->Control = ");
+    UART0_PrintHex(TDHead->Control);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] TDHead->CurrBufPtr = ");
+    UART0_PrintHex(TDHead->CurrBufPtr);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] TDHead->BufEnd = ");
+    UART0_PrintHex(TDHead->BufEnd);
+    UART0_Print("\r\n");
+    // =====================================================
+
+    ed->HeadTd = (USB_INT32U)TDHead | (ed->HeadTd & 0x00000002);
+    ed->TailTd = (USB_INT32U)TDTail;
+
+    // =====================================================
+    // DEBUG
+    // =====================================================
+    UART0_Print("[DEBUG] ED HeadTD = ");
+    UART0_PrintHex(ed->HeadTd);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] ED TailTD = ");
+    UART0_PrintHex(ed->TailTd);
+    UART0_Print("\r\n");
+    // =====================================================
+
+    if (ed == EDCtrl)
+    {
+        UART0_Print("[DEBUG] CONTROL LIST\r\n");
+
+        HC_CONTROL |= (1 << 4);
+        HC_CMD_STAT |= (1 << 1);
+    }
+    else
+    {
+        UART0_Print("[DEBUG] BULK LIST\r\n");
+
+        HC_CONTROL |= (1 << 5);
+        HC_CMD_STAT |= (1 << 2);
+    }
+
+    // =====================================================
+    // DEBUG
+    // =====================================================
+    UART0_Print("[DEBUG] HC_CONTROL = ");
+    UART0_PrintHex(HC_CONTROL);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] HC_CMD_STAT = ");
+    UART0_PrintHex(HC_CMD_STAT);
+    UART0_Print("\r\n");
+
+    UART0_Print("[DEBUG] Polling starts...\r\n");
+    // =====================================================
+
+    static USB_INT32U counter = 0;
+
+    do
+    {
+        status = ed->HeadTd;
+
+        counter++;
+
+        if ((counter % 100000) == 0)
+        {
+            UART0_Print("[DEBUG] HeadTD = ");
+            UART0_PrintHex(status);
+
+            UART0_Print(" HC_INT_STAT = ");
+            UART0_PrintHex(HC_INT_STAT);
+
+            UART0_Print(" HC_DONE_HEAD = ");
+            UART0_PrintHex(HC_DONE_HEAD);
+
+            UART0_Print("\r\n");
+        }
+
+        if (status & 0x01)
+        {
+            UART0_Print("[TD_ERR] Endpoint HALTED\r\n");
+
+            ed->HeadTd &= ~0x01;
+
+            return 1;
+        }
+
+        if (--timeout == 0)
+        {
+            UART0_Print("[TD_ERR] SOFTWARE TIMEOUT\r\n");
+
+            UART0_Print("HC_CONTROL = ");
+            UART0_PrintHex(HC_CONTROL);
+            UART0_Print("\r\n");
+
+            UART0_Print("HC_CMD_STAT = ");
+            UART0_PrintHex(HC_CMD_STAT);
+            UART0_Print("\r\n");
+
+            UART0_Print("HC_INT_STAT = ");
+            UART0_PrintHex(HC_INT_STAT);
+            UART0_Print("\r\n");
+
+            UART0_Print("HC_DONE_HEAD = ");
+            UART0_PrintHex(HC_DONE_HEAD);
+            UART0_Print("\r\n");
+
+            UART0_Print("ED HeadTD = ");
+            UART0_PrintHex(ed->HeadTd);
+            UART0_Print("\r\n");
+
+            UART0_Print("ED TailTD = ");
+            UART0_PrintHex(ed->TailTd);
+            UART0_Print("\r\n");
+
+            return 1;
+        }
+
+        for (volatile int i = 0; i < 50; i++);
+
+    } while ((status & 0xFFFFFFF0) != (USB_INT32U)TDTail);
+
+    UART0_Print("[DEBUG] TD Completed\r\n");
+
+    status = (TDHead->Control >> 28) & 0x0F;
+
+    UART0_Print("[DEBUG] TD Status = ");
+    UART0_PrintHex(status);
+    UART0_Print("\r\n");
+
+    if (status != 0)
+    {
+        UART0_Print("[TD_ERR] TD Error\r\n");
+        return 1;
+    }
+
+    UART0_Print("[DEBUG] Host_ProcessTD SUCCESS\r\n");
+
+    return 0;
+}
+USB_INT32S Host_CtrlRecv(USB_INT08U bmRequestType, USB_INT08U bRequest, USB_INT16U wValue, USB_INT16U wIndex, USB_INT16U wLength, volatile USB_INT08U *buffer) {
+
+	UART0_Print("\r\n=== Host_CtrlRecv ===\r\n");
+
+	UART0_Print("bmRequest=");
+	UART0_PrintHex(bmRequestType);
+
+	UART0_Print(" bRequest=");
+	UART0_PrintHex(bRequest);
+
+	UART0_Print("\r\n");
+    // Construct the packet inside the safe USB RAM buffer
+    SetupBuffer[0] = bmRequestType;
+    SetupBuffer[1] = bRequest;
+    SetupBuffer[2] = wValue & 0xFF;
+    SetupBuffer[3] = (wValue >> 8) & 0xFF;
+    SetupBuffer[4] = wIndex & 0xFF;
+    SetupBuffer[5] = (wIndex >> 8) & 0xFF;
+    SetupBuffer[6] = wLength & 0xFF;
+    SetupBuffer[7] = (wLength >> 8) & 0xFF;
+    UART0_Print("SETUP: ");
+
+    for(int i=0;i<8;i++)
+    {
+        UART0_PrintHex(SetupBuffer[i]);
+        UART0_Print(" ");
+    }
+
+    UART0_Print("\r\n");
+    // 1. SETUP phase
+    if (Host_ProcessTD(EDCtrl, TD_SETUP, SetupBuffer, 8) != 0) {
+        return 1;
+    }
+
+    // 2. DATA phase (if applicable)
+    if (wLength > 0) {
+        if (bmRequestType & 0x80) {
+            // Device-to-Host (IN data stage)
+            if (Host_ProcessTD(EDCtrl, TD_IN, buffer, wLength) != 0) return 1;
+        } else {
+            // Host-to-Device (OUT data stage)
+            if (Host_ProcessTD(EDCtrl, TD_OUT, (volatile USB_INT08U*)buffer, wLength) != 0) return 1;
+        }
+    }
+
+    // 3. STATUS phase (Direction correctly matched to USB 2.0 Spec)
+    if (wLength == 0) {
+        // No data stage -> Status stage must be IN
+        if (Host_ProcessTD(EDCtrl, TD_IN, NULL, 0) != 0) return 1;
+    } else if (bmRequestType & 0x80) {
+        // Device-to-Host -> Status stage is OUT
+        if (Host_ProcessTD(EDCtrl, TD_OUT, NULL, 0) != 0) return 1;
+    } else {
+        // Host-to-Device -> Status stage is IN
+        if (Host_ProcessTD(EDCtrl, TD_IN, NULL, 0) != 0) return 1;
+    }
+
+    return 0; // Success
+}

@@ -1,0 +1,20 @@
+#ifndef __USBHOST_INC_H__
+#define __USBHOST_INC_H__
+
+/* 1. Core Hardware & Type Definitions */
+#include "LPC24xx.h"
+#include "type.h"
+
+/* 2. Our New Custom Host & Transfer Descriptor Drivers */
+#include "usb_host_lpc2478.h"
+#include "usb_host_td.h"
+
+/* 3. Legacy Debugging Macros
+ * usbhost_ms.c uses these to print status to a UART terminal.
+ * For now, we define them as empty to prevent compiler errors.
+ * If you set up UART later, you can change these to printf(...)
+ */
+#define PRINT_Log(...)
+#define PRINT_Err(...)
+
+#endif /* __USBHOST_INC_H__ */

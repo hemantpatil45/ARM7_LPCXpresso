@@ -1,0 +1,68 @@
+#include "diskio.c"
+
+#include "usbhost_ms.h"
+#include "usb_host_lpc2478.h"
+
+extern volatile DWORD g_USBConnected;
+extern USB_INT32U MS_BlkSize;
+
+DSTATUS disk_status(BYTE pdrv) {
+    if (pdrv != 0) return STA_NOINIT;
+    if (!g_USBConnected) return STA_NODISK;
+    return 0; // Ready
+}
+
+DSTATUS disk_initialize(BYTE pdrv) {
+    if (pdrv != 0) return STA_NOINIT;
+
+    USBHost_ResetPort();
+
+    // Parse MSC Interface & Descriptors
+    if (MS_ParseConfiguration() != OK) {
+        return STA_NOINIT;
+    }
+
+    // Initialize Mass Storage Device (TestUnitReady & ReadCapacity)
+    if (MS_Init() != OK) {
+        return STA_NOINIT;
+    }
+
+    return 0; // Success
+}
+
+DRESULT disk_read(BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
+    if (pdrv != 0 || !count) return RES_PARERR;
+
+    USB_INT32S status = MS_BulkRecv(sector, count, (USB_INT08U*)buff);
+    if (status == OK) {
+        return RES_OK;
+    }
+    return RES_ERROR;
+}
+
+DRESULT disk_write(BYTE pdrv, const BYTE* buff, LBA_t sector, UINT count) {
+    if (pdrv != 0 || !count) return RES_PARERR;
+
+    USB_INT32S status = MS_BulkSend(sector, count, (USB_INT08U*)buff);
+    if (status == OK) {
+        return RES_OK;
+    }
+    return RES_ERROR;
+}
+
+DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff) {
+    if (pdrv != 0) return RES_PARERR;
+
+    switch (cmd) {
+        case CTRL_SYNC:
+            return RES_OK;
+        case GET_SECTOR_SIZE:
+            *(WORD*)buff = (WORD)MS_BlkSize;
+            return RES_OK;
+        case GET_BLOCK_SIZE:
+            *(DWORD*)buff = 1;
+            return RES_OK;
+        default:
+            return RES_PARERR;
+    }
+}

@@ -1,0 +1,16 @@
+#ifndef SDRAM_H
+#define SDRAM_H
+
+#include <stdint.h>
+
+// Global variables relied upon by the SDRAM functions
+extern unsigned int *SDRAM_pointer;
+extern unsigned int test1234[256]; 
+extern char buffer[64];
+
+// Function prototypes
+void SDRAM_init_32BIT(void);
+void SDRAM_write(unsigned int No_of_data, unsigned int SDRAM_DAT[]);
+void SDRAM_read(unsigned int No_of_data);
+
+#endif /* SDRAM_H */

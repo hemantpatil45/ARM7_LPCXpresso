@@ -1,0 +1,52 @@
+#include "LPC24xx.h"
+#include "stdint.h"
+#include "system_init.h"
+#include "SDRAM.h"
+
+// Software microsecond delay using CPU cycle loops (No Timer interrupts needed)
+// Change 'void delay_us(uint32_t us)' to 'static void delay_us(uint32_t us)'
+static void delay_us(uint32_t us) {
+    volatile uint32_t count = us * 12;
+    while (count--) {
+        __asm("nop");
+    }
+}
+
+void SDRAM_init_32BIT(void)
+{
+    // Power up EMC peripheral block
+    PCONP |= (1 << 11);
+
+    EMC_CTRL = 1;
+    EMC_DYN_RD_CFG = 1;
+    EMC_DYN_RASCAS0 = (3 << 4) | 3;
+    EMC_DYN_RP = P2C(20);      // SDRAM_TRP
+    EMC_DYN_RAS = P2C(45);     // SDRAM_TRAS
+    EMC_DYN_SREX = P2C(70);    // SDRAM_TXSR
+    EMC_DYN_APR = 5;           // SDRAM_TAPR
+    EMC_DYN_DAL = 7 + P2C(20); // SDRAM_TDAL + TRP
+    EMC_DYN_WR = 2;            // SDRAM_TWR
+    EMC_DYN_RC = P2C(65);      // SDRAM_TRC
+    EMC_DYN_RFC = P2C(70);     // SDRAM_TRFC
+    EMC_DYN_XSR = P2C(70);     // SDRAM_TXSR
+    EMC_DYN_RRD = P2C(15);     // SDRAM_TRRD
+    EMC_DYN_MRD = 2;           // SDRAM_TMRD
+
+    EMC_DYN_CFG0 = 0x00000680; // 16-bit width, 4 banks, 13 row, 9 col
+
+    EMC_DYN_CTRL = 0x0183;     // NOP + CKE = 1
+    delay_us(200);             // Software 200us delay
+
+    EMC_DYN_CTRL = 0x0103;     // PALL (Precharge All) command
+    delay_us(100);             // Software 100us delay
+
+    EMC_DYN_RFSH = 2;          // Auto refresh
+    delay_us(100);
+
+    EMC_DYN_RFSH = (P2C(64000000) >> 4); // Refresh timing
+    EMC_DYN_CTRL = 0x0001;     // Normal operation mode
+
+    EMC_DYN_CFG0 |= (1 << 19); // Enable buffer
+
+    delay_us(100);             // Final stabilization delay
+}

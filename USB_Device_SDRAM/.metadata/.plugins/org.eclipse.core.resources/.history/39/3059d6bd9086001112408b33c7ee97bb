@@ -1,0 +1,33 @@
+#include "LPC24xx.h"
+#include <stdint.h>
+#include "system_init.h"
+#include "glcd.h"
+#include "SDRAM.h"
+#include "usb_sdram_disk.h"
+
+int main()
+{
+    // Initialize system clocks and peripherals[cite: 10, 11, 14]
+    PLL_Init();
+    system_Init();
+    GLCD_Init();
+    GLCD_Clear();
+
+    // Initialize the External Memory Controller and SDRAM 32-bit layout[cite: 10, 11]
+    SDRAM_init_32BIT();
+
+    // Format physical SDRAM space for the USB host stack
+    SDRAM_Disk_Format();
+
+    GLCD_RowWriteMargin(0, "USB MSC SDRAM DRIVE ");
+    GLCD_RowWriteMargin(1, "INITIALIZED (8MB)   ");
+
+    // Initialize and connect your USB Stack here
+    // USB_Init();
+    // USB_Connect(1);
+
+    while (1)
+    {
+        // Background tasks; USB packets are handled asynchronously via interrupts.
+    }
+}

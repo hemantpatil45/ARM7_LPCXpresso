@@ -1,0 +1,89 @@
+#ifndef __USBHOST_H__
+#define __USBHOST_H__
+
+#include "type.h"
+
+#define USB_OHCI_ADDR       0x7E000000
+#define FM_INTERVAL_FI      0x277F
+#define FM_INTERVAL_FSMPS   0x2FF3
+#define PERIODIC_START      0x2CDF
+#define LS_THRESHOLD        0x0628
+#define PWRON_TO_PWRGOOD    10
+
+#define TYPE_HOST           2
+#define TYPE_DEVICE         1
+#define TYPE_OTG            3
+
+/* --- USB Stack Return & Status Codes --- */
+#define OK                      0
+#define ERROR                   1
+#define ERR_BAD_CONFIGURATION   -1
+#define ERR_NO_MS_INTERFACE     -2
+#define ERR_MS_CMD_FAILED       -3
+
+/* --- USB Descriptor & Request Types --- */
+#define USB_DESCRIPTOR_TYPE_CONFIGURATION   0x02
+#define USB_DESCRIPTOR_TYPE_INTERFACE       0x04
+#define USB_DESCRIPTOR_TYPE_ENDPOINT        0x05
+
+#define USB_DEVICE_TO_HOST                  0x80
+#define USB_REQUEST_TYPE_CLASS              0x20
+#define USB_RECIPIENT_INTERFACE             0x01
+
+#define TD_IN       1
+#define TD_OUT      0
+
+/* --- Endpoint Descriptor Structure --- */
+typedef struct _HCED {
+    volatile DWORD Control;
+    volatile DWORD TailTD;
+    volatile DWORD HeadTD;
+    volatile DWORD NextED;
+} HCED;
+
+/* --- Global USB Buffers & Endpoints --- */
+extern volatile BYTE  TDBuffer[256];
+extern          HCED  *EDBulkIn;
+extern          HCED  *EDBulkOut;
+
+/* --- Logging & Debug Stubs --- */
+#define PRINT_Err(rc)   ((void)0)
+#define PRINT_Log(fmt)  ((void)0)
+
+/* --- Endian Conversion Helper Macros --- */
+static inline WORD ReadLE16U(volatile const BYTE *ptr) {
+    return (WORD)(ptr[0] | (ptr[1] << 8));
+}
+static inline DWORD ReadBE32U(volatile const BYTE *ptr) {
+    return (DWORD)((ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3]);
+}
+static inline void WriteLE32U(volatile BYTE *ptr, DWORD val) {
+    ptr[0] = (BYTE)(val);
+    ptr[1] = (BYTE)(val >> 8);
+    ptr[2] = (BYTE)(val >> 16);
+    ptr[3] = (BYTE)(val >> 24);
+}
+static inline void WriteBE32U(volatile BYTE *ptr, DWORD val) {
+    ptr[0] = (BYTE)(val >> 24);
+    ptr[1] = (BYTE)(val >> 16);
+    ptr[2] = (BYTE)(val >> 8);
+    ptr[3] = (BYTE)(val);
+}
+static inline void WriteBE16U(volatile BYTE *ptr, WORD val) {
+    ptr[0] = (BYTE)(val >> 8);
+    ptr[1] = (BYTE)(val);
+}
+
+/* --- Core Function Stubs for USB Host Transactions --- */
+USB_INT32S Host_CtrlRecv(BYTE bmRequestType, BYTE bRequest, WORD wValue, WORD wIndex, WORD wLength, volatile BYTE *pData);
+USB_INT32S Host_ProcessTD(HCED *Ed, BYTE Token, volatile BYTE *pData, DWORD Length);
+
+/* --- Hardware Init Prototypes --- */
+extern void __attribute__ ((interrupt("IRQ"))) USBHostHandler (void);
+extern DWORD USBHostInit(void);
+extern DWORD OHCIInit( void );
+extern void OHCIPortOpen( DWORD portNum );
+extern void OHCIPortClose( DWORD portNum );
+extern void OHCISetAddress( void );
+
+#endif
