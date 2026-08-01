@@ -1,81 +1,22 @@
-11:23:19 **** Incremental Build of configuration Debug for project SD_card ****
+05:26:36 **** Incremental Build of configuration Debug for project SD_card ****
 make -r all 
-Building file: ../src/SPI.c
+Building file: ../src/main.c
 Invoking: MCU C Compiler
-arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/SPI.d" -MT"src/SPI.o" -MT"src/SPI.d" -o "src/SPI.o" "../src/SPI.c"
-../src/SPI.c: In function 'SW2_Keypad_Init':
-../src/SPI.c:217:25: error: 'KBD_ROW1_BIT' undeclared (first use in this function)
-     PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));             // Set Row pin to GPIO
-                         ^
-../src/SPI.c:217:25: note: each undeclared identifier is reported only once for each function it appears in
-../src/SPI.c:218:26: error: 'KBD_COL1_BIT' undeclared (first use in this function)
-     PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));       // Set Col pin to GPIO
-                          ^
-../src/SPI.c:219:17: error: 'KBD_ROW1_MASK' undeclared (first use in this function)
-     FIO2DIR &= ~KBD_ROW1_MASK;    // Set Row as input
-                 ^
-../src/SPI.c:220:17: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-                 ^
-../src/SPI.c: In function 'SW2_Pressed':
-../src/SPI.c:227:15: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2CLR = KBD_COL1_MASK;      // Drive scan column low
-               ^
-../src/SPI.c:228:5: warning: implicit declaration of function 'delay_us' [-Wimplicit-function-declaration]
-     delay_us(200);                // Wait for signal to settle
-     ^
-../src/SPI.c:229:36: error: 'KBD_ROW1_MASK' undeclared (first use in this function)
-     uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u); // Check if Row was pulled low
-                                    ^
-../src/SPI.c: In function 'SW6_Keypad_Init':
-../src/SPI.c:237:25: error: 'KBD_ROW2_MASK' undeclared (first use in this function)
-     PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));
-                         ^
-../src/SPI.c:238:26: error: 'KBD_COL1_BIT' undeclared (first use in this function)
-     PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-                          ^
-../src/SPI.c:241:17: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-                 ^
-../src/SPI.c: In function 'SW6_Pressed':
-../src/SPI.c:249:15: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2CLR = KBD_COL1_MASK;
-               ^
-../src/SPI.c:251:36: error: 'KBD_ROW2_MASK' undeclared (first use in this function)
-     uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
-                                    ^
-../src/SPI.c: In function 'SW10_Keypad_Init':
-../src/SPI.c:301:25: error: 'KBD_ROW3_MASK' undeclared (first use in this function)
-     PINSEL4 &= ~(3u << (KBD_ROW3_MASK*2));
-                         ^
-../src/SPI.c:302:26: error: 'KBD_COL1_BIT' undeclared (first use in this function)
-     PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-                          ^
-../src/SPI.c:305:17: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-                 ^
-../src/SPI.c: In function 'SW10_Pressed':
-../src/SPI.c:313:15: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2CLR = KBD_COL1_MASK;
-               ^
-../src/SPI.c:315:36: error: 'KBD_ROW3_MASK' undeclared (first use in this function)
-     uint32_t pressed = ((FIO2PIN & KBD_ROW3_MASK) == 0u);
-                                    ^
-../src/SPI.c: In function 'SW14_Keypad_Init':
-../src/SPI.c:322:25: error: 'KBD_ROW4_MASK' undeclared (first use in this function)
-     PINSEL4 &= ~(3u << (KBD_ROW4_MASK*2));
-                         ^
-../src/SPI.c:323:26: error: 'KBD_COL1_BIT' undeclared (first use in this function)
-     PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-                          ^
-../src/SPI.c:326:17: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-                 ^
-../src/SPI.c: In function 'SW14_Pressed':
-../src/SPI.c:334:15: error: 'KBD_COL1_MASK' undeclared (first use in this function)
-     FIO2CLR = KBD_COL1_MASK;
-               ^
-../src/SPI.c:336:36: error: 'KBD_ROW4_MASK' undeclared (first use in this function)
-     uint32_t pressed = ((FIO2PIN & KBD_ROW4_MASK) == 0u);
-                                    ^
-make: *** [src/subdir.mk:45: src/SPI.o] Error 1
+arm-none-eabi-gcc -DDEBUG -D__CODE_RED -D__REDLIB__ -O0 -fno-common -g3 -Wall -c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=arm7tdmi -specs=redlib.specs -MMD -MP -MF"src/main.d" -MT"src/main.o" -MT"src/main.d" -o "src/main.o" "../src/main.c"
+Finished building: ../src/main.c
+ 
+Building target: SD_card.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="SD_card.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "SD_card_Debug.ld" -o "SD_card.axf" ./src/SPI.o ./src/cr_startup_lpc24.o ./src/crp.o ./src/diskio.o ./src/ff.o ./src/glcd.o ./src/main.o ./src/sys_calls.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       26464 B       512 KB      5.05%
+           Ram64:          12 B        64 KB      0.02%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: SD_card.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -O ihex "SD_card.axf" "SD_card.hex"
+ 

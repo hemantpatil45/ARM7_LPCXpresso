@@ -24,9 +24,18 @@ Discarded input sections
  .group         0x00000000        0x8 ./src/SPI.o
  .group         0x00000000        0x8 ./src/SPI.o
  .group         0x00000000        0x8 ./src/SPI.o
+ .group         0x00000000        0x8 ./src/SPI.o
  .text          0x00000000        0x0 ./src/SPI.o
  .data          0x00000000        0x0 ./src/SPI.o
  .bss           0x00000000        0x0 ./src/SPI.o
+ .bss.timer_cnt
+                0x00000000        0x4 ./src/SPI.o
+ .text.Timer0_irq
+                0x00000000       0x40 ./src/SPI.o
+ .text.Timer0_init
+                0x00000000       0xcc ./src/SPI.o
+ .text.timer_delay
+                0x00000000       0x88 ./src/SPI.o
  .text          0x00000000        0x0 ./src/cr_startup_lpc24.o
  .data          0x00000000        0x0 ./src/cr_startup_lpc24.o
  .bss           0x00000000        0x0 ./src/cr_startup_lpc24.o
@@ -111,6 +120,7 @@ Discarded input sections
  .debug_macro   0x00000000       0x10 ./src/glcd.o
  .debug_macro   0x00000000      0x12d ./src/glcd.o
  .debug_macro   0x00000000      0x5b2 ./src/glcd.o
+ .debug_macro   0x00000000      0x3c8 ./src/glcd.o
  .group         0x00000000        0x8 ./src/main.o
  .group         0x00000000        0x8 ./src/main.o
  .group         0x00000000        0x8 ./src/main.o
@@ -647,98 +657,98 @@ END GROUP
                 0x40010000                PROVIDE (_vStackTop, DEFINED (__user_stack_top)?__user_stack_top:(__top_Ram64 - 0x0))
 OUTPUT(SD_card.axf elf32-littlearm)
 
-.debug_info     0x00000000     0x2741
- .debug_info    0x00000000      0x235 ./src/SPI.o
- .debug_info    0x00000235       0x7a ./src/cr_startup_lpc24.o
- .debug_info    0x000002af       0x3f ./src/crp.o
- .debug_info    0x000002ee      0x2ab ./src/diskio.o
- .debug_info    0x00000599     0x18ef ./src/ff.o
- .debug_info    0x00001e88      0x3f7 ./src/glcd.o
- .debug_info    0x0000227f      0x430 ./src/main.o
- .debug_info    0x000026af       0x92 ./src/system_init.o
+.debug_info     0x00000000     0x27a1
+ .debug_info    0x00000000      0x295 ./src/SPI.o
+ .debug_info    0x00000295       0x7a ./src/cr_startup_lpc24.o
+ .debug_info    0x0000030f       0x3f ./src/crp.o
+ .debug_info    0x0000034e      0x2ab ./src/diskio.o
+ .debug_info    0x000005f9     0x18ef ./src/ff.o
+ .debug_info    0x00001ee8      0x3f7 ./src/glcd.o
+ .debug_info    0x000022df      0x430 ./src/main.o
+ .debug_info    0x0000270f       0x92 ./src/system_init.o
 
-.debug_abbrev   0x00000000      0x6e6
- .debug_abbrev  0x00000000       0xf0 ./src/SPI.o
- .debug_abbrev  0x000000f0       0x14 ./src/cr_startup_lpc24.o
- .debug_abbrev  0x00000104       0x36 ./src/crp.o
- .debug_abbrev  0x0000013a       0xf4 ./src/diskio.o
- .debug_abbrev  0x0000022e      0x1d6 ./src/ff.o
- .debug_abbrev  0x00000404      0x15b ./src/glcd.o
- .debug_abbrev  0x0000055f      0x12a ./src/main.o
- .debug_abbrev  0x00000689       0x5d ./src/system_init.o
+.debug_abbrev   0x00000000      0x714
+ .debug_abbrev  0x00000000      0x11e ./src/SPI.o
+ .debug_abbrev  0x0000011e       0x14 ./src/cr_startup_lpc24.o
+ .debug_abbrev  0x00000132       0x36 ./src/crp.o
+ .debug_abbrev  0x00000168       0xf4 ./src/diskio.o
+ .debug_abbrev  0x0000025c      0x1d6 ./src/ff.o
+ .debug_abbrev  0x00000432      0x15b ./src/glcd.o
+ .debug_abbrev  0x0000058d      0x12a ./src/main.o
+ .debug_abbrev  0x000006b7       0x5d ./src/system_init.o
 
-.debug_aranges  0x00000000      0x338
+.debug_aranges  0x00000000      0x350
  .debug_aranges
-                0x00000000       0x48 ./src/SPI.o
+                0x00000000       0x60 ./src/SPI.o
  .debug_aranges
-                0x00000048       0x20 ./src/cr_startup_lpc24.o
+                0x00000060       0x20 ./src/cr_startup_lpc24.o
  .debug_aranges
-                0x00000068       0x18 ./src/crp.o
+                0x00000080       0x18 ./src/crp.o
  .debug_aranges
-                0x00000080       0x40 ./src/diskio.o
+                0x00000098       0x40 ./src/diskio.o
  .debug_aranges
-                0x000000c0      0x198 ./src/ff.o
+                0x000000d8      0x198 ./src/ff.o
  .debug_aranges
-                0x00000258       0x90 ./src/glcd.o
+                0x00000270       0x90 ./src/glcd.o
  .debug_aranges
-                0x000002e8       0x28 ./src/main.o
+                0x00000300       0x28 ./src/main.o
  .debug_aranges
-                0x00000310       0x28 ./src/system_init.o
+                0x00000328       0x28 ./src/system_init.o
 
-.debug_ranges   0x00000000      0x2a0
- .debug_ranges  0x00000000       0x38 ./src/SPI.o
- .debug_ranges  0x00000038       0x30 ./src/diskio.o
- .debug_ranges  0x00000068      0x188 ./src/ff.o
- .debug_ranges  0x000001f0       0x80 ./src/glcd.o
- .debug_ranges  0x00000270       0x18 ./src/main.o
- .debug_ranges  0x00000288       0x18 ./src/system_init.o
+.debug_ranges   0x00000000      0x2b8
+ .debug_ranges  0x00000000       0x50 ./src/SPI.o
+ .debug_ranges  0x00000050       0x30 ./src/diskio.o
+ .debug_ranges  0x00000080      0x188 ./src/ff.o
+ .debug_ranges  0x00000208       0x80 ./src/glcd.o
+ .debug_ranges  0x00000288       0x18 ./src/main.o
+ .debug_ranges  0x000002a0       0x18 ./src/system_init.o
 
-.debug_macro    0x00000000     0x3890
- .debug_macro   0x00000000       0x4f ./src/SPI.o
- .debug_macro   0x0000004f      0x826 ./src/SPI.o
- .debug_macro   0x00000875       0x10 ./src/SPI.o
- .debug_macro   0x00000885      0x12d ./src/SPI.o
- .debug_macro   0x000009b2      0x5b2 ./src/SPI.o
- .debug_macro   0x00000f64     0x19c4 ./src/SPI.o
- .debug_macro   0x00002928       0x1a ./src/crp.o
- .debug_macro   0x00002942       0x34 ./src/crp.o
- .debug_macro   0x00002976       0x76 ./src/diskio.o
- .debug_macro   0x000029ec      0x119 ./src/diskio.o
- .debug_macro   0x00002b05       0xe2 ./src/diskio.o
- .debug_macro   0x00002be7       0x94 ./src/diskio.o
- .debug_macro   0x00002c7b      0x5b8 ./src/ff.o
- .debug_macro   0x00003233       0x91 ./src/glcd.o
- .debug_macro   0x000032c4      0x3c8 ./src/glcd.o
- .debug_macro   0x0000368c       0x1c ./src/glcd.o
- .debug_macro   0x000036a8       0x93 ./src/main.o
- .debug_macro   0x0000373b       0x16 ./src/main.o
- .debug_macro   0x00003751       0xe8 ./src/main.o
- .debug_macro   0x00003839       0x57 ./src/system_init.o
+.debug_macro    0x00000000     0x3899
+ .debug_macro   0x00000000       0x58 ./src/SPI.o
+ .debug_macro   0x00000058      0x826 ./src/SPI.o
+ .debug_macro   0x0000087e       0x10 ./src/SPI.o
+ .debug_macro   0x0000088e      0x12d ./src/SPI.o
+ .debug_macro   0x000009bb      0x5b2 ./src/SPI.o
+ .debug_macro   0x00000f6d     0x19c4 ./src/SPI.o
+ .debug_macro   0x00002931      0x3c8 ./src/SPI.o
+ .debug_macro   0x00002cf9       0x1a ./src/crp.o
+ .debug_macro   0x00002d13       0x34 ./src/crp.o
+ .debug_macro   0x00002d47       0x76 ./src/diskio.o
+ .debug_macro   0x00002dbd      0x119 ./src/diskio.o
+ .debug_macro   0x00002ed6       0xe2 ./src/diskio.o
+ .debug_macro   0x00002fb8       0x94 ./src/diskio.o
+ .debug_macro   0x0000304c      0x5b8 ./src/ff.o
+ .debug_macro   0x00003604       0x91 ./src/glcd.o
+ .debug_macro   0x00003695       0x1c ./src/glcd.o
+ .debug_macro   0x000036b1       0x93 ./src/main.o
+ .debug_macro   0x00003744       0x16 ./src/main.o
+ .debug_macro   0x0000375a       0xe8 ./src/main.o
+ .debug_macro   0x00003842       0x57 ./src/system_init.o
 
-.debug_line     0x00000000     0x1c48
- .debug_line    0x00000000      0x271 ./src/SPI.o
- .debug_line    0x00000271       0xb2 ./src/cr_startup_lpc24.o
- .debug_line    0x00000323       0x7c ./src/crp.o
- .debug_line    0x0000039f      0x1d1 ./src/diskio.o
- .debug_line    0x00000570      0xfaf ./src/ff.o
- .debug_line    0x0000151f      0x357 ./src/glcd.o
- .debug_line    0x00001876      0x1ad ./src/main.o
- .debug_line    0x00001a23      0x225 ./src/system_init.o
+.debug_line     0x00000000     0x1ca0
+ .debug_line    0x00000000      0x2c9 ./src/SPI.o
+ .debug_line    0x000002c9       0xb2 ./src/cr_startup_lpc24.o
+ .debug_line    0x0000037b       0x7c ./src/crp.o
+ .debug_line    0x000003f7      0x1d1 ./src/diskio.o
+ .debug_line    0x000005c8      0xfaf ./src/ff.o
+ .debug_line    0x00001577      0x357 ./src/glcd.o
+ .debug_line    0x000018ce      0x1ad ./src/main.o
+ .debug_line    0x00001a7b      0x225 ./src/system_init.o
 
-.debug_str      0x00000000    0x17ce3
- .debug_str     0x00000000    0x1201c ./src/SPI.o
-                              0x120a3 (size before relaxing)
- .debug_str     0x0001201c       0xe9 ./src/crp.o
+.debug_str      0x00000000    0x17d10
+ .debug_str     0x00000000    0x1348d ./src/SPI.o
+                              0x13519 (size before relaxing)
+ .debug_str     0x0001348d       0xe9 ./src/crp.o
                                0x2437 (size before relaxing)
- .debug_str     0x00012105      0x777 ./src/diskio.o
+ .debug_str     0x00013576      0x777 ./src/diskio.o
                               0x127d6 (size before relaxing)
- .debug_str     0x0001287c     0x3dbd ./src/ff.o
+ .debug_str     0x00013ced     0x3dbd ./src/ff.o
                                0x7fd3 (size before relaxing)
- .debug_str     0x00016639     0x1641 ./src/glcd.o
+ .debug_str     0x00017aaa      0x1fd ./src/glcd.o
                               0x13679 (size before relaxing)
- .debug_str     0x00017c7a       0x3f ./src/main.o
+ .debug_str     0x00017ca7       0x3f ./src/main.o
                               0x13c88 (size before relaxing)
- .debug_str     0x00017cb9       0x2a ./src/system_init.o
+ .debug_str     0x00017ce6       0x2a ./src/system_init.o
                               0x134c0 (size before relaxing)
 
 .comment        0x00000000       0xdc
@@ -795,10 +805,10 @@ OUTPUT(SD_card.axf elf32-littlearm)
  .ARM.attributes
                 0x000002c0       0x30 /usr/local/lpcxpresso_8.2.2_650/lpcxpresso/tools/bin/../lib/gcc/arm-none-eabi/5.4.1/libcr_eabihelpers.a(rtlib.o)
 
-.debug_frame    0x00000000      0xbcc
- .debug_frame   0x00000000       0xf0 ./src/SPI.o
- .debug_frame   0x000000f0       0xc4 ./src/diskio.o
- .debug_frame   0x000001b4      0x748 ./src/ff.o
- .debug_frame   0x000008fc      0x228 ./src/glcd.o
- .debug_frame   0x00000b24       0x4c ./src/main.o
- .debug_frame   0x00000b70       0x5c ./src/system_init.o
+.debug_frame    0x00000000      0xc34
+ .debug_frame   0x00000000      0x158 ./src/SPI.o
+ .debug_frame   0x00000158       0xc4 ./src/diskio.o
+ .debug_frame   0x0000021c      0x748 ./src/ff.o
+ .debug_frame   0x00000964      0x228 ./src/glcd.o
+ .debug_frame   0x00000b8c       0x4c ./src/main.o
+ .debug_frame   0x00000bd8       0x5c ./src/system_init.o

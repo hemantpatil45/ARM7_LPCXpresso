@@ -1,6 +1,20 @@
-09:09:34 **** Incremental Build of configuration Debug for project Ethernet_Rx ****
+12:18:07 **** Incremental Build of configuration Debug for project Ethernet_Rx ****
 make -r all 
-make: Nothing to be done for 'all'.
+Building target: Ethernet_Rx.axf
+Invoking: MCU Linker
+arm-none-eabi-gcc -nostdlib -Xlinker -Map="Ethernet_Rx.map" -Xlinker --gc-sections -Xlinker -print-memory-usage -mcpu=arm7tdmi -T "Ethernet_Rx_Debug.ld" -o "Ethernet_Rx.axf" ./src/cr_startup_lpc24.o ./src/crp.o ./src/ethernet.o ./src/ethernet_rx.o ./src/glcd.o ./src/main.o ./src/sys_calls.o ./src/system_init.o   
+Memory region         Used Size  Region Size  %age Used
+       MFlash512:       11720 B       512 KB      2.24%
+           Ram64:          12 B        64 KB      0.02%
+      RAM_ETH_16:          0 GB        16 KB      0.00%
+      RAM_USB_16:          0 GB        16 KB      0.00%
+       RAM_RTC_2:          0 GB         2 KB      0.00%
+Finished building target: Ethernet_Rx.axf
+ 
+make --no-print-directory post-build
+Performing post-build steps
+arm-none-eabi-objcopy -O ihex "Ethernet_Rx.axf" "Ethernet_Rx.hex"
+ 
 
-09:09:34 Build Finished (took 56ms)
+12:18:07 Build Finished (took 66ms)
 

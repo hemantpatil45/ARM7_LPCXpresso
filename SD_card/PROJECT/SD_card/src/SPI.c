@@ -211,47 +211,6 @@ uint8_t sd_send_command(uint8_t cmd, uint32_t arg, uint8_t crc)
 
     return response;
 }
-// Initialize GPIOs for SW2 (Row P2.0, Col P2.25)
-void SW2_Keypad_Init(void)
-{
-    PINSEL4 &= ~(3u << (KBD_ROW1_BIT*2));             // Set Row pin to GPIO
-    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));       // Set Col pin to GPIO
-    FIO2DIR &= ~KBD_ROW1_MASK;    // Set Row as input
-    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-    FIO2SET  =  KBD_COL1_MASK;    // Set Col to High (idle)
-}
-
-// Poll SW2: Drive column low, read row, then restore column
-uint32_t SW2_Pressed(void)
-{
-    FIO2CLR = KBD_COL1_MASK;      // Drive scan column low
-    delay_us(200);                // Wait for signal to settle
-    uint32_t pressed = ((FIO2PIN & KBD_ROW1_MASK) == 0u); // Check if Row was pulled low
-    FIO2SET = KBD_COL1_MASK;      // Return column to high
-    return pressed;
-}
-
-// Initialize GPIOs for SW6
-void SW6_Keypad_Init(void)
-{
-    PINSEL4 &= ~(3u << (KBD_ROW2_MASK*2));
-    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-
-    FIO2DIR &= ~KBD_ROW2_MASK;    // Set Row as input
-    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-
-    FIO2SET  =  KBD_COL1_MASK;
-}
-
-// Poll SW6: Same logic as SW2 but checks a different Row bit
-uint32_t SW6_Pressed(void)
-{
-    FIO2CLR = KBD_COL1_MASK;
-    delay_us(200);
-    uint32_t pressed = ((FIO2PIN & KBD_ROW2_MASK) == 0u);
-    FIO2SET = KBD_COL1_MASK;
-    return pressed;
-}
 
 // Timer Interrupt Service Routine
 void Timer0_irq(void) __attribute__((interrupt("IRQ")));
@@ -296,44 +255,3 @@ void timer_delay(unsigned int time)
 }
 
 
-void SW10_Keypad_Init(void)
-{
-    PINSEL4 &= ~(3u << (KBD_ROW3_MASK*2));
-    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-
-    FIO2DIR &= ~KBD_ROW3_MASK;    // Set Row as input
-    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-
-    FIO2SET  =  KBD_COL1_MASK;
-}
-
-// Poll SW10: Same logic as SW2 but checks a different Row bit
-uint32_t SW10_Pressed(void)
-{
-    FIO2CLR = KBD_COL1_MASK;
-    delay_us(200);
-    uint32_t pressed = ((FIO2PIN & KBD_ROW3_MASK) == 0u);
-    FIO2SET = KBD_COL1_MASK;
-    return pressed;
-}
-
-void SW14_Keypad_Init(void)
-{
-    PINSEL4 &= ~(3u << (KBD_ROW4_MASK*2));
-    PINSEL5 &= ~(3u << ((KBD_COL1_BIT-16u)*2));
-
-    FIO2DIR &= ~KBD_ROW4_MASK;    // Set Row as input
-    FIO2DIR |=  KBD_COL1_MASK;    // Set Column as output
-
-    FIO2SET  =  KBD_COL1_MASK;
-}
-
-// Poll SW10: Same logic as SW2 but checks a different Row bit
-uint32_t SW14_Pressed(void)
-{
-    FIO2CLR = KBD_COL1_MASK;
-    delay_us(200);
-    uint32_t pressed = ((FIO2PIN & KBD_ROW4_MASK) == 0u);
-    FIO2SET = KBD_COL1_MASK;
-    return pressed;
-}
